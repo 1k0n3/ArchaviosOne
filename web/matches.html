@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTGA Stats · Matches</title>
+<link rel="stylesheet" href="app.css">
+<script src="data.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<script>
+App.load().then((D) => {
+  const A = App;
+  A.shell("matches.html", `
+    <div class="topbar"><div><h1>Matches</h1><div class="sub" id="count"></div></div>
+      <div class="right filters">
+        <div class="seg" id="f-result"><button data-v="" class="on">Alle</button><button data-v="Sieg">Siege</button><button data-v="Niederlage">Niederlagen</button></div>
+        <label class="f">Deck <select id="f-deck"><option value="">alle</option></select></label>
+        <label class="f"><input type="search" id="f-opp" placeholder="Gegner suchen"></label>
+      </div></div>
+    <div class="panel" style="padding:6px 8px"><table id="tbl"><thead><tr><th>Wann</th><th>Ergebnis</th><th>Deck</th><th>Gegner</th><th>Event</th><th>Züge</th><th>Dauer</th><th>Beginn</th><th>Gegnerkarten</th><th></th></tr></thead><tbody></tbody></table></div>
+  `);
+  let result = "";
+  const fDeck = A.$("#f-deck"), fOpp = A.$("#f-opp");
+  for (const d of [...new Set(D.matches.map(A.deckLabel))].sort()) fDeck.insertAdjacentHTML("beforeend", `<option>${A.esc(d)}</option>`);
+  const pre = A.param("deck"); if (pre) fDeck.value = pre;
+  A.$$("#f-result button").forEach((b) => b.addEventListener("click", () => { result = b.dataset.v; A.$$("#f-result button").forEach((x) => x.classList.toggle("on", x === b)); render(); }));
+  fDeck.addEventListener("change", render);
+  fOpp.addEventListener("input", render);
+
+  function oppCards(m) {
+    const cards = (m.opponentCards || []).map((c) => ({ c, k: A.card(c.grpId) })).filter((x) => !x.k.token).sort((a, b) => a.k.name.localeCompare(b.k.name));
+    if (!cards.length) return `<span class="muted">keine</span>`;
+    const text = cards.map((x) => `${x.c.count} ${x.k.name} (${x.k.set}) ${x.k.nr}`).join("\n");
+    return `<details><summary>${cards.length} Karten</summary><div class="opp-cards">${cards.map((x) => `<div><span style="color:var(--gold);font-weight:700">${x.c.count}</span> ${A.esc(x.k.name)} <span class="muted small">${A.esc(x.k.set)}</span></div>`).join("")}</div>
+      <button class="ghost small" style="margin-top:6px" onclick="navigator.clipboard.writeText(${JSON.stringify(text).replace(/"/g, "&quot;")});this.textContent='Kopiert ✓'">Als Text kopieren</button></details>`;
+  }
+  function render() {
+    const q = fOpp.value.trim().toLowerCase();
+    const list = D.matches.filter((m) => (!result || m.result === result) && (!fDeck.value || A.deckLabel(m) === fDeck.value) && (!q || (m.opponent || "").toLowerCase().includes(q))).sort((a, b) => b.start - a.start);
+    const s = A.stats(list);
+    A.$("#count").textContent = `${s.n} Matches · ${s.w} Siege · ${s.l} Niederlagen · ${Math.round(s.rate * 100)} % Winrate`;
+    A.$("#tbl tbody").innerHTML = list.map((m) => `<tr>
+      <td>${A.fmtDate(m.start)}<div class="muted small">${A.fmtTime(m.start)}</div></td>
+      <td>${A.resultBadge(m.result)}<div class="muted small">${A.esc(m.reason)}</div></td>
+      <td>${A.deckCell(m)}</td>
+      <td><b>${A.esc(m.opponent)}</b><div class="muted small">${A.esc(m.opponentPlatform)}</div></td>
+      <td>${A.esc(A.eventLabel(m.eventId))}<div class="muted small">${A.esc(m.format)}</div></td>
+      <td>${m.turns}</td><td>${A.fmtDur(m.durationSec)}</td><td>${m.onPlay === null ? "" : (m.onPlay ? "ich" : "Gegner")}</td>
+      <td>${oppCards(m)}</td>
+      <td><a href="replay.html?id=${m.matchId}">Replay ▶</a></td></tr>`).join("") || `<tr><td colspan="10" class="empty">Keine Matches</td></tr>`;
+    A.Art.bind(A.$("#tbl"));
+  }
+  render();
+});
+</script>
+</body>
+</html>

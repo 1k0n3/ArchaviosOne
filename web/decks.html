@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTGA Stats · Decks</title>
+<link rel="stylesheet" href="app.css">
+<script src="data.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<script>
+App.load().then((D) => {
+  const A = App;
+  const ZONES = [["CommandZone", "Commander"], ["Companions", "Companion"], ["MainDeck", "Deck"], ["Sideboard", "Sideboard"]];
+  A.shell("decks.html", `
+    <div class="topbar"><div><h1>Decks</h1><div class="sub" id="count"></div></div>
+      <div class="right filters">
+        <label class="f"><input type="search" id="f-q" placeholder="Deck oder Karte suchen"></label>
+        <label class="f">Format <select id="f-format"><option value="">alle</option></select></label>
+        <div class="seg" id="f-played"><button data-v="0" class="on">Alle</button><button data-v="1">Gespielte</button></div>
+      </div></div>
+    <div id="detail"></div>
+    <div class="deck-grid" id="list"></div>
+  `);
+  const fQ = A.$("#f-q"), fFormat = A.$("#f-format");
+  let onlyPlayed = false, current = null;
+  for (const f of [...new Set(D.decks.map((d) => d.format).filter(Boolean))].sort()) fFormat.insertAdjacentHTML("beforeend", `<option>${A.esc(f)}</option>`);
+  A.$$("#f-played button").forEach((b) => b.addEventListener("click", () => { onlyPlayed = b.dataset.v === "1"; A.$$("#f-played button").forEach((x) => x.classList.toggle("on", x === b)); renderList(); }));
+  fFormat.addEventListener("change", renderList);
+  fQ.addEventListener("input", renderList);
+
+  const matchesOf = (d) => D.matches.filter((m) => (m.myDeckId && m.myDeckId === d.id) || (!m.myDeckId && m.myDeck === d.name));
+  const commanderOf = (d) => (d.zones.CommandZone || []).map(([g]) => A.cardName(g)).join(", ");
+  const label = (d) => { const c = commanderOf(d); return c ? `${d.name} · ${c}` : d.name; };
+  const cardCount = (d) => (d.zones.MainDeck || []).reduce((s, [, q]) => s + q, 0);
+  const deckText = (d) => ZONES.filter(([z]) => (d.zones[z] || []).length).map(([z, t]) => t + "\n" + d.zones[z].map(([g, q]) => { const c = A.card(g); return `${q} ${c.name} (${c.set}) ${c.nr}`; }).join("\n")).join("\n\n");
+
+  function renderList() {
+    const q = fQ.value.trim().toLowerCase();
+    const list = D.decks.filter((d) => {
+      if (fFormat.value && d.format !== fFormat.value) return false;
+      if (onlyPlayed && !matchesOf(d).length) return false;
+      if (!q) return true;
+      if (label(d).toLowerCase().includes(q)) return true;
+      return Object.values(d.zones).some((z) => z.some(([g]) => A.cardName(g).toLowerCase().includes(q)));
+    }).sort((a, b) => (matchesOf(b).length - matchesOf(a).length) || (b.lastUpdated || "").localeCompare(a.lastUpdated || ""));
+    A.$("#count").textContent = `${list.length} von ${D.decks.length} Decks`;
+    A.$("#list").innerHTML = list.map((d) => {
+      const s = A.stats(matchesOf(d));
+      return A.deckBox(d, { cls: current === d.id ? "active" : "", sub: (commanderOf(d) || d.format || "") + (s.n ? ` · ${s.w}-${s.l}` : ""), badge: s.n ? `<span class="badge ${s.rate >= .5 ? "win" : "loss"} wr">${Math.round(s.rate * 100)} %</span>` : "" });
+    }).join("") || `<div class="empty">Keine Decks</div>`;
+    A.$$(".deckbox").forEach((el) => {
+      el.addEventListener("click", () => { A.tooltip(false); current = el.dataset.id; renderList(); renderDetail(); window.scrollTo({ top: 0, behavior: "smooth" }); });
+      const d = D.decks.find((x) => x.id === el.dataset.id);
+      el.addEventListener("mousemove", (ev) => { const s = A.stats(matchesOf(d)); A.tooltip(true, `<b>${A.esc(d.name)}</b><br>${A.esc(commanderOf(d) || "")}<br>${A.esc(d.format || "")} · ${cardCount(d)} Karten${s.n ? `<br>${s.w} Siege, ${s.l} Niederlagen (${Math.round(s.rate * 100)} %)` : "<br><span class='muted'>noch nicht gespielt</span>"}<br><span class="muted">geändert ${d.lastUpdated ? A.fmtDate(d.lastUpdated) : "?"}</span>`, ev); });
+      el.addEventListener("mouseleave", () => A.tooltip(false));
+    });
+    A.Art.bind(A.$("#list"));
+  }
+
+  function renderDetail() {
+    const d = D.decks.find((x) => x.id === current);
+    const el = A.$("#detail");
+    if (!d) { el.innerHTML = ""; return; }
+    const ms = matchesOf(d).sort((a, b) => b.start - a.start);
+    const s = A.stats(ms);
+    el.innerHTML = `<div class="panel" style="margin-bottom:18px">
+      <div class="deck-head">
+        ${A.deckBox(d, { cls: "sm", sub: commanderOf(d) })}
+        <div class="info"><div class="t">${A.esc(d.name)}</div><div class="small muted">${A.esc(commanderOf(d))} · ${A.esc(d.format || "")} · ${cardCount(d)} Karten · zuletzt geändert ${d.lastUpdated ? A.fmtDate(d.lastUpdated) : "?"}</div>
+          <div class="chips"><span class="chip">Matches<b>${s.n}</b></span><span class="chip ${s.n ? (s.rate >= .5 ? "win" : "loss") : ""}">Winrate<b>${s.n ? Math.round(s.rate * 100) + " %" : "–"}</b></span><span class="chip">Siege<b>${s.w}</b></span><span class="chip">Niederlagen<b>${s.l}</b></span><span class="chip">Ø Züge<b>${s.n ? s.avgTurns.toFixed(1) : "–"}</b></span></div></div>
+        <div class="actions"><div class="seg" id="view"><button data-v="img" class="on">Karten</button><button data-v="list">Liste</button></div>${A.xButton("close")}</div>
+      </div>
+      <div class="deck-body">
+        <div id="zones"></div>
+        <div class="side"><details><summary>Export (Arena)</summary><textarea class="export" readonly id="exp">${A.esc(deckText(d))}</textarea>
+          <button class="primary" style="margin-top:8px" onclick="navigator.clipboard.writeText(document.getElementById('exp').value);this.textContent='Kopiert ✓'">In Zwischenablage kopieren</button></details>
+          <h3>Matches mit diesem Deck</h3>
+          <table><tbody>${ms.map((m) => `<tr class="clickable" onclick="location.href='replay.html?id=${m.matchId}'"><td>${A.relDate(m.start)}</td><td>${A.resultBadge(m.result)}</td><td>${A.esc(m.opponent)}</td><td class="muted small">${m.turns} Züge</td></tr>`).join("") || `<tr><td class="muted">noch keine</td></tr>`}</tbody></table></div>
+      </div></div>`;
+    const zonesEl = A.$("#zones");
+    // Hauptdeck nach Typen: Kreaturen, Zaubersprüche, andere bleibende Karten, Länder
+    const TYPE_GROUPS = [["Kreaturen", (c) => c.types.includes(2)], ["Zaubersprüche", (c) => c.types.includes(4) || c.types.includes(10)], ["Bleibende Karten", (c) => !c.isLand], ["Länder", () => true]];
+    const sections = [];
+    for (const [z, t] of ZONES) {
+      const list = d.zones[z] || [];
+      if (!list.length) continue;
+      if (z !== "MainDeck") { sections.push([t, list]); continue; }
+      const rest = [...list];
+      for (const [name, test] of TYPE_GROUPS) { const hit = rest.filter(([g]) => test(A.card(g))); if (hit.length) sections.push([name, hit]); for (const x of hit) rest.splice(rest.indexOf(x), 1); }
+    }
+    const draw = (mode) => {
+      zonesEl.className = mode === "img" ? "zones-grid" : "zones-list";
+      zonesEl.innerHTML = sections.map(([t, list]) => { const n = list.reduce((s, [, q]) => s + q, 0); return `<section class="zone-sec ${list.length > 10 ? "wide" : ""}"><div class="zone-title">${t} · ${n}</div>` +
+        (mode === "img" ? `<div class="cards">${list.map(([g, q]) => A.cardTile(g, { qty: q, compact: false })).join("")}</div>`
+          : list.map(([g, q]) => { const c = A.card(g); return `<div class="cardline"><span class="q">${q}</span><span>${A.esc(c.name)}</span><span class="set" title="${A.esc(A.setName(c.set))}">${A.esc(c.set)} ${A.esc(c.nr)}</span></div>`; }).join("")) + "</section>"; }).join("");
+      A.Art.bind(zonesEl);
+      A.bindCardImages(zonesEl);
+      A.hoverPreview(zonesEl);
+      A.cardLinks(zonesEl);
+    };
+    draw("img");
+    A.Art.bind(el);
+    A.$$("#view button").forEach((b) => b.addEventListener("click", () => { A.$$("#view button").forEach((x) => x.classList.toggle("on", x === b)); draw(b.dataset.v); }));
+    A.$(".x-btn.close", el).addEventListener("click", () => { current = null; renderList(); renderDetail(); });
+  }
+  const pre = A.param("deck");
+  if (pre) { const d = D.decks.find((x) => label(x) === pre || x.name === pre); if (d) current = d.id; }
+  renderList();
+  renderDetail();
+});
+</script>
+</body>
+</html>
