@@ -38,16 +38,15 @@ function layout_app(string $title, string $body, array $user, ?array $flash, str
   $pages = [["/u/$h/index.html", 'Übersicht', 'dash'], ["/u/$h/matches.html", 'Matches', 'matches'], ["/u/$h/decks.html", 'Decks', 'decks'], ["/u/$h/library.html", 'Bibliothek', 'lib'], ["/u/$h/builder.html", 'Deckbau', 'build']];
   $nav = '';
   foreach ($pages as [$href, $label, $ic]) $nav .= '<a class="nav" href="' . $href . '">' . $icons[$ic] . '<span>' . $label . '</span></a>';
-  $nav .= '<div class="nav-sep"></div><a class="nav ' . ($active === '/settings' ? 'active' : '') . '" href="/settings">' . $icons['gear'] . '<span>Einstellungen</span></a><a class="nav" href="/">' . $icons['globe'] . '<span>Website</span></a>';
-  $nav .= '<form method="post" action="/logout" class="inline"><input type="hidden" name="csrf" value="' . $csrf . '"><button class="nav" type="submit">' . $icons['out'] . '<span>Abmelden</span></button></form>';
+  $nav .= '<div class="nav-sep"></div><form method="post" action="/logout" class="inline"><input type="hidden" name="csrf" value="' . $csrf . '"><button class="nav" type="submit">' . $icons['out'] . '<span>Abmelden</span></button></form>';
   $name = $user['arena_name'] ?: $user['display_name'];
   $flashHtml = $flash ? '<div class="flash ' . esc($flash['kind'] ?? 'info') . '">' . esc($flash['text'] ?? '') . '</div>' : '';
   return '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . esc($title) . ' · MTGA Stats</title>
 <link rel="icon" href="/static/favicon.ico" sizes="any"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap"><link rel="stylesheet" href="/static/app.css"><link rel="stylesheet" href="/static/site.css"></head>
 <body class="site app"><div class="shell"><aside class="side-nav">
-  <div class="brand">' . logo_svg() . '<div><div class="t1">MTGA Stats</div><div class="t2">Website</div></div></div>' . $nav . '
+  <a class="brand" href="/" title="Zur Website">' . logo_svg() . '<div><div class="t1">MTGA Stats</div><div class="t2">Website</div></div></a>' . $nav . '
   <div class="spacer"></div>
-  <div class="player"><div class="av">' . esc(mb_strtoupper(mb_substr($name, 0, 1))) . '</div><div><div class="n">' . esc($name) . '</div><div class="s">' . esc($user['email']) . '</div></div></div>
+  <a class="player link ' . ($active === '/settings' ? 'active' : '') . '" href="/settings" title="Konto &amp; Geräte"><div class="av">' . esc(mb_strtoupper(mb_substr($name, 0, 1))) . '</div><div><div class="n">' . esc($name) . '</div><div class="s">' . esc($user['email']) . '</div></div></a>
   <div class="foot">' . esc(cfg('base_url')) . '</div>
 </aside><main class="content">' . $flashHtml . $body . '</main></div></body></html>';
 }

@@ -396,17 +396,17 @@ window.App = (function () {
     let pages = [["index.html", tr("Übersicht"), "dash"], ["matches.html", tr("Matches"), "matches"], ["decks.html", tr("Decks"), "decks"], ["library.html", tr("Bibliothek"), "lib"], ["builder.html", tr("Deckbau"), "build"]];
     if (site && site.shared) pages = [["decks.html", tr("Geteiltes Deck"), "decks"]];
     if (isMobile()) pages = pages.filter((p) => p[0] !== "matches.html");   // Match-Tabelle ist nichts fürs Handy
-    const siteLinks = site ? (site.shared ? `<a class="nav" href="/">${ICONS.dash}<span>${tr("Zur Website")}</span></a><a class="nav" href="/p/${esc(site.handle)}">${ICONS.lib}<span>${tr("Profil von {h}", { h: esc(site.handle) })}</span></a>` : `<a class="nav" href="/settings">${ICONS.decks}<span>${tr("Konto & Geräte")}</span></a><a class="nav" href="/">${ICONS.dash}<span>${tr("Website")}</span></a>`) : "";
+    const siteLinks = site && site.shared ? `<a class="nav" href="/p/${esc(site.handle)}">${ICONS.lib}<span>${tr("Profil von {h}", { h: esc(site.handle) })}</span></a>` : "";
     const player = (DATA && DATA.player) || tr("Spieler");
     const cur = pages.find((p) => p[0] === active); if (cur) document.title = "MTGA Stats · " + cur[1];
     const langSel = window.I18N ? `<label class="lang" title="${tr("Sprache")}"><select>${Object.entries(I18N.LANGS).map(([k, v]) => `<option value="${k}" ${k === I18N.lang ? "selected" : ""}>${v}</option>`).join("")}</select></label>` : "";
     const st = stats(DATA ? DATA.matches : []);
     const nav = `<aside class="side-nav">
-      <div class="brand">${logoSvg()}<div><div class="t1">MTGA Stats</div><div class="t2">${tr("Lokales Dashboard")}</div></div></div>
+      ${site ? `<a class="brand" href="/" title="${tr("Zur Website")}">` : `<div class="brand">`}${logoSvg()}<div><div class="t1">MTGA Stats</div><div class="t2">${site ? tr("Website") : tr("Lokales Dashboard")}</div></div>${site ? "</a>" : "</div>"}
       ${pages.map(([h, t, ic]) => `<a class="nav ${active === h ? "active" : ""}" href="${h}">${ICONS[ic]}<span>${t}</span></a>`).join("")}
       ${siteLinks ? `<div class="nav-sep"></div>${siteLinks}` : ""}
       <div class="spacer"></div>
-      <div class="player"><div class="av">${esc(player.slice(0, 1).toUpperCase())}</div><div><div class="n">${esc(player)}</div><div class="s">${tr("{n} Matches", { n: st.n })} · ${Math.round(st.rate * 100)} % ${tr("Winrate")}</div></div></div>
+      ${site && site.own ? `<a class="player link" href="/settings" title="${tr("Konto & Geräte")}">` : `<div class="player">`}<div class="av">${esc(player.slice(0, 1).toUpperCase())}</div><div><div class="n">${esc(player)}</div><div class="s">${tr("{n} Matches", { n: st.n })} · ${Math.round(st.rate * 100)} % ${tr("Winrate")}</div></div>${site && site.own ? "</a>" : "</div>"}
       ${langSel}
       <div class="foot">${tr("Stand")} ${DATA && DATA.generatedAt ? fmtDate(DATA.generatedAt) + " " + fmtTime(DATA.generatedAt) : "?"}${Art.supported ? "" : " · " + tr("Bilder: WebGL S3TC nicht verfügbar")}</div>
     </aside>`;

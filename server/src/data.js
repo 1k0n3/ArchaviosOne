@@ -9,7 +9,8 @@ function decksOf(userId, onlyVisible) {
 }
 const deckOut = (r) => ({ id: r.id, name: r.name, format: r.format, lastUpdated: r.updated_at, tile: r.tile, zones: JSON.parse(r.zones), visibility: r.visibility, shareSlug: r.share_slug });
 function matchesOf(userId) {
-  return db.all("SELECT summary FROM matches WHERE user_id = ? ORDER BY start_at", userId).map((r) => JSON.parse(r.summary));
+  const tiles = new Map(db.all("SELECT id, tile FROM decks WHERE user_id = ?", userId).map((d) => [d.id, d.tile]));
+  return db.all("SELECT summary FROM matches WHERE user_id = ? ORDER BY start_at", userId).map((r) => { const m = JSON.parse(r.summary); if (!m.tile) m.tile = tiles.get(m.myDeckId) || ((m.played || [])[0] || [0])[0] || 0; return m; });
 }
 function latestCollection(userId) {
   const r = db.get("SELECT snapshot FROM collections WHERE user_id = ? ORDER BY taken_at DESC LIMIT 1", userId);

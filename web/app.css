@@ -957,3 +957,10 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; background: r
   .deckbox .plate { max-width: 100%; }
   .content { overflow-x: clip; }
 }
+
+/* Seitenleiste: Logo als Link zur Website, Spielerkarte öffnet Konto & Geräte */
+.side-nav a.brand { color: inherit; }
+.side-nav a.brand:hover .t1 { color: var(--gold-2); }
+.side-nav a.player.link { color: inherit; cursor: pointer; transition: border-color .15s, background .15s; }
+.side-nav a.player.link:hover, .side-nav a.player.link.active { border-color: rgba(242,177,52,.6); background: var(--panel-2); }
+.side-nav a.player.link .n::after { content: " ›"; color: var(--gold); }

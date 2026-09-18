@@ -7,7 +7,15 @@ function decks_of(string $userId, bool $onlyVisible): array {
   $rows = db_all('SELECT * FROM decks WHERE user_id = ? AND deleted_at IS NULL ' . ($onlyVisible ? "AND visibility != 'private' " : '') . 'ORDER BY updated_at DESC', $userId);
   return array_map('deck_out', $rows);
 }
-function matches_of(string $userId): array { return array_map(fn($r) => json_decode($r['summary'], true), db_all('SELECT summary FROM matches WHERE user_id = ? ORDER BY start_at', $userId)); }
+function matches_of(string $userId): array {
+  // Deckbild (tile) wie lokal ergänzen: Titelkarte des Decks, sonst Commander oder erste Karte aus dem Match
+  $tiles = []; foreach (db_all('SELECT id, tile FROM decks WHERE user_id = ?', $userId) as $d) $tiles[$d['id']] = (int)$d['tile'];
+  return array_map(function ($r) use ($tiles) {
+    $m = json_decode($r['summary'], true) ?: [];
+    if (empty($m['tile'])) $m['tile'] = $tiles[$m['myDeckId'] ?? ''] ?? (int)(($m['played'][0][0] ?? 0));
+    return $m;
+  }, db_all('SELECT summary FROM matches WHERE user_id = ? ORDER BY start_at', $userId));
+}
 function latest_collection(?string $userId): array {
   if (!$userId) return [];
   $r = db_get('SELECT snapshot FROM collections WHERE user_id = ? ORDER BY taken_at DESC LIMIT 1', $userId);
