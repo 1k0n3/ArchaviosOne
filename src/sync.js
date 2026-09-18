@@ -14,7 +14,7 @@ const crypto = require("crypto");
 
 const ROOT = path.join(__dirname, "..");
 function cfg() {
-  try { const raw = JSON.parse(fs.readFileSync(path.join(ROOT, "watch-config.json"), "utf8")); const o = {}; for (const k of Object.keys(raw)) if (!k.startsWith("_")) o[k] = raw[k]; return o; } catch (e) { return {}; }
+  try { const raw = JSON.parse(fs.readFileSync(path.join(ROOT, "watch-config.json"), "utf8").replace(/^﻿/, "")); const o = {}; for (const k of Object.keys(raw)) if (!k.startsWith("_")) o[k] = raw[k]; return o; } catch (e) { return {}; }
 }
 const outDir = () => { const c = cfg(); const o = c.outDir || "out"; return path.isAbsolute(o) ? o : path.join(ROOT, o); };
 const syncDir = () => { const d = path.join(outDir(), "sync"); fs.mkdirSync(path.join(d, "queue"), { recursive: true }); return d; };

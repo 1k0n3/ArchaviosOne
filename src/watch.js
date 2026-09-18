@@ -58,7 +58,7 @@ function loadConfig() {
   }
   let file = {};
   if (fs.existsSync(cfgPath)) {
-    const raw = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
+    const raw = JSON.parse(fs.readFileSync(cfgPath, "utf8").replace(/^﻿/, ""));   // BOM entfernen (PowerShell schreibt UTF-8 mit BOM)
     for (const k of Object.keys(raw)) if (!k.startsWith("_")) file[k] = raw[k];
   }
   const cfg = Object.assign({}, DEFAULTS, file, cli);

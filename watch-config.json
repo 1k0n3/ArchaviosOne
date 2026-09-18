@@ -1,4 +1,4 @@
-﻿{
+{
     "_hinweis":  "Alle Zeiten in Sekunden. Änderungen gelten beim nächsten Start des Watchers.",
     "pollSec":  300,
     "_pollSec":  "Wie oft geprüft wird, ob MTGA läuft, solange es nicht läuft.",

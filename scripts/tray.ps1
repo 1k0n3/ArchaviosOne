@@ -44,7 +44,8 @@ function Get-Config {
 function Set-ConfigValue([string]$name, $value) {
   $c = Get-Config
   if ($c.PSObject.Properties[$name]) { $c.$name = $value } else { $c | Add-Member -NotePropertyName $name -NotePropertyValue $value }
-  $c | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $script:configPath -Encoding UTF8
+  # UTF-8 ohne BOM schreiben (Set-Content -Encoding UTF8 setzt in PowerShell 5 ein BOM, das JSON.parse in Node ablehnt)
+  [System.IO.File]::WriteAllText($script:configPath, ($c | ConvertTo-Json -Depth 5), (New-Object System.Text.UTF8Encoding $false))
 }
 function Get-ConfigValue([string]$name, $default) {
   $c = Get-Config
