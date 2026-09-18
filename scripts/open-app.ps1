@@ -33,4 +33,22 @@ if (-not $exe) { Start-Process $url; exit }
 # Eigenes Profil, damit das App-Fenster unabhängig vom normalen Browser läuft (Fenstergröße, Einstellungen)
 $profile = Join-Path $env:LOCALAPPDATA "MTGA Stats\app-profile"
 New-Item -ItemType Directory -Force -Path $profile | Out-Null
+
+# Läuft das App-Fenster schon (Browserprozess mit unserem Profil), nur nach vorn holen statt ein zweites zu öffnen
+Add-Type -Namespace Win -Name Native -MemberDefinition @"
+[DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
+[DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+"@
+$running = Get-CimInstance Win32_Process -Filter "Name = 'chrome.exe' OR Name = 'msedge.exe'" |
+  Where-Object { $_.CommandLine -and $_.CommandLine -like "*$profile*" -and $_.CommandLine -notlike "*--type=*" }
+foreach ($p in $running) {
+  $proc = Get-Process -Id $p.ProcessId -ErrorAction SilentlyContinue
+  if ($proc -and $proc.MainWindowHandle -ne 0) {
+    $h = $proc.MainWindowHandle
+    if ([Win.Native]::IsIconic($h)) { [Win.Native]::ShowWindow($h, 9) | Out-Null }   # 9 = SW_RESTORE
+    [Win.Native]::SetForegroundWindow($h) | Out-Null
+    exit
+  }
+}
 Start-Process $exe -ArgumentList @("--app=$url", "--user-data-dir=`"$profile`"", "--window-size=1500,960", "--no-first-run", "--no-default-browser-check", "--disable-features=TranslateUI")
