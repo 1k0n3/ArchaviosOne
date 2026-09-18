@@ -188,6 +188,7 @@ kbd { background: var(--panel-3); border: 1px solid var(--line-2); border-radius
 .deckbox .box { position: relative; width: 210px; height: 158px; margin: 22px 0 0 4px; transform-style: preserve-3d; transform: rotateX(14deg) rotateY(-9deg); transition: transform .25s ease; }
 .deckbox:hover .box, .deckbox.active .box { transform: rotateX(8deg) rotateY(-4deg) translateY(-5px); }
 .deckbox .face { position: absolute; backface-visibility: hidden; }
+.deckbox .cmdr-ico { position: absolute; left: 7px; top: 7px; width: 20px; height: 20px; z-index: 2; filter: invert(1) drop-shadow(0 1px 2px rgba(0,0,0,.9)); opacity: .92; pointer-events: none; }
 .deckbox .front { inset: 0; border-radius: 6px; overflow: hidden; background: #221b16; transform: translateZ(10px); border: 2px solid #2a2418; box-shadow: 0 18px 30px rgba(0,0,0,.65); }
 .deckbox .front::after { content: ""; position: absolute; inset: 0; border-radius: 4px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), inset 0 -40px 40px rgba(0,0,0,.35); pointer-events: none; }
 .deckbox .front canvas.artbg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -584,7 +585,7 @@ a.chip:hover { border-color: var(--gold); color: var(--gold-2); transform: trans
 .dd.open .dd-btn .chev { transform: rotate(180deg); }
 .dd-menu { display: none; position: absolute; top: calc(100% + 6px); left: 0; min-width: 190px; max-width: 280px; background: var(--panel); border: 1px solid var(--line-2); border-radius: 12px; padding: 6px; z-index: 80; box-shadow: 0 16px 40px rgba(0,0,0,.6); animation: fadeUp .15s ease; }
 .dd.open .dd-menu { display: block; }
-.dd-menu.right { left: auto; right: 0; }
+.dd-menu.dd-right { left: auto; right: 0; }
 /* Tabellen-Panels scrollen bei Platzmangel selbst, statt die Seite zu verbreitern */
 .panel:has(> table) { overflow-x: auto; scrollbar-width: thin; }
 /* Replay-Knöpfe: groß in Tabellen, klein (nur Play) in der Deckansicht */
@@ -854,3 +855,60 @@ button.reset { margin-right: 20px; }
 .side-nav .nav-sep { height: 1px; background: var(--line); margin: 10px 8px; }
 .deckbox .front img.artbg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 20%; }
 .deck-cell .art img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
+
+/* ---- Deckbau: Pool links, Deck rechts (wie in Arena), Alternativen darunter ---- */
+.builder { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+.builder .pool { min-width: 0; }
+.deckpanel { position: sticky; top: 12px; max-height: calc(100vh - 24px); display: flex; flex-direction: column; background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
+.dp-head { display: flex; align-items: center; gap: 6px; padding: 10px 10px 6px; }
+.dp-name { flex: 1; min-width: 0; font: 700 15px/1.2 var(--font-title); background: transparent; border: 1px solid transparent; border-radius: 8px; color: var(--ink); padding: 6px 8px; }
+.dp-name:hover, .dp-name:focus { border-color: var(--line-2); background: rgba(0,0,0,.2); outline: none; }
+.dp-head .dd-btn { height: 30px; padding: 0 8px; }
+.dp-head .dd-btn .lbl:empty { display: none; }
+.dp-meta { display: flex; align-items: center; gap: 10px; padding: 0 12px 6px; }
+.dp-meta .cnt { font: 800 18px/1 var(--font-title); color: var(--loss-ink); }
+.dp-meta .cnt.ok { color: var(--win-ink); }
+.dp-meta .pips { display: inline-flex; gap: 3px; } .dp-meta .pips svg, .dp-meta .pips img { width: 16px; height: 16px; }
+.dp-probs { margin: 0 10px 6px; padding: 6px 10px; border-radius: 8px; background: var(--loss-soft); border: 1px solid var(--loss-line); font-size: 12px; color: var(--ink); }
+.dp-probs div { display: flex; align-items: center; gap: 6px; } .dp-probs svg { width: 12px; height: 12px; color: var(--loss-ink); flex: none; }
+.dp-ok { margin: 0 10px 6px; padding: 6px 10px; border-radius: 8px; background: var(--win-soft); border: 1px solid var(--win-line); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.dp-ok svg { width: 12px; height: 12px; color: var(--win-ink); }
+.dp-curve { display: flex; align-items: flex-end; gap: 4px; height: 58px; padding: 0 12px 4px; border-bottom: 1px solid var(--line); }
+.dp-curve .bar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; font-size: 10px; color: var(--ink-3); }
+.dp-curve .bar b { font-size: 10px; color: var(--ink-2); line-height: 1; margin-bottom: 2px; }
+.dp-curve .bar i { display: block; width: 100%; height: var(--h); min-height: 2px; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, var(--gold-2), var(--gold)); }
+.dp-list { flex: 1; overflow: auto; scrollbar-width: thin; padding: 4px 0 6px; }
+.dp-sec { display: flex; align-items: center; gap: 8px; padding: 8px 12px 3px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--ink-3); }
+.dp-sec span { color: var(--gold); }
+.dp-hint { padding: 8px 12px; }
+.drow { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto 22px 22px; align-items: center; gap: 6px; padding: 3px 8px 3px 12px; font-size: 13px; cursor: pointer; }
+.drow:hover { background: rgba(255,255,255,.04); }
+.drow .q { color: var(--gold); font-weight: 800; text-align: center; }
+.drow .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drow .cost { display: inline-flex; gap: 1px; } .drow .cost img, .drow .cost svg, .drow .cost .ms { width: 13px; height: 13px; }
+.drow.short .n { color: var(--loss-ink); }
+.drow.short .n::after { content: " ●"; font-size: 9px; }
+.drow button { width: 22px; height: 22px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: var(--ink-3); font-size: 14px; line-height: 1; padding: 0; display: inline-flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .12s; }
+.drow:hover button { opacity: 1; }
+.drow button:hover { border-color: var(--line-2); color: var(--ink); background: var(--panel-3); }
+.drow button.alt svg { width: 12px; height: 12px; }
+.dp-actions { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 10px 10px; border-top: 1px solid var(--line); }
+.dp-actions button svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; }
+/* Pool-Kacheln: Anzahl im Deck, Commander-Stern, Klick-Rückmeldung */
+.c .indeck { position: absolute; left: 50%; top: 5px; transform: translateX(-50%); z-index: 3; background: var(--gold); color: var(--gold-ink); font-weight: 800; font-size: 11px; border-radius: 999px; min-width: 20px; height: 18px; line-height: 18px; text-align: center; padding: 0 5px; box-shadow: 0 2px 8px rgba(0,0,0,.6); }
+.c .indeck:empty { display: none; }
+.c.indeck-on { box-shadow: 0 0 0 2px var(--gold), 0 4px 12px rgba(0,0,0,.45); }
+.c .mkcmd { position: absolute; right: 5px; bottom: 26px; z-index: 3; width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(242,177,52,.6); background: rgba(16,13,11,.85); color: var(--gold); font-size: 13px; line-height: 1; padding: 0; cursor: pointer; opacity: 0; transition: opacity .12s; }
+.c:hover .mkcmd { opacity: 1; }
+.c.added { animation: addPop .35s ease; }
+@keyframes addPop { 0% { transform: scale(1); } 40% { transform: scale(1.08); box-shadow: 0 0 0 3px var(--gold-2); } 100% { transform: scale(1); } }
+.toast.small { font-size: 12px; padding: 8px 12px; }
+/* Alternativen */
+.alt-panel { margin-top: 20px; padding: 14px 16px 6px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); border-radius: var(--r); }
+.alt-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; position: relative; padding-right: 40px; }
+.alt-head h3 { margin: 0; font: 700 14px/1.2 var(--font-title); display: flex; align-items: center; gap: 8px; } .alt-head h3 svg { width: 16px; height: 16px; color: var(--gold); }
+.alt-head .x-btn { position: absolute; right: 0; top: -4px; }
+.alt-row { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line); }
+.alt-target { text-align: center; }
+.alt-cards .c { cursor: pointer; } .alt-cards .c:hover { box-shadow: 0 0 0 2px var(--gold-2), 0 6px 16px rgba(0,0,0,.5); }
+@media (max-width: 1100px) { .builder { grid-template-columns: 1fr; } .deckpanel { position: static; max-height: none; } .dp-list { max-height: 50vh; } }

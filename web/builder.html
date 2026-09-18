@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTGA Stats · Deckbau</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#100d0b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="app.css">
+<script src="data.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<script>
+// Deckbau: Kartenpool (alle Karten des Spiels, Filter wie in der Bibliothek) links, Deck rechts wie in Arena.
+// Decks werden im Browser gespeichert (localStorage), Export im Arena-Importformat, Alternativen aus der eigenen Sammlung.
+App.load().then(async (D) => {
+  const A = App, FI = A.FI, T = A.t;
+  const FORMATS = {
+    standard: { label: "Standard", min: 60, copies: 4, side: 15, cmd: false },
+    alchemy: { label: "Alchemy", min: 60, copies: 4, side: 15, cmd: false },
+    explorer: { label: "Explorer", min: 60, copies: 4, side: 15, cmd: false },
+    historic: { label: "Historic", min: 60, copies: 4, side: 15, cmd: false },
+    timeless: { label: "Timeless", min: 60, copies: 4, side: 15, cmd: false },
+    brawl: { label: "Brawl", min: 60, max: 60, copies: 1, side: 0, cmd: true },
+    hbrawl: { label: "Historic Brawl", min: 100, max: 100, copies: 1, side: 0, cmd: true },
+    limited: { label: "Limited", min: 40, copies: 99, side: 99, cmd: false }
+  };
+  A.shell("builder.html", `
+    <div class="topbar"><div><h1>${T("Deckbau")}</h1><div class="sub" id="sub">${T("Deck von null bauen – aus allen Karten des Spiels")}</div></div>
+      <div class="right filters">
+        <div id="f-set"></div><div id="f-rar"></div><div id="f-type"></div>
+        <div class="seg colors" id="f-colors" title="${T("Farbe")}">${[["1", "w", "Weiß"], ["2", "u", "Blau"], ["3", "b", "Schwarz"], ["4", "r", "Rot"], ["5", "g", "Grün"], ["0", "c", "Farblos"]].map(([v, k, t]) => `<button data-v="${v}" title="${T(t)}">${A.manaSymbol(k)}</button>`).join("")}</div>
+        <div id="f-cmc"></div><div id="f-own"></div><div id="f-sort"></div>
+        <button type="button" class="reset" id="f-reset" title="${T("Filter und Sortierung zurücksetzen")}">${FI.reset}</button>
+      </div></div>
+    <div class="builder">
+      <section class="pool">
+        <div class="lib-bar"><div id="f-q"></div><span class="count" id="count">${T("lade …")}</span><div id="f-size"></div></div>
+        <div class="cards lib" id="grid">${Array.from({ length: 24 }, () => '<div class="c sk"></div>').join("")}</div>
+        <div class="empty" id="more"></div>
+      </section>
+      <aside class="deckpanel" id="deckpanel"></aside>
+    </div>
+    <div class="alt-panel hidden" id="alt"></div>
+  `);
+
+  // ---- Kartenpool laden ------------------------------------------------------------------------------
+  let all = [];
+  try { const [cards] = await Promise.all([A.getJson("api/cards", 60000), A.loadSets()]); all = cards.cards; }
+  catch (e) { A.$("#grid").innerHTML = ""; A.$("#count").textContent = T("Bibliothek nicht verfügbar. Läuft der Watcher (Server)?"); return; }
+  // [grpId, name, set, nr, rarity, colors, types, artId, cmc, owned, cost, isToken, isRebalanced, isPrimary, frameFlags, power, toughness, text, typeLine]
+  const RAR = { 1: "Standardland", 2: "Common", 3: "Uncommon", 4: "Rare", 5: "Mythic", 0: "Token" };
+  const byId = new Map(all.map((c) => [c[0], c]));
+  // Kartendaten in das globale Wörterbuch, damit Kacheln, Statistik und Vorschau überall funktionieren
+  for (const c of all) D.cards[c[0]] = [c[1], c[2], c[3], RAR[c[4]] || "", c[11], c[7], c[5], c[6], c[14] || "", c[15] || "", c[16] || "", c[17] || "", c[18] || "", c[10] || ""];
+  const base = all.filter((c) => !c[11] && c[13]);
+  const sets = [...new Set(base.map((c) => c[2]))].sort();
+  const isBasic = (c) => c[4] === 1;
+  const isLand = (c) => String(c[6]).split(",").includes("5");
+  const colorsOf = (c) => String(c[5]).split(",").filter(Boolean);
+  // Farbidentität: Kartenfarben plus Manasymbole im Regeltext (Näherung für Brawl/Commander)
+  const identityOf = (c) => { const s = new Set(colorsOf(c)); for (const m of String(c[17] || "").matchAll(/\{([WUBRG])(?:\/[WUBRGP])?\}/g)) s.add({ W: "1", U: "2", B: "3", R: "4", G: "5" }[m[1]]); return s; };
+  const ownedOf = (c) => c[9] || 0;
+  // Nutzung (Siege, Matches) je Kartenname aus den lokalen Daten
+  const use = new Map();
+  for (const m of D.matches || []) for (const [g] of m.played || []) { const n = A.cardName(g); if (!use.has(n)) use.set(n, { w: 0, p: 0 }); const x = use.get(n); x.p++; if (m.result === "Sieg") x.w++; }
+  const useOf = (c) => use.get(c[1]) || { w: 0, p: 0 };
+
+  // ---- Deck-Zustand (im Browser gespeichert) ----------------------------------------------------------
+  const KEY = "mtga-builder";
+  const loadAll = () => { try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (e) { return []; } };
+  const saveAll = (list) => { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (e) { /* ohne Speicher */ } };
+  const newDeck = () => ({ id: "b" + Date.now().toString(36), name: T("Neues Deck"), format: "standard", cmd: [], main: {}, side: {}, updated: Date.now() });
+  let decks = loadAll(), deck = decks[0] || newDeck();
+  if (!decks.length) decks.push(deck);
+  const persist = () => { deck.updated = Date.now(); if (!decks.includes(deck)) decks.push(deck); saveAll(decks); };
+  const fmt = () => FORMATS[deck.format] || FORMATS.standard;
+  const mainCount = () => Object.values(deck.main).reduce((s, q) => s + q, 0);
+  const sideCount = () => Object.values(deck.side).reduce((s, q) => s + q, 0);
+  const countOfName = (name) => { let n = 0; for (const [g, q] of Object.entries(deck.main)) if (byId.get(+g) && byId.get(+g)[1] === name) n += q; for (const g of deck.cmd) if (byId.get(g) && byId.get(g)[1] === name) n++; return n; };
+  const deckIdentity = () => { const s = new Set(); if (fmt().cmd && deck.cmd.length) { for (const g of deck.cmd) for (const x of identityOf(byId.get(g))) s.add(x); return s; } for (const g of Object.keys(deck.main)) for (const x of colorsOf(byId.get(+g) || [])) s.add(x); return s; };
+
+  function add(g, zone = "main") {
+    const c = byId.get(g); if (!c) return;
+    const f = fmt();
+    if (zone === "cmd") { if (!f.cmd) return; if (!deck.cmd.includes(g)) deck.cmd = [...deck.cmd, g].slice(-2); delete deck.main[g]; }
+    else {
+      const tgt = zone === "side" ? deck.side : deck.main;
+      if (!isBasic(c) && countOfName(c[1]) >= f.copies && zone === "main") { toast(T("Höchstens {n}× erlaubt ({f})", { n: f.copies, f: f.label })); return; }
+      tgt[g] = (tgt[g] || 0) + 1;
+    }
+    persist(); renderDeck(); flashTile(g);
+  }
+  function remove(g, zone = "main") {
+    if (zone === "cmd") deck.cmd = deck.cmd.filter((x) => x !== g);
+    else { const tgt = zone === "side" ? deck.side : deck.main; if (tgt[g] > 1) tgt[g]--; else delete tgt[g]; }
+    persist(); renderDeck();
+  }
+  const toast = (text) => { const el = document.createElement("div"); el.className = "toast small"; el.textContent = text; document.body.appendChild(el); setTimeout(() => el.remove(), 2200); };
+  const flashTile = (g) => { const el = A.$(`#grid .c[data-g="${g}"]`); if (el) { el.classList.add("added"); setTimeout(() => el.classList.remove("added"), 350); } };
+
+  // ---- Export / Import ----------------------------------------------------------------------------------
+  const line = (g, q) => { const c = byId.get(+g); return c ? `${q} ${c[1]} (${c[2]}) ${c[3]}` : ""; };
+  const groupLines = (obj) => Object.entries(obj).map(([g, q]) => line(g, q)).filter(Boolean).join("\n");
+  const exportText = () => [deck.cmd.length ? "Commander\n" + deck.cmd.map((g) => line(g, 1)).join("\n") : "", "Deck\n" + groupLines(deck.main), sideCount() ? "Sideboard\n" + groupLines(deck.side) : ""].filter(Boolean).join("\n\n");
+  function importText(text) {
+    let zone = "main"; const out = { cmd: [], main: {}, side: {} }; let missing = 0;
+    const byKey = new Map(base.map((c) => [`${c[2]}|${String(c[3]).toLowerCase()}`, c]));
+    const byName = new Map(); for (const c of base) { const p = byName.get(c[1]); if (!p || ownedOf(c) > ownedOf(p)) byName.set(c[1].toLowerCase(), c); }
+    for (const raw of text.split(/\r?\n/)) {
+      const l = raw.trim(); if (!l) continue;
+      const h = l.toLowerCase();
+      if (h === "commander") { zone = "cmd"; continue; } if (h === "deck" || h === "main" || h === "maindeck") { zone = "main"; continue; } if (h === "sideboard" || h === "companion") { zone = "side"; continue; }
+      const m = l.match(/^(\d+)\s+(.+?)(?:\s+\(([A-Za-z0-9]+)\)\s+([\w★-]+))?\s*$/); if (!m) continue;
+      const q = +m[1]; const c = (m[3] && byKey.get(`${m[3].toUpperCase()}|${m[4].toLowerCase()}`)) || byName.get(m[2].toLowerCase()) || byName.get(m[2].split(" // ")[0].toLowerCase());
+      if (!c) { missing++; continue; }
+      if (zone === "cmd") out.cmd.push(c[0]); else out[zone][c[0]] = (out[zone][c[0]] || 0) + q;
+    }
+    return { ...out, missing };
+  }
+  const fromExisting = (d) => { const out = { cmd: (d.zones.CommandZone || []).map(([g]) => g).filter((g) => byId.has(g)), main: {}, side: {} }; for (const [g, q] of d.zones.MainDeck || []) if (byId.has(g)) out.main[g] = q; for (const [g, q] of d.zones.Sideboard || []) if (byId.has(g)) out.side[g] = q; return out; };
+
+  // ---- Deck-Panel ---------------------------------------------------------------------------------------
+  const TYPE_GROUPS = [["Kreaturen", (c) => c[6].split(",").includes("2")], ["Planeswalker", (c) => c[6].split(",").includes("8")], ["Spontanzauber", (c) => c[6].split(",").includes("4")], ["Hexereien", (c) => c[6].split(",").includes("10")], ["Verzauberungen", (c) => c[6].split(",").includes("3")], ["Artefakte", (c) => c[6].split(",").includes("1")], ["Schlachten", (c) => c[6].split(",").includes("14")], ["Länder", isLand], ["Sonstiges", () => true]];
+  function problems() {
+    const f = fmt(), n = mainCount(), out = [];
+    if (n < f.min) out.push(T("Noch {n} Karten bis {m}", { n: f.min - n, m: f.min }));
+    if (f.max && n > f.max) out.push(T("{n} Karten zu viel (maximal {m})", { n: n - f.max, m: f.max }));
+    if (f.cmd && !deck.cmd.length) out.push(T("Kein Commander gewählt"));
+    if (sideCount() > f.side) out.push(T("Sideboard zu groß (maximal {m})", { m: f.side }));
+    if (f.cmd && deck.cmd.length) { const id = deckIdentity(); const off = Object.keys(deck.main).filter((g) => [...identityOf(byId.get(+g))].some((x) => !id.has(x))); if (off.length) out.push(T("{n} Karten außerhalb der Farbidentität", { n: off.length })); }
+    const missing = Object.entries(deck.main).filter(([g, q]) => !isBasic(byId.get(+g)) && q > ownedOf(byId.get(+g))).length;   // Standardländer sind in Arena unbegrenzt if (missing) out.push(T("{n} Karten nicht (ausreichend) im Besitz", { n: missing }));
+    return out;
+  }
+  const row = (g, q, zone) => { const c = byId.get(g); const short = q > ownedOf(c) && !isBasic(c); return `<div class="drow ${short ? "short" : ""}" data-g="${g}" data-zone="${zone}" title="${A.esc(c[18] || "")}"><span class="q">${zone === "cmd" ? "★" : q}</span><span class="n">${A.esc(c[1])}</span><span class="cost">${A.manaHtml ? A.manaHtml(c[10]) : A.esc(c[10])}</span><button type="button" class="alt" title="${T("Alternativen")}">${FI.swords}</button><button type="button" class="minus" title="${T("Entfernen")}">−</button></div>`; };
+  function renderDeck() {
+    const f = fmt(), n = mainCount(), st = A.deckStats({ zones: { CommandZone: deck.cmd.map((g) => [g, 1]), MainDeck: Object.entries(deck.main).map(([g, q]) => [+g, q]) } });
+    const groups = TYPE_GROUPS.map(([t]) => [t, []]);
+    for (const [g, q] of Object.entries(deck.main)) { const c = byId.get(+g); if (!c) continue; const gi = TYPE_GROUPS.findIndex(([, fn]) => fn(c)); groups[gi][1].push([+g, q]); }
+    for (const grp of groups) grp[1].sort((a, b) => (byId.get(a[0])[8] - byId.get(b[0])[8]) || byId.get(a[0])[1].localeCompare(byId.get(b[0])[1]));
+    const probs = problems();
+    A.$("#deckpanel").innerHTML = `
+      <div class="dp-head"><input class="dp-name" id="dp-name" value="${A.esc(deck.name)}" maxlength="60" spellcheck="false"><div id="dp-format"></div><div id="dp-menu"></div></div>
+      <div class="dp-meta"><span class="cnt ${n >= f.min && (!f.max || n <= f.max) ? "ok" : ""}">${n}${f.max ? "/" + f.max : "/" + f.min}</span><span class="pips">${[...deckIdentity()].map((c) => A.manaSymbol({ 1: "w", 2: "u", 3: "b", 4: "r", 5: "g" }[c])).join("")}</span><span class="muted small">${T("{n} Länder", { n: st.lands })} · Ø ${st.avgCmc.toFixed(1)}</span></div>
+      ${probs.length ? `<div class="dp-probs">${probs.map((p) => `<div>${FI.x} ${A.esc(p)}</div>`).join("")}</div>` : `<div class="dp-ok">${FI.check} ${T("Deck ist regelkonform")}</div>`}
+      <div class="dp-curve">${st.curve.map((v, i) => `<div class="bar" style="--h:${Math.round(100 * v / Math.max(1, ...st.curve))}%" title="${T("{n} Karten mit Manawert {v}", { n: v, v: i === 7 ? "7+" : i })}"><b>${v || ""}</b><i></i><span>${i === 7 ? "7+" : i}</span></div>`).join("")}</div>
+      <div class="dp-list">
+        ${f.cmd ? `<div class="dp-sec">${T("Commander")} <span>${deck.cmd.length}</span></div>${deck.cmd.map((g) => row(g, 1, "cmd")).join("") || `<div class="muted small dp-hint">${T("Legendäre Kreatur im Pool mit ★ als Commander setzen")}</div>`}` : ""}
+        ${groups.filter(([, l]) => l.length).map(([t, l]) => `<div class="dp-sec">${T(t)} <span>${l.reduce((s, [, q]) => s + q, 0)}</span></div>${l.map(([g, q]) => row(g, q, "main")).join("")}`).join("") || `<div class="muted small dp-hint">${T("Karten links anklicken, um sie ins Deck zu legen. Rechtsklick entfernt.")}</div>`}
+        ${sideCount() ? `<div class="dp-sec">${T("Sideboard")} <span>${sideCount()}</span></div>${Object.entries(deck.side).map(([g, q]) => row(+g, q, "side")).join("")}` : ""}
+      </div>
+      <div class="dp-actions"><button class="primary small" id="dp-copy">${FI.copies} ${T("Für Arena kopieren")}</button><button class="ghost small" id="dp-save">${FI.download} .txt</button><button class="ghost small" id="dp-fix" title="${T("Alternativen aus deiner Sammlung für fehlende Karten")}">${FI.swords} ${T("Fehlende ersetzen")}</button></div>`;
+    A.$("#dp-name").addEventListener("change", (ev) => { deck.name = ev.target.value.trim() || T("Neues Deck"); persist(); });
+    A.dropdown(A.$("#dp-format"), { title: T("Format"), value: deck.format, defaultValue: deck.format, onChange: (v) => { deck.format = v; persist(); renderDeck(); renderPool(); }, items: Object.entries(FORMATS).map(([v, x]) => ({ v, label: x.label, icon: x.cmd ? FI.deck : FI.set })) });
+    A.dropdown(A.$("#dp-menu"), { title: T("Decks"), value: "", defaultValue: "", onChange: (v) => menu(v), items: [
+      { v: "", label: T("Deckmenü"), short: "", icon: FI.deck },
+      { v: "new", label: T("Neues Deck"), icon: FI.reset }, { v: "dup", label: T("Deck duplizieren"), icon: FI.copies }, { v: "import", label: T("Aus Arena-Text einfügen …"), icon: FI.download },
+      ...(D.decks || []).slice(0, 40).map((d) => ({ v: "arena:" + d.id, label: "↳ " + d.name, icon: FI.deck })),
+      ...decks.filter((d) => d !== deck).map((d) => ({ v: "open:" + d.id, label: "▸ " + d.name, icon: FI.play })),
+      { v: "delete", label: T("Dieses Deck löschen"), icon: FI.x }] });
+    A.$("#dp-copy").addEventListener("click", (ev) => { navigator.clipboard.writeText(exportText()); ev.currentTarget.innerHTML = FI.check + " " + T("Kopiert"); });
+    A.$("#dp-save").addEventListener("click", () => { const u = URL.createObjectURL(new Blob([exportText()], { type: "text/plain;charset=utf-8" })); const l = document.createElement("a"); l.href = u; l.download = deck.name.replace(/[\/:*?"<>|]+/g, "_") + ".txt"; l.click(); setTimeout(() => URL.revokeObjectURL(u), 1000); });
+    A.$("#dp-fix").addEventListener("click", () => showAlternatives(null));
+    A.$$(".drow").forEach((r) => {
+      const g = +r.dataset.g, zone = r.dataset.zone;
+      A.$(".minus", r).addEventListener("click", (ev) => { ev.stopPropagation(); remove(g, zone); });
+      A.$(".alt", r).addEventListener("click", (ev) => { ev.stopPropagation(); showAlternatives(g); });
+      r.addEventListener("click", () => A.showCard(g));
+      r.addEventListener("contextmenu", (ev) => { ev.preventDefault(); remove(g, zone); });
+    });
+    A.$("#sub").textContent = T("{n} Decks gespeichert · gespeichert im Browser", { n: decks.length });
+    markPool();
+  }
+  function menu(v) {
+    if (v === "new") { deck = newDeck(); decks.push(deck); }
+    else if (v === "dup") { deck = { ...deck, id: "b" + Date.now().toString(36), name: deck.name + " (2)", main: { ...deck.main }, side: { ...deck.side }, cmd: [...deck.cmd] }; decks.push(deck); }
+    else if (v === "delete") { if (!confirm(T("Deck „{n}“ wirklich löschen?", { n: deck.name }))) { renderDeck(); return; } decks = decks.filter((d) => d !== deck); deck = decks[0] || newDeck(); if (!decks.length) decks.push(deck); }
+    else if (v === "import") { const t = prompt(T("Arena-Deckliste einfügen:")); if (t == null) { renderDeck(); return; } const r = importText(t); deck = { ...newDeck(), name: T("Importiert"), cmd: r.cmd, main: r.main, side: r.side, format: r.cmd.length ? (Object.values(r.main).reduce((s, q) => s + q, 0) > 70 ? "hbrawl" : "brawl") : deck.format }; decks.push(deck); if (r.missing) toast(T("{n} Zeilen nicht erkannt", { n: r.missing })); }
+    else if (v.startsWith("arena:")) { const d = (D.decks || []).find((x) => x.id === v.slice(6)); if (d) { const r = fromExisting(d); deck = { ...newDeck(), name: d.name, cmd: r.cmd, main: r.main, side: r.side, format: r.cmd.length ? (Object.values(r.main).reduce((s, q) => s + q, 0) > 70 ? "hbrawl" : "brawl") : (/alchemy/i.test(d.format || "") ? "alchemy" : /historic/i.test(d.format || "") ? "historic" : "standard") }; decks.push(deck); } }
+    else if (v.startsWith("open:")) { deck = decks.find((d) => d.id === v.slice(5)) || deck; }
+    persist(); renderDeck();
+  }
+
+  // ---- Alternativen (Optimierung mit vorhandenen Karten) ---------------------------------------------------
+  const KEYWORDS = ["flying", "trample", "lifelink", "deathtouch", "haste", "vigilance", "menace", "reach", "flash", "ward", "hexproof", "indestructible", "first strike", "double strike", "defender", "draw a card", "draw two", "destroy target", "exile target", "counter target", "gain life", "+1/+1 counter", "create a", "token", "search your library", "return target", "deals damage", "sacrifice", "discard", "mill", "scry", "surveil", "treasure", "equip", "enchant", "flashback", "graveyard", "each opponent", "target player"];
+  const kw = (c) => new Set(KEYWORDS.filter((k) => String(c[17] || "").toLowerCase().includes(k)));
+  function alternatives(g, limit = 10) {
+    const t = byId.get(g); if (!t) return [];
+    const id = deckIdentity(), tk = kw(t), tTypes = String(t[6]).split(","), tPrim = tTypes[0];
+    const seen = new Set(); const out = [];
+    for (const c of base) {
+      if (c[1] === t[1] || !ownedOf(c) || seen.has(c[1])) continue;
+      const types = String(c[6]).split(","); if (!types.includes(tPrim)) continue;
+      if (id.size && [...identityOf(c)].some((x) => !id.has(x))) continue;
+      const dc = Math.abs(c[8] - t[8]); if (dc > 2) continue;
+      seen.add(c[1]);
+      const ck = kw(c); let shared = 0; for (const k of tk) if (ck.has(k)) shared++;
+      const u = useOf(c);
+      let score = 10 - dc * 3 + shared * 4 - Math.abs(ck.size - tk.size) + (colorsOf(c).join() === colorsOf(t).join() ? 3 : 0) + Math.min(6, u.w * 2 + u.p * 0.5) + (c[4] === t[4] ? 1 : 0);
+      if (types.includes("2") && t[15] !== "" && c[15] !== "") score -= Math.abs((+c[15] || 0) - (+t[15] || 0)) + Math.abs((+c[16] || 0) - (+t[16] || 0));
+      if (countOfName(c[1]) >= fmt().copies && !isBasic(c)) score -= 6;
+      out.push({ c, score, shared, u });
+    }
+    return out.sort((a, b) => b.score - a.score).slice(0, limit);
+  }
+  function showAlternatives(g) {
+    const panel = A.$("#alt");
+    const targets = g != null ? [g] : Object.entries(deck.main).filter(([x, q]) => q > ownedOf(byId.get(+x)) && !isBasic(byId.get(+x))).map(([x]) => +x);
+    if (!targets.length) { toast(T("Alle Karten im Besitz – nichts zu ersetzen.")); return; }
+    panel.classList.remove("hidden");
+    panel.innerHTML = `<div class="alt-head"><h3>${FI.swords} ${g != null ? T("Alternativen zu {n}", { n: A.esc(byId.get(g)[1]) }) : T("Fehlende Karten ersetzen")}</h3><span class="muted small">${T("aus deiner Sammlung · gleicher Typ, passende Farben, ähnlicher Manawert, ähnliche Fähigkeiten")}</span>${A.xButton("alt-x")}</div>
+      ${targets.map((tg) => { const t = byId.get(tg); const alts = alternatives(tg, g != null ? 12 : 6); return `<div class="alt-row"><div class="alt-target">${A.cardTile(tg, { qty: deck.main[tg] || 1, compact: true })}<div class="muted small">${T("nicht im Besitz")}: ${Math.max(0, (deck.main[tg] || 1) - ownedOf(t))}×</div></div><div class="cards alt-cards">${alts.map((a) => A.cardTile(a.c[0], { qty: 0, extra: `<span class="own has">${ownedOf(a.c)}×</span>` })).map((h, i) => h.replace(/^<div /, `<div data-alt-for="${tg}" data-alt="${alts[i].c[0]}" `)).join("") || `<div class="muted small">${T("Keine passende Karte in der Sammlung")}</div>`}</div></div>`; }).join("")}`;
+    A.$(".x-btn.alt-x", panel).addEventListener("click", () => panel.classList.add("hidden"));
+    A.bindCardImages(panel); A.Art.bind(panel); A.hoverPreview(panel);
+    A.$$("[data-alt]", panel).forEach((el) => el.addEventListener("click", (ev) => { ev.stopPropagation(); const from = +el.dataset.altFor, to = +el.dataset.alt; const q = deck.main[from] || 0; const need = Math.max(1, q - ownedOf(byId.get(from))); deck.main[from] = q - need; if (deck.main[from] <= 0) delete deck.main[from]; deck.main[to] = (deck.main[to] || 0) + need; persist(); renderDeck(); toast(T("{a} → {b}", { a: byId.get(from)[1], b: byId.get(to)[1] })); }));
+    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ---- Pool: Filter, Sortierung, Kacheln --------------------------------------------------------------------
+  const rerender = () => renderPool();
+  const fQ = A.searchBox(A.$("#f-q"), { placeholder: T("Name oder Regeltext suchen"), onInput: A.debounce(rerender, 160) });
+  const fSet = A.dropdown(A.$("#f-set"), { icon: FI.set, title: T("Set"), searchable: true, onChange: rerender, items: [{ v: "", label: T("Alle Sets"), short: T("Set"), icon: FI.set }, ...sets.map((s) => ({ v: s, label: s, q: A.setName(s), icon: A.setIcon(s) }))] });
+  A.$("#f-set").classList.add("sets");
+  const gem = (c) => FI.gem(c);
+  const fRar = A.dropdown(A.$("#f-rar"), { title: T("Seltenheit"), onChange: rerender, items: [{ v: "", label: T("Alle Seltenheiten"), short: T("Seltenheit"), icon: gem("#8d95a8") }, { v: "2", label: "Common", icon: gem("#1f242e") }, { v: "3", label: "Uncommon", icon: gem("#b9c4cc") }, { v: "4", label: "Rare", icon: gem("#e0b654") }, { v: "5", label: "Mythic", icon: gem("#e8632a") }, { v: "1", label: T("Standardland"), icon: gem("#6e5a3c") }] });
+  const fType = A.dropdown(A.$("#f-type"), { title: T("Kartentyp"), onChange: rerender, items: [{ v: "", label: T("Alle Typen"), short: T("Typ"), icon: FI.all }, { v: "2", label: T("Kreatur"), icon: FI.creature }, { v: "4", label: T("Spontanzauber"), icon: FI.instant }, { v: "10", label: T("Hexerei"), icon: FI.sorcery }, { v: "3", label: T("Verzauberung"), icon: FI.enchantment }, { v: "1", label: T("Artefakt"), icon: FI.artifact }, { v: "8", label: T("Planeswalker"), icon: FI.planeswalker }, { v: "5", label: T("Land"), icon: FI.land }, { v: "14", label: T("Schlacht"), icon: FI.battle }, { v: "L", label: T("Legendär"), icon: FI.trophy }] });
+  const fCmc = A.dropdown(A.$("#f-cmc"), { title: T("Manawert"), onChange: rerender, items: [{ v: "", label: T("Jeder Manawert"), short: T("Mana"), icon: FI.mana }, ...[0, 1, 2, 3, 4, 5, 6].map((n) => ({ v: String(n), label: String(n), icon: FI.mana })), { v: "7", label: "7+", icon: FI.mana }] });
+  const fOwn = A.dropdown(A.$("#f-own"), { title: T("Besitz"), value: "1", defaultValue: "1", onChange: rerender, items: [{ v: "1", label: T("Im Besitz"), icon: FI.check }, { v: "", label: T("Alle Karten"), short: T("Alle"), icon: FI.all }, { v: "0", label: T("Fehlende"), icon: FI.x }, { v: "id", label: T("Passend zur Farbidentität"), short: T("Identität"), icon: FI.deck }] });
+  const fSort = A.dropdown(A.$("#f-sort"), { title: T("Sortierung"), value: "name", onChange: rerender, items: [{ v: "name", label: T("Name A–Z"), short: T("Name"), icon: FI.az }, { v: "cmc", label: T("Manawert"), short: T("Mana"), icon: FI.mana }, { v: "wins", label: T("Meiste Siege"), short: T("Siege"), icon: FI.trophy }, { v: "rarity", label: T("Seltenheit"), icon: gem("#e0b654") }, { v: "set", label: T("Set und Nummer"), short: T("Set"), icon: FI.set }, { v: "owned", label: T("Meiste Exemplare"), short: T("Exemplare"), icon: FI.copies }] });
+  A.sizeSlider(A.$("#f-size"), A.$("#grid"), "mtga-builder-tile", 80, 200);
+  let colors = new Set(), page = 0, current = [];
+  const PAGE = 100;
+  A.$$("#f-colors button").forEach((b) => b.addEventListener("click", () => { const v = b.dataset.v; if (colors.has(v)) colors.delete(v); else colors.add(v); b.classList.toggle("on", colors.has(v)); rerender(); }));
+  A.$("#f-reset").addEventListener("click", () => { fQ.value = ""; fQ.dispatchEvent(new Event("input")); fSet.value = ""; fRar.value = ""; fType.value = ""; fCmc.value = ""; fOwn.value = "1"; fSort.value = "name"; colors.clear(); A.$$("#f-colors button").forEach((b) => b.classList.remove("on")); renderPool(); });
+
+  function filtered() {
+    const q = fQ.value.trim().toLowerCase(), own = fOwn.value, s = fSort.value, id = deckIdentity();
+    // ein Druck je Kartenname (der mit den meisten Exemplaren, sonst der neueste)
+    const best = new Map();
+    for (const c of base) {
+      if (q && !c[1].toLowerCase().includes(q) && !String(c[17] || "").toLowerCase().includes(q) && !String(c[18] || "").toLowerCase().includes(q)) continue;
+      if (fSet.value && c[2] !== fSet.value) continue;
+      if (fRar.value && String(c[4]) !== fRar.value) continue;
+      if (fType.value === "L" ? !String(c[14] || "").includes("L") : (fType.value && !String(c[6]).split(",").includes(fType.value))) continue;
+      if (fCmc.value && (fCmc.value === "7" ? c[8] < 7 : c[8] !== +fCmc.value)) continue;
+      if (colors.size) { const cc = colorsOf(c); if (colors.has("0") && cc.length) continue; if ([...colors].some((v) => v !== "0" && !cc.includes(v))) continue; }
+      if (own === "1" && !ownedOf(c)) continue;
+      if (own === "0" && ownedOf(c)) continue;
+      if (own === "id" && id.size && [...identityOf(c)].some((x) => !id.has(x))) continue;
+      const p = best.get(c[1]); if (!p || ownedOf(c) > ownedOf(p) || (ownedOf(c) === ownedOf(p) && c[0] > p[0])) best.set(c[1], c);
+    }
+    const list = [...best.values()];
+    const byName = (a, b) => a[1].localeCompare(b[1], "en");
+    list.sort((a, b) => {
+      if (s === "cmc") return (a[8] - b[8]) || byName(a, b);
+      if (s === "wins") { const x = useOf(a), y = useOf(b); return (y.w - x.w) || (y.p - x.p) || byName(a, b); }
+      if (s === "rarity") return (b[4] - a[4]) || byName(a, b);
+      if (s === "set") return a[2].localeCompare(b[2]) || String(a[3]).localeCompare(String(b[3]), undefined, { numeric: true });
+      if (s === "owned") return (ownedOf(b) - ownedOf(a)) || byName(a, b);
+      return byName(a, b);
+    });
+    return list;
+  }
+  function renderPool() {
+    current = filtered(); page = 0;
+    A.$("#f-reset").classList.toggle("show", !!(fQ.value || fSet.value || fRar.value || fType.value || fCmc.value || colors.size || fOwn.value !== "1" || fSort.value !== "name"));
+    A.$("#count").textContent = T("{n} Karten", { n: current.length });
+    A.$("#grid").innerHTML = "";
+    more();
+  }
+  function more() {
+    const slice = current.slice(page * PAGE, (page + 1) * PAGE); page++;
+    const f = fmt();
+    A.$("#grid").insertAdjacentHTML("beforeend", slice.map((c) => A.cardTile(c[0], { qty: 0, extra: `<span class="own ${ownedOf(c) ? "has" : ""}">${ownedOf(c) ? ownedOf(c) + "×" : "–"}</span><span class="indeck" data-g="${c[0]}"></span>${f.cmd && String(c[14] || "").includes("L") && c[6].split(",").includes("2") ? `<button type="button" class="mkcmd" data-g="${c[0]}" title="${T("Als Commander")}">★</button>` : ""}` })).join(""));
+    A.Art.bind(A.$("#grid")); A.hoverPreview(A.$("#grid"));
+    A.$("#more").innerHTML = page * PAGE < current.length ? `<button id="b-more">${T("Weitere {n} Karten laden ({r} übrig)", { n: Math.min(PAGE, current.length - page * PAGE), r: current.length - page * PAGE })}</button>` : (current.length ? "" : T("Keine Karten gefunden"));
+    const b = A.$("#b-more"); if (b) b.addEventListener("click", more);
+    markPool();
+  }
+  function markPool() {
+    A.$$("#grid .c[data-g]").forEach((el) => { const g = +el.dataset.g; const q = (deck.main[g] || 0) + (deck.side[g] || 0) + (deck.cmd.includes(g) ? 1 : 0); el.classList.toggle("indeck-on", q > 0); const m = A.$(".indeck", el); if (m) m.textContent = q ? q : ""; });
+  }
+  // Klick = ins Deck, Rechtsklick = raus, Shift+Klick = Sideboard, Strg/Alt+Klick = Kartendetails
+  A.$("#grid").addEventListener("click", (ev) => {
+    const cmd = ev.target.closest(".mkcmd"); if (cmd) { ev.stopPropagation(); add(+cmd.dataset.g, "cmd"); return; }
+    const el = ev.target.closest(".c[data-g]"); if (!el) return;
+    const g = +el.dataset.g;
+    if (ev.ctrlKey || ev.altKey || ev.metaKey) { A.showCard(g); return; }
+    add(g, ev.shiftKey ? "side" : "main");
+  });
+  A.$("#grid").addEventListener("contextmenu", (ev) => { const el = ev.target.closest(".c[data-g]"); if (!el) return; ev.preventDefault(); const g = +el.dataset.g; if (deck.side[g] && ev.shiftKey) remove(g, "side"); else if (deck.main[g]) remove(g, "main"); else if (deck.side[g]) remove(g, "side"); });
+  const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting) && page * PAGE < current.length) more(); });
+  io.observe(A.$("#more"));
+
+  renderDeck();
+  renderPool();
+});
+</script>
+</body>
+</html>

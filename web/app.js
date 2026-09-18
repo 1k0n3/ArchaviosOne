@@ -238,8 +238,8 @@ window.App = (function () {
         if (ddOpen && ddOpen !== el) ddOpen.classList.remove("open");
         el.classList.toggle("open", open); ddOpen = open ? el : null;
         if (open) {
-          const menu = $(".dd-menu", el); menu.classList.remove("right");
-          if (menu.getBoundingClientRect().right > window.innerWidth - 8) menu.classList.add("right");
+          const menu = $(".dd-menu", el); menu.classList.remove("dd-right");
+          if (menu.getBoundingClientRect().right > window.innerWidth - 8) menu.classList.add("dd-right");
           const q = $(".dd-q", el); if (q) { q.value = ""; q.focus(); } const on = $(".dd-list .on", el); if (on) on.scrollIntoView({ block: "center" });
         }
       });
@@ -323,8 +323,10 @@ window.App = (function () {
     // Ohne lokales Artwork (Website): Kartenbild der Titelkarte als Boxbild
     const artHtml = art ? artCanvas(art, "artbg") : (d.tile ? `<img class="artbg wide" src="card-img/${d.tile}?v=normal" alt="" loading="lazy" onerror="this.remove()">` : "");
     const pips = (opts.colors || deckColors(d)).map((c) => `<span class="pip p-${c}">${manaSymbol(c)}</span>`).join("");
+    // Commander-/Brawl-Decks: offizielles Commander-Symbol (Scryfall-Setsymbol "cmd") auf der Box
+    const cmdr = (d.zones && d.zones.CommandZone && d.zones.CommandZone.length) ? `<img class="cmdr-ico" src="https://svgs.scryfall.io/sets/cmd.svg" alt="Commander" title="Commander" loading="lazy" onerror="this.remove()">` : "";
     return `<div class="deckbox ${opts.cls || ""}" data-id="${esc(d.id || "")}" title="${esc(d.name)}">
-      <div class="box"><div class="face top"><span class="brand">✦ ARENA</span></div><div class="face front">${artHtml}<div class="pips">${pips}</div>${opts.badge || ""}</div><div class="face side"></div></div>
+      <div class="box"><div class="face top"><span class="brand">✦ ARENA</span></div><div class="face front">${artHtml}${cmdr}<div class="pips">${pips}</div>${opts.badge || ""}</div><div class="face side"></div></div>
       <div class="plate"><span class="n">${esc(d.name)}</span>${opts.sub ? `<span class="s">${esc(opts.sub)}</span>` : ""}</div></div>`;
   }
   function deckCell(m) {
@@ -364,13 +366,14 @@ window.App = (function () {
     dash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg>',
     matches: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 3.5 20.5 9.5 9 21H3v-6z"/><path d="m12 6 6 6"/></svg>',
     decks: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="12" height="16" rx="2"/><path d="M9 7h4M9 11h4"/><path d="M17 7h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2"/></svg>',
+    build: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 4 20 10 10 20H4v-6z"/><path d="M12 6l6 6"/><path d="M3 21h6"/></svg>',
     lib: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/><path d="M4 19a2 2 0 0 0 2 2h14"/><path d="M8 7h8M8 11h6"/></svg>'
   };
 
   function shell(active, contentHtml) {
     // Auf der Website: freigegebene Decks zeigen nur die Deckseite, das eigene Dashboard bekommt Konto-Links
     const site = DATA && DATA.site;
-    let pages = [["index.html", tr("Übersicht"), "dash"], ["matches.html", tr("Matches"), "matches"], ["decks.html", tr("Decks"), "decks"], ["library.html", tr("Bibliothek"), "lib"]];
+    let pages = [["index.html", tr("Übersicht"), "dash"], ["matches.html", tr("Matches"), "matches"], ["decks.html", tr("Decks"), "decks"], ["library.html", tr("Bibliothek"), "lib"], ["builder.html", tr("Deckbau"), "build"]];
     if (site && site.shared) pages = [["decks.html", tr("Geteiltes Deck"), "decks"]];
     const siteLinks = site ? (site.shared ? `<a class="nav" href="/">${ICONS.dash}<span>${tr("Zur Website")}</span></a><a class="nav" href="/p/${esc(site.handle)}">${ICONS.lib}<span>${tr("Profil von {h}", { h: esc(site.handle) })}</span></a>` : `<a class="nav" href="/settings">${ICONS.decks}<span>${tr("Konto & Geräte")}</span></a><a class="nav" href="/">${ICONS.dash}<span>${tr("Website")}</span></a>`) : "";
     const player = (DATA && DATA.player) || tr("Spieler");
