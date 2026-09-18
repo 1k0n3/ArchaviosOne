@@ -36,7 +36,7 @@ function enqueue(kind, key, payload, at) {
 }
 /** Match inklusive Replay (Rahmen); die Karten-Wörterbücher rechnet der Server selbst */
 function enqueueMatch(m, summary) {
-  enqueue("match", summary.matchId, { summary, replay: { match: Object.assign({}, m, { frames: undefined }), frames: m.frames } }, new Date(m.start).toISOString());
+  enqueue("match", summary.matchId + ":" + hash([summary.myDeckId, summary.myDeck, summary.result, summary.turns]), { summary, replay: { match: Object.assign({}, m, { frames: undefined }), frames: m.frames } }, new Date(m.start).toISOString());
 }
 /** Decks nur, wenn sich ihr Inhalt seit dem letzten Senden geändert hat */
 function enqueueDecks(decks) {

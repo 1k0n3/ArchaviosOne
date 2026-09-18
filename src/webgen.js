@@ -100,6 +100,9 @@ function build(outDir, cards) {
   for (const m of list) {
     const d = deckById.get(m.myDeck.deckId);
     if (!d || !(m.myDeck.cards || []).length) continue;
+    // Sicherheitsnetz: nur wenn der gespielte Commander zum Deck gehört (sonst falsche Zuordnung)
+    const dc = new Set((d.zones.CommandZone || []).map(([g]) => g)), mc = (m.myDeck.commander || []).map((c) => c.grpId);
+    if (mc.length !== dc.size || !mc.every((g) => dc.has(g))) continue;
     const at = new Date(m.start);
     if (d.lastUpdated && new Date(d.lastUpdated) >= at) continue;
     const toZone = (arr) => (arr || []).map((c) => [c.grpId, c.qty || 1]);

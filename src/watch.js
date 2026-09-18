@@ -161,6 +161,7 @@ function writeSessionDiffCsv(file, diffs) {
 }
 
 function tryExportDecks() {
+  refreshKnownDecks();
   try {
     const r = exportDecks(cards, cfg.outDir, { txt: true });
     log(`Decks exportiert: ${r.count} -> ${path.relative(cfg.outDir, r.csvFile)}`);
@@ -216,7 +217,12 @@ function onMatch(m) {
 
 let logTailer = null;
 
+function refreshKnownDecks() {
+  try { matches.setKnownDecks(webgen.readDecks(cards)); } catch (e) { /* kein Log */ }
+}
+
 function matchCatchUp() {
+  refreshKnownDecks();
   const dir = matches.defaultLogDir();
   const prev = path.join(dir, "Player-prev.log");
   if (fs.existsSync(prev)) matches.parseLogFile(prev, onMatch);

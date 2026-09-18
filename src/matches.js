@@ -39,6 +39,44 @@ function detail(a, key) {
 
 // ---- Parser -----------------------------------------------------------------------------------------
 
+/**
+ * Deck anhand des gespielten Inhalts erkennen. Arena schreibt bei Direktspielen und manchen Events kein
+ * "EventSetDeck" ins Log, dann bliebe sonst das zuletzt gewählte Deck stehen. Der Commander muss passen
+ * (bei Brawl eindeutig), sonst zählt die größte Überschneidung der Kartenliste (mindestens 60 %).
+ * played: { cards: [{grpId, qty}], commander: [{grpId, qty}] }, decks: [{ id, name, format, zones }]
+ */
+function resolveDeck(played, decks) {
+  if (!decks || !decks.length || !(played.cards || []).length) return null; // ohne gespielte Liste keine Erkennung
+  const cmd = new Set((played.commander || []).map((c) => c.grpId));
+  let best = null, bestScore = 0;
+  for (const d of decks) {
+    const z = d.zones || {};
+    const dcmd = new Set((z.CommandZone || []).map(([g]) => g));
+    const cmdOk = cmd.size > 0 && dcmd.size === cmd.size && [...cmd].every((g) => dcmd.has(g)); // nur ein echter Commander zählt
+    const main = new Map((z.MainDeck || []).map(([g, q]) => [g, q]));
+    let overlap = 0, total = 0;
+    for (const c of played.cards || []) { total += c.qty; overlap += Math.min(c.qty, main.get(c.grpId) || 0); }
+    const ratio = total ? overlap / total : 0;
+    const score = (cmdOk ? 1000 : 0) + ratio * 100;
+    if (score > bestScore) { bestScore = score; best = d; }
+  }
+  if (!best) return null;
+  const byCommander = bestScore >= 1000, ratio = bestScore % 1000;
+  if (byCommander || ratio >= 60) return { id: best.id, name: best.name, format: best.format || "", by: byCommander ? "commander" : "cards", ratio: Math.round(ratio) };
+  return null;
+}
+/** Bekannte Decks für die Erkennung (vom Watcher gesetzt, aus dem Player.log) */
+let knownDecks = [];
+const setKnownDecks = (decks) => { knownDecks = decks || []; };
+/** myDeck eines Matches am Inhalt prüfen und ggf. korrigieren; gibt true zurück, wenn sich etwas geändert hat */
+function fixMatchDeck(m, decks) {
+  const r = resolveDeck(m.myDeck, decks || knownDecks);
+  if (!r) return false;
+  if (m.myDeck.deckId === r.id && m.myDeck.name === r.name) { m.myDeck.resolvedBy = m.myDeck.resolvedBy || r.by; return false; }
+  Object.assign(m.myDeck, { deckId: r.id, name: r.name, format: r.format || m.myDeck.format, resolvedBy: r.by });
+  return true;
+}
+
 class MatchParser {
   constructor(onMatch) {
     this.onMatch = onMatch;
@@ -89,6 +127,7 @@ class MatchParser {
             this.match.myDeck.cards = countList(dm.deckCards || []);
             this.match.myDeck.commander = countList(dm.commanderCards || []);
             this.match.myDeck.sideboard = countList(dm.sideboardCards || []);
+            fixMatchDeck(this.match); // Deck am Inhalt erkennen (Direktspiele ohne "EventSetDeck")
           }
         } else if (m.type === "GREMessageType_GameStateMessage" || m.type === "GREMessageType_QueuedGameStateMessage") {
           if (m.systemSeatIds && m.systemSeatIds.length && !this.match.mySeat) this.match.mySeat = m.systemSeatIds[0];
@@ -420,11 +459,25 @@ function writeIndexCsv(outDir, cards) {
   return list.length;
 }
 
-module.exports = { MatchParser, LogTailer, parseLogFile, saveMatch, loadMatches, matchSummary, playedByMe, writeIndexCsv, defaultLogDir };
+module.exports = { MatchParser, LogTailer, parseLogFile, saveMatch, loadMatches, matchSummary, playedByMe, writeIndexCsv, defaultLogDir, resolveDeck, setKnownDecks, fixMatchDeck };
 
 // ---- CLI ---------------------------------------------------------------------------------------------
 
-if (require.main === module) {
+if (require.main === module && process.argv.includes("--fix-decks")) {
+  // Gespeicherte Matches am Inhalt neu zuordnen (nach falscher Zuordnung bei Direktspielen)
+  const out = path.join(__dirname, "..", "out");
+  const { cards } = lib.loadCards(lib.findCardDb());
+  const decks = require("./webgen").readDecks(cards);
+  let changed = 0;
+  for (const f of fs.readdirSync(matchDir(out)).filter((x) => x.endsWith(".json"))) {
+    const p = path.join(matchDir(out), f);
+    const m = JSON.parse(fs.readFileSync(p, "utf8"));
+    const before = m.myDeck.name;
+    if (fixMatchDeck(m, decks)) { fs.writeFileSync(p, JSON.stringify(m)); changed++; console.log(`${lib.stampFull(new Date(m.start))}  ${before} -> ${m.myDeck.name} (${m.myDeck.resolvedBy})`); }
+  }
+  writeIndexCsv(out, cards);
+  console.log(`${changed} Matches korrigiert.`);
+} else if (require.main === module) {
   const args = process.argv.slice(2);
   const opt = { out: path.join(__dirname, "..", "out"), db: "", log: "" };
   for (let i = 0; i < args.length; i++) {
