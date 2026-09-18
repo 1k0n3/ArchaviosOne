@@ -74,7 +74,9 @@ function card_fetch_one(int $arenaId): ?array {
   if ($miss && time() - strtotime($miss) < 7 * 86400) return null;
   try { [$st, $j] = sf_fetch('https://api.scryfall.com/cards/arena/' . $arenaId); } catch (Throwable $e) { return null; }
   $row = $st === 200 ? row_from_scryfall($j) : null;
-  if (!$row) { meta_set('miss:' . $arenaId, now_iso()); return null; }
+  // Nur ein echtes "nicht gefunden" merken – bei Ratenbegrenzung (429) oder Störung später erneut versuchen,
+  // sonst zeigen ganze Seiten tagelang nur das Artwork statt der Karte
+  if (!$row) { if ($st === 404) meta_set('miss:' . $arenaId, now_iso()); return null; }
   card_store($row);
   return $row;
 }

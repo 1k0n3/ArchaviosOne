@@ -167,7 +167,8 @@ window.App = (function () {
           if (fa && +im.dataset.art) { fa.innerHTML = artCanvas(+im.dataset.art, "", +im.dataset.w || 256); Art.bind(fa); }
         }
         // Scryfall kann kurzzeitig gesperrt sein: das echte Kartenbild nach einer Pause erneut anfordern
-        if (tries++ < 3 && im.isConnected) setTimeout(() => { if (im.isConnected) im.src = im.src.split("&r=")[0].split("?r=")[0] + (im.src.includes("?") ? "&" : "?") + "r=" + tries; }, 20000 * tries);
+        // (bis zu 6 Versuche mit wachsendem Abstand: 20 s … 8 min, damit auch längere Sperren überbrückt werden)
+        if (tries++ < 6 && im.isConnected) setTimeout(() => { if (im.isConnected) im.src = im.src.split("&r=")[0].split("?r=")[0] + (im.src.includes("?") ? "&" : "?") + "r=" + tries; }, Math.min(480000, 20000 * Math.pow(2, tries - 1)));
       };
       const done = () => { const box = im.closest(".c, .cc"); if (box && im.naturalWidth > 0) { box.classList.remove("fb"); box.classList.add("ld"); loadedImgs.add(im.getAttribute("src")); } };
       im.addEventListener("load", done);
