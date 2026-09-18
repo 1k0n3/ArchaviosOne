@@ -2,6 +2,11 @@
 // Serverseitig gerenderte Seiten (Konto, Einstellungen, Startseite). Nutzt das Design-System des Dashboards (app.css).
 declare(strict_types=1);
 
+/** Pfad einer statischen Datei mit Änderungsstempel, damit Browser nach Updates nicht den alten Cache nutzen */
+function static_url(string $file): string {
+  foreach ([STATIC_DIR, WEB_DIR, ASSETS_DIR] as $dir) if (is_file("$dir/$file")) return "/static/$file?v=" . filemtime("$dir/$file");
+  return "/static/$file";
+}
 function logo_svg(): string {
   $bars = ''; $cols = ['#f3e9c8', '#3d7fd6', '#9a8fb3', '#d8482f', '#3f9a4f']; $hs = [34, 25, 17, 25, 34];
   foreach ($cols as $i => $c) $bars .= '<rect x="' . (8.5 + $i * 10) . '" y="' . (50 - $hs[$i]) . '" width="7" height="' . $hs[$i] . '" rx="3" fill="' . $c . '"/>';
@@ -16,7 +21,7 @@ function layout(string $title, string $body, array $o = []): string {
     : '<a href="/decks">Öffentliche Decks</a><a href="/login">Anmelden</a><a class="btn" href="/register">Registrieren</a>';
   $flashHtml = $flash ? '<div class="flash ' . esc($flash['kind'] ?? 'info') . '">' . esc($flash['text'] ?? '') . '</div>' : '';
   return '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . esc($title) . ' · MTGA Stats</title>
-<link rel="icon" href="/static/favicon.ico" sizes="any"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap"><link rel="stylesheet" href="/static/app.css"><link rel="stylesheet" href="/static/site.css"></head>
+<link rel="icon" href="/static/favicon.ico" sizes="any"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap"><link rel="stylesheet" href="' . static_url('app.css') . '"><link rel="stylesheet" href="' . static_url('site.css') . '"></head>
 <body class="site"><header class="site-head"><a class="brand" href="/">' . logo_svg() . '<span><b>MTGA Stats</b><small>Decks, Matches, Sammlung</small></span></a><nav>' . $nav . '</nav></header>
 <main class="site-main ' . ($wide ? 'wide' : '') . ' ' . esc($o['main'] ?? '') . '">' . $flashHtml . $body . '</main>
 <footer class="site-foot">MTGA Stats ist inoffizieller Fan-Inhalt gemäß der Fan Content Policy von Wizards of the Coast. Kartenbilder von <a href="https://scryfall.com" rel="noopener">Scryfall</a>. · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a></footer></body></html>';
@@ -42,7 +47,7 @@ function layout_app(string $title, string $body, array $user, ?array $flash, str
   $name = $user['arena_name'] ?: $user['display_name'];
   $flashHtml = $flash ? '<div class="flash ' . esc($flash['kind'] ?? 'info') . '">' . esc($flash['text'] ?? '') . '</div>' : '';
   return '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . esc($title) . ' · MTGA Stats</title>
-<link rel="icon" href="/static/favicon.ico" sizes="any"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap"><link rel="stylesheet" href="/static/app.css"><link rel="stylesheet" href="/static/site.css"></head>
+<link rel="icon" href="/static/favicon.ico" sizes="any"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap"><link rel="stylesheet" href="' . static_url('app.css') . '"><link rel="stylesheet" href="' . static_url('site.css') . '"></head>
 <body class="site app"><div class="shell"><aside class="side-nav">
   <a class="brand" href="/?site=1" title="Zur Website">' . logo_svg() . '<div><div class="t1">MTGA Stats</div><div class="t2">Website</div></div></a>' . $nav . '
   <div class="spacer"></div>
