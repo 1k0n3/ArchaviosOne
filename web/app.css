@@ -982,3 +982,11 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; background: r
 .quest { padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.03); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
 .tiles.account .tile .label svg { width: 14px; height: 14px; vertical-align: -3px; margin-right: 5px; }
 .tiles.account .tile .label { display: flex; align-items: center; gap: 4px; }
+/* Handy: Spielerkarte bleibt in der oberen Leiste als Avatar + Abmelden (Konto & Geräte erreichbar) */
+@media (max-width: 760px) {
+  .side-nav .player.link { display: flex; margin-left: auto; padding: 3px 4px; gap: 2px; border-radius: 999px; }
+  .side-nav .player.link a.who { gap: 0; }
+  .side-nav .player.link a.who > div:not(.av) { display: none; }
+  .side-nav .player.link .av { width: 28px; height: 28px; font-size: 13px; }
+  .side-nav .player.link button.out { width: 28px; height: 28px; }
+}
