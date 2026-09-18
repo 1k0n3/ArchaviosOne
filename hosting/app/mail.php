@@ -7,8 +7,14 @@ function mail_send(string $to, string $subject, string $text): bool {
   $from = (string)cfg('mail.from', 'MTGA Stats <no-reply@localhost>');
   if ($mode === 'log') { @file_put_contents(DATA_DIR . '/mail.log', "[" . now_iso() . "] an $to: $subject\n$text\n\n", FILE_APPEND); return false; }
   if ($mode === 'smtp') return smtp_send($from, $to, $subject, $text);
-  $headers = "From: $from\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit";
-  return @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $text, $headers);
+  $fromAddr = preg_match('/<([^>]+)>/', $from, $mm) ? $mm[1] : $from;
+  $headers = "From: $from\r\nReply-To: $fromAddr\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\nX-Mailer: MTGA Stats";
+  $subj = '=?UTF-8?B?' . base64_encode($subject) . '?=';
+  // Umschlag-Absender (Return-Path) mitgeben: viele Hoster verwerfen Mails ohne passende Absenderdomain stillschweigend
+  $ok = @mail($to, $subj, $text, $headers, '-f' . $fromAddr);
+  if (!$ok) $ok = @mail($to, $subj, $text, $headers);
+  if (!$ok) { $e = error_get_last(); app_log('mail() fehlgeschlagen: ' . ($e['message'] ?? 'unbekannt')); }
+  return $ok;
 }
 function mail_verify(string $to, string $link): bool { return mail_send($to, 'MTGA Stats: E-Mail bestätigen', "Willkommen bei MTGA Stats!\n\nBitte bestätige deine E-Mail-Adresse über diesen Link (24 Stunden gültig):\n$link\n\nWenn du dich nicht registriert hast, ignoriere diese Mail."); }
 function mail_reset(string $to, string $link): bool { return mail_send($to, 'MTGA Stats: Passwort zurücksetzen', "Über diesen Link kannst du ein neues Passwort setzen (2 Stunden gültig):\n$link\n\nWenn du das nicht angefordert hast, ignoriere diese Mail. Dein Passwort bleibt unverändert."); }

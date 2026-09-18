@@ -73,5 +73,6 @@ Danach synchronisiert der Companion nach jedem Match, bei Deck-Änderungen und a
 - **„Seite nicht gefunden“ für alles außer der Startseite?** `.htaccess` fehlt oder `mod_rewrite` ist aus – Datei prüfen (versteckte Dateien!) bzw. beim Hoster aktivieren lassen.
 - **Fehlerseite „Da ist etwas schiefgegangen“?** Details stehen in `data/app.log`. Häufig: PHP-Version unter 8.1 (im Hosting-Panel umstellen) oder `pdo_sqlite` fehlt (dann `db.driver` auf `mysql`).
 - **Sync meldet HTTP 413?** Die Upload-Grenze des Hosters ist klein; der Companion halbiert dann die Paketgröße automatisch. Notfalls `post_max_size` im Hosting-Panel erhöhen.
+- **Mailversand testen:** `https://deine-domain.de/mailtest?key=DEIN-CRON-KEY&to=deine@adresse.de` zeigt Modus, Ergebnis und die Fehlermeldung des Hosters bzw. SMTP-Servers.
 - **Registrierung schließen** (nur Freunde): `'registration_open' => false` in `config.php`.
 - **Alte Installation mit dem Node-Server (Docker)?** Siehe `server/DEPLOY.md` – beide Varianten nutzen dieselbe API und dasselbe Frontend.

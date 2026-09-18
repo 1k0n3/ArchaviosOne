@@ -141,7 +141,46 @@ function status() {
   return { connected: !!dev, url: dev ? dev.url : baseUrl(), user: dev ? dev.user : null, queued: left, lastFlushAt: st.lastFlushAt, lastError: st.lastError, sent: st.sent || 0 };
 }
 
-module.exports = { enqueueMatch, enqueueDecks, enqueueCollection, tokensOf, cardInfoOf, matchCardIds, flush, connect, disconnect, status, device };
+module.exports = { enqueueMatch, enqueueDecks, enqueueCollection, tokensOf, cardInfoOf, matchCardIds, resendAll, syncAll, flush, connect, disconnect, status, device };
+
+
+/** Alles erneut einreihen (z. B. nach neuer Server-Datenbank): gespeicherte Matches, alle Decks, letzte Sammlung */
+async function resendAll(log = () => {}) {
+  const lib = require("./lib"), matches = require("./matches"), webgen = require("./webgen");
+  const { cards } = lib.loadCards(lib.findCardDb());
+  const mdir = path.join(outDir(), "matches"); let n = 0;
+  for (const f of fs.existsSync(mdir) ? fs.readdirSync(mdir) : []) {
+    if (!f.endsWith(".json")) continue;
+    try { const m = readJson(path.join(mdir, f), null); if (!m) continue; enqueueMatch(m, matches.matchSummary(m, cards), tokensOf(m, cards), cardInfoOf(matchCardIds(m), cards)); n++; } catch (e) { log("Match " + f + ": " + e.message); }
+  }
+  const st = state(); st.deckHashes = {}; saveState(st);
+  const nd = enqueueDecks(webgen.readDecks(cards), cards);
+  const snap = readJson(path.join(outDir(), "state.json"), null);
+  if (snap && snap.snapshot) enqueueCollection(new Map(snap.snapshot));
+  log(`Eingereiht: ${n} Matches, ${nd} Decks, Sammlung`);
+  const r = await flush(log); log(JSON.stringify(r)); return r;
+}
+/** Zähler des Servers (Decks, Matches) für das verbundene Konto */
+async function serverCounts() {
+  const dev = device(); if (!dev) return null;
+  const r = await fetch(baseUrl() + "/api/v1/me", { headers: { Authorization: "Bearer " + dev.token } });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+/** "Jetzt synchronisieren": Warteschlange senden; hat der Server weniger Decks oder Matches als lokal vorhanden, alles nachschicken */
+async function syncAll(log = () => {}) {
+  let r = await flush(log);
+  if (r.error) return r;
+  const me = await serverCounts(); if (!me) return r;
+  const mdir = path.join(outDir(), "matches");
+  const localMatches = fs.existsSync(mdir) ? fs.readdirSync(mdir).filter((f) => f.endsWith(".json")).length : 0;
+  const localDecks = (readJson(path.join(outDir(), "web", "data.json"), {}).decks || []).length;
+  if ((me.matches || 0) < localMatches || (me.decks || 0) < localDecks) {
+    log(`Server hat ${me.matches} Matches / ${me.decks} Decks, lokal ${localMatches} / ${localDecks}: schicke alles nach`);
+    r = await resendAll(log);
+  }
+  return Object.assign(r, { server: { matches: me.matches, decks: me.decks }, local: { matches: localMatches, decks: localDecks } });
+}
 
 if (require.main === module) {
   const [cmd, ...rest] = process.argv.slice(2);
@@ -150,22 +189,8 @@ if (require.main === module) {
     if (cmd === "connect") { const u = await connect(rest[0], urlArg); console.log(`Verbunden als ${u.displayName} (${u.handle})`); }
     else if (cmd === "flush") { const r = await flush(console.log); console.log(JSON.stringify(r)); }
     else if (cmd === "disconnect") { disconnect(); console.log("Getrennt."); }
-    else if (cmd === "resend") {
-      // Alles erneut einreihen (z. B. nach neuer Server-Datenbank): gespeicherte Matches, alle Decks, letzte Sammlung
-      const lib = require("./lib"), matches = require("./matches"), webgen = require("./webgen");
-      const { cards } = lib.loadCards(lib.findCardDb());
-      const mdir = path.join(outDir(), "matches"); let n = 0;
-      for (const f of fs.existsSync(mdir) ? fs.readdirSync(mdir) : []) {
-        if (!f.endsWith(".json")) continue;
-        try { const m = readJson(path.join(mdir, f), null); if (!m) continue; enqueueMatch(m, matches.matchSummary(m, cards), tokensOf(m, cards), cardInfoOf(matchCardIds(m), cards)); n++; } catch (e) { console.log("Match " + f + ": " + e.message); }
-      }
-      const st = state(); st.deckHashes = {}; saveState(st);
-      const nd = enqueueDecks(webgen.readDecks(cards), cards);
-      const snap = readJson(path.join(outDir(), "state.json"), null);
-      if (snap && snap.snapshot) enqueueCollection(new Map(snap.snapshot));
-      console.log(`Eingereiht: ${n} Matches, ${nd} Decks, Sammlung`);
-      const r = await flush(console.log); console.log(JSON.stringify(r));
-    }
+    else if (cmd === "resend") { await resendAll(console.log); }
+    else if (cmd === "sync") { const r = await syncAll(console.log); console.log(JSON.stringify(r)); }
     else console.log(JSON.stringify(status(), null, 2));
   })().catch((e) => { console.error("Fehler: " + e.message); process.exit(1); });
 }

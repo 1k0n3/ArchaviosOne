@@ -51,7 +51,7 @@ Ohne Docker: Node.js 22.13+ installieren, `.env` anlegen, `npm ci --omit=dev`, `
 
 Website → Einstellungen → „Code erzeugen“. Im Companion: Tray-Menü → „Mit Website verbinden…“ → Adresse und Code eingeben. Danach synchronisiert der Companion nach jedem Match, bei Deck-Änderungen und alle 5 Minuten. Trennen geht auf beiden Seiten.
 
-Nach einer neuen Server-Datenbank (oder Serverwechsel): Tray-Menü → „Alles erneut senden“ (oder `node srcsync.js resend`) schickt alle gespeicherten Matches, Decks und die Sammlung noch einmal.
+„Jetzt synchronisieren“ im Tray (oder `node src\sync.js sync`) sendet die Warteschlange und vergleicht die Zähler mit dem Server: hat der Server weniger Decks oder Matches als lokal (z. B. nach neuer Server-Datenbank), wird alles nachgeschickt.
 
 ## API (Kurzfassung)
 

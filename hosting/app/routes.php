@@ -32,6 +32,14 @@ function dispatch(string $m, string $p): void {
     if (cfg('cron_key', '') === '' || !hash_equals((string)cfg('cron_key'), query('key'))) send(403, "key fehlt oder falsch\n", 'text/plain; charset=utf-8');
     set_time_limit(120); $msg = cards_sync_step(25); app_log('Cron: ' . $msg); send(200, $msg . "\n", 'text/plain; charset=utf-8');
   }
+  if ($p === '/mailtest') {   // Mailversand prüfen: /mailtest?key=CRON_KEY&to=du@example.de
+    if (cfg('cron_key', '') === '' || !hash_equals((string)cfg('cron_key'), query('key'))) send(403, "key fehlt oder falsch\n", 'text/plain; charset=utf-8');
+    $to = trim(query('to')); if (!filter_var($to, FILTER_VALIDATE_EMAIL)) send(400, "to=E-Mail-Adresse fehlt\n", 'text/plain; charset=utf-8');
+    $before = @filesize(DATA_DIR . '/app.log') ?: 0;
+    $ok = mail_send($to, 'MTGA Stats: Testmail', "Wenn du das liest, funktioniert der Mailversand (Modus: " . cfg('mail.mode', 'mail') . ").\n" . cfg('base_url'));
+    $log = @file_get_contents(DATA_DIR . '/app.log', false, null, $before) ?: '';
+    send(200, "Modus: " . cfg('mail.mode', 'mail') . "\nAbsender: " . cfg('mail.from') . "\nErgebnis: " . ($ok ? 'gesendet (Postfach und Spam-Ordner prüfen)' : 'FEHLGESCHLAGEN') . "\n" . ($log ? "Protokoll:\n" . $log : ''), 'text/plain; charset=utf-8');
+  }
   if ($p === '/healthz') send_json(200, ['ok' => true, 'cards' => (int)db_val('SELECT COUNT(*) FROM cards')]);
   if (preg_match('#^/card-img/(\d+)$#', $p, $x)) card_img((int)$x[1]);
 

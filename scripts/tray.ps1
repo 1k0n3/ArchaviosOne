@@ -380,14 +380,9 @@ $script:miConnect = Add-Item "Mit Website verbinden…" {
   Show-Balloon ($out.Trim())
 }
 $script:miSyncNow = Add-Item "Jetzt synchronisieren" {
-  Invoke-NodeHidden @("src\sync.js", "flush") | Out-Null
+  Invoke-NodeHidden @("src\sync.js", "sync") | Out-Null
   $st = (Invoke-NodeHidden @("src\sync.js", "status")) | ConvertFrom-Json
   if ($st.connected) { Show-Balloon ("Verbunden als " + $st.user.displayName + " · " + $st.queued + " wartend" + $(if ($st.lastError) { " · Fehler: " + $st.lastError } else { "" })) } else { Show-Balloon "Nicht mit einer Website verbunden." }
-}
-$script:miResend = Add-Item "Alles erneut senden (nach Server-Neustart)" {
-  Show-Balloon "Sende alle Matches, Decks und die Sammlung erneut ..."
-  $out = Invoke-NodeHidden @("srcsync.js", "resend")
-  Show-Balloon (($out -split "`n" | Where-Object { $_ -match "Eingereiht|sent|Fehler" }) -join " · ").Trim()
 }
 $script:miDisconnect = Add-Item "Verbindung trennen" {
   Invoke-NodeHidden @("src\sync.js", "disconnect") | Out-Null
