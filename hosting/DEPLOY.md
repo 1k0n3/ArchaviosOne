@@ -54,7 +54,7 @@ Ohne Cron geht es auch: die Adresse `https://deine-domain.de/cron?key=…` 8–1
 
 ## 5. Erstes Konto und Companion verbinden
 
-1. `https://deine-domain.de/register` → Konto anlegen; Bestätigungslink aus der E-Mail klicken. Kommt keine Mail an, steht der Link in `data/app.log` (per FTP lesbar) – dann `mail.mode` auf `smtp` umstellen.
+1. `https://deine-domain.de/register` → Konto anlegen; Bestätigungslink aus der E-Mail klicken. Kommt keine Mail an: der Link steht immer in `data/app.log` (per FTP lesbar). Dauerhaft entweder `mail.mode` auf `smtp` mit den Daten eines Postfachs stellen – oder `'verify_email' => false` in `config.php`, dann ist ein Konto sofort ohne Bestätigung nutzbar.
 2. Einstellungen → „Code erzeugen“.
 3. Am PC: Tray-Menü → **Mit Website verbinden…** → Adresse `https://deine-domain.de` und den Code eingeben.
 
