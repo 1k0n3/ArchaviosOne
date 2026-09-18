@@ -3,7 +3,7 @@
   "host": "ftp.deine-domain.de",
   "user": "ftp-benutzer",
   "password": "ftp-passwort",
-  "remoteDir": "public_html",
+  "remoteDir": "",
   "tls": true,
   "tlsVerify": true,
   "url": "https://deine-domain.de",

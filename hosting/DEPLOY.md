@@ -64,7 +64,7 @@ Danach synchronisiert der Companion nach jedem Match, bei Deck-Änderungen und a
 
 Damit Online-Version und lokale Version immer gleich sind, lädt `scripts/deploy.js` per FTP hoch – nur die Dateien, die sich geändert haben. Einmalig einrichten:
 
-1. `deploy-config.example.json` als `deploy-config.json` kopieren (bleibt lokal, nicht im Git) und eintragen: `host`, `user`, `password` aus dem Hosting-Panel, `remoteDir` (Web-Verzeichnis relativ zum FTP-Anmeldeordner, z. B. `public_html`; leer lassen, wenn der FTP-Zugang direkt dort landet) und `url` der Website.
+1. `deploy-config.example.json` als `deploy-config.json` kopieren (bleibt lokal, nicht im Git) und eintragen: `host`, `user`, `password` aus dem Hosting-Panel, `remoteDir` (leer lassen, wenn der FTP-Zugang direkt im Web-Verzeichnis landet – bei Hetzner meist so; sonst der Unterordner, z. B. `public_html`; prüfen mit `node scripts/deploy.js ls "~"`) und `url` der Website.
 2. Testen:
 
 ```bash

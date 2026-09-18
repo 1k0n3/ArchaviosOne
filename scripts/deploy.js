@@ -85,7 +85,8 @@ function ftpUrl(rel) {
   return `${cfg.tls === "implicit" ? "ftps" : "ftp"}://${cfg.host}${cfg.port ? ":" + cfg.port : ""}/${abs ? "%2F" : ""}${parts.join("/")}`;
 }
 function baseLines() {
-  const l = ["silent", "show-error", "connect-timeout = 30", "max-time = 600", `user = ${q(cfg.user + ":" + cfg.password)}`, "ftp-create-dirs", "disable-epsv"];
+  // kein "ftp-create-dirs" hier: das würde beim Lesen/Auflisten fehlende Ordner anlegen – nur Uploads dürfen Ordner erzeugen
+  const l = ["silent", "show-error", "connect-timeout = 30", "max-time = 600", `user = ${q(cfg.user + ":" + cfg.password)}`, "disable-epsv"];
   if (cfg.tls === true) l.push("ssl-reqd");
   if (cfg.tls && cfg.tlsVerify === false) l.push("insecure");
   return l;
@@ -112,24 +113,45 @@ function remoteManifest() {
 function upload(files) {
   for (let i = 0; i < files.length; i += BATCH) {
     const chunk = files.slice(i, i + BATCH);
-    const r = curl(chunk.map((rel) => [`url = ${q(ftpUrl(rel))}`, `upload-file = ${q(path.join(dist, rel).replace(/\\/g, "/"))}`]));
+    const r = curl(chunk.map((rel) => [`url = ${q(ftpUrl(rel))}`, `upload-file = ${q(path.join(dist, rel).replace(/\\/g, "/"))}`, "ftp-create-dirs"]));
     if (r.code !== 0) { console.error(`Upload fehlgeschlagen bei "${chunk[0]}" … (curl ${r.code}): ${explain(r.code, r.err)}`); process.exit(1); }
     process.stdout.write(`  ${Math.min(i + BATCH, files.length)}/${files.length} Dateien hochgeladen\r`);
   }
   if (files.length) console.log("");
 }
 function remove(files) {
-  // DELE-Befehle vor einer harmlosen Verzeichnisliste; fehlende Dateien gelten als gelöscht
+  // DELE-Befehl vor einer harmlosen Verzeichnisliste. WICHTIG: quote-Befehle laufen direkt nach der Anmeldung,
+  // also im FTP-Anmeldeordner – der Pfad muss deshalb remoteDir enthalten
   for (const rel of files) {
-    const r = curl([[`url = ${q(ftpUrl("") + "/")}`, "list-only", `quote = ${q("DELE " + (cfg.remoteDir ? cfg.remoteDir.replace(/^\//, "/") + "/" : "") + rel)}`, `output = ${q(path.join(require("os").tmpdir(), "mtga-deploy-list.txt").replace(/\\/g, "/"))}`]]);
-    if (r.code !== 0 && r.code !== 21) console.log(`  Hinweis: "${rel}" konnte nicht gelöscht werden (${r.err})`);
+    const r = curl([[`url = ${q(ftpUrl("") + "/")}`, "list-only", `quote = ${q("DELE " + quotePathOf(rel))}`, `output = ${q(path.join(require("os").tmpdir(), "mtga-deploy-list.txt").replace(/\\/g, "/"))}`]]);
+    if (r.code !== 0) console.log(`  Hinweis: "${rel}" konnte nicht gelöscht werden (${r.err})`);
   }
 }
 function putManifest(manifest) {
   const tmp = path.join(require("os").tmpdir(), "mtga-deploy-manifest-up.json");
   fs.writeFileSync(tmp, JSON.stringify(manifest));
-  const r = curl([[`url = ${q(ftpUrl(MANIFEST))}`, `upload-file = ${q(tmp.replace(/\\/g, "/"))}`]]);
+  const r = curl([[`url = ${q(ftpUrl(MANIFEST))}`, `upload-file = ${q(tmp.replace(/\\/g, "/"))}`, "ftp-create-dirs"]]);
   if (r.code !== 0) console.log("  Hinweis: Manifest konnte nicht gespeichert werden (" + explain(r.code, r.err) + ") – nächster Lauf lädt alles erneut.");
+}
+/** Verzeichnis auf dem Server auflisten: [{name, dir}] (LIST-Format wie ls -l) */
+function listDir(url) {
+  const tmp = path.join(require("os").tmpdir(), "mtga-deploy-ls.txt");
+  const r = curl([[`url = ${q(url)}`, `output = ${q(tmp.replace(/\\/g, "/"))}`]]);
+  if (r.code !== 0) { console.error("FTP-Fehler " + r.code + ": " + explain(r.code, r.err)); process.exit(1); }
+  return fs.readFileSync(tmp, "utf8").split(/\r?\n/).filter(Boolean).map((l) => ({ name: l.trim().split(/\s+/).slice(8).join(" "), dir: l[0] === "d" })).filter((e) => e.name && e.name !== "." && e.name !== "..");
+}
+/** Ordner auf dem Server samt Inhalt löschen (nur für Aufräumarbeiten; fragt nicht nach!) */
+/** Pfad für quote-Befehle (DELE/RMD): quote läuft VOR dem Verzeichniswechsel, also relativ zum Anmeldeordner */
+const quotePathOf = (rel) => (cfg.remoteDir ? cfg.remoteDir + "/" : "") + rel;
+function removeTree(url, quotePath) {
+  const listTmp = q(path.join(require("os").tmpdir(), "mtga-deploy-list.txt").replace(/\\/g, "/"));
+  for (const e of listDir(url)) {
+    const sub = url + encodeURIComponent(e.name) + "/", subQ = quotePath + "/" + e.name;
+    if (e.dir) removeTree(sub, subQ);
+    else { const r = curl([[`url = ${q(url)}`, "list-only", `quote = ${q("DELE " + subQ)}`, `output = ${listTmp}`]]); if (r.code !== 0) console.log("  nicht gelöscht: " + subQ + " (" + r.err + ")"); }
+  }
+  const r = curl([[`url = ${q(url.replace(/[^/]+\/$/, ""))}`, "list-only", `quote = ${q("RMD " + quotePath)}`, `output = ${listTmp}`]]);
+  console.log((r.code === 0 ? "gelöscht: " : "nicht gelöscht: ") + quotePath + (r.code ? " (" + r.err + ")" : ""));
 }
 
 // ---- Kontrolle über die Website -------------------------------------------------------------------
@@ -172,6 +194,27 @@ function installHook() {
 async function main() {
   if (cmd === "install-hook") return installHook();
   cfg = loadConfig();
+  if (cmd === "ls") {
+    // Verzeichnis auf dem Server anzeigen (Standard: remoteDir; "ls /" = FTP-Anmeldeordner) – hilft beim Prüfen von remoteDir
+    // Pfad mit führendem "/" = absolut auf dem Server (%2F), "~" = FTP-Anmeldeordner, sonst relativ zu remoteDir
+    const dir = args[1] || "";
+    const base = `${cfg.tls === "implicit" ? "ftps" : "ftp"}://${cfg.host}${cfg.port ? ":" + cfg.port : ""}/`;
+    const url = dir === "~" ? base : dir.startsWith("/") ? base + "%2F" + dir.slice(1).split("/").filter(Boolean).map(encodeURIComponent).join("/") + "/" : ftpUrl(dir) + "/";
+    const list = listDir(url);
+    console.log(list.map((e) => (e.dir ? "[d] " : "    ") + e.name).join("\n") || "(leer)");
+    return;
+  }
+  if (cmd === "rm") {
+    // node scripts/deploy.js rm <ordner>  – Ordner samt Inhalt löschen (Pfad wie bei ls: relativ zu remoteDir, "/" = absolut)
+    const dir = args[1];
+    if (!dir || dir === "/" || dir === "~" || dir === ".") { console.error("Bitte einen Ordner angeben (nicht den Anmeldeordner)."); process.exit(2); }
+    const base = `${cfg.tls === "implicit" ? "ftps" : "ftp"}://${cfg.host}${cfg.port ? ":" + cfg.port : ""}/`;
+    const abs = dir.startsWith("/");
+    const parts = (abs ? dir.slice(1) : [cfg.remoteDir.replace(/^\//, ""), dir].filter(Boolean).join("/")).split("/").filter(Boolean);
+    const url = base + (abs ? "%2F" : "") + parts.map(encodeURIComponent).join("/") + "/";
+    removeTree(url, (abs ? "/" : "") + parts.join("/"));
+    return;
+  }
   build();
   const local = localManifest();
   const version = localVersion();
