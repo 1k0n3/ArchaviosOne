@@ -139,6 +139,13 @@ tr.clickable:hover td { background: rgba(255,255,255,.03); }
 .bar-row .lbl { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .bar-row .lbl .art { width: 34px; height: 24px; border-radius: 4px; background: var(--panel-3) center/cover; flex: none; }
 .bar-row .lbl .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Deck-Zeilen: Name und Commander untereinander, breitere Namensspalte, größeres Bild */
+.rate-decks .bar-row { grid-template-columns: minmax(200px, 1.8fr) 2fr 56px; }
+.bar-row.two .lbl .t, .bar-row.two .lbl .t a { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.bar-row.two .lbl .t { flex: 1; }
+.bar-row.two .lbl .t .t1, .bar-row.two .lbl .t .t2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-row.two .lbl .t .t2 { font-size: 11px; color: var(--ink-3); }
+.bar-row.two .lbl .art { width: 42px; height: 30px; }
 .bar-track { height: 10px; background: rgba(255,255,255,.06); border-radius: 5px; overflow: hidden; display: flex; }
 .bar-track .w { background: var(--win); height: 100%; border-radius: 5px 0 0 5px; }
 .bar-track .l { background: var(--loss); height: 100%; margin-left: 2px; border-radius: 0 5px 5px 0; }

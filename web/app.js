@@ -539,9 +539,12 @@ window.App = (function () {
     el.innerHTML = rows.map((r) => {
       const n = r.w + r.l, pct = n ? Math.round(100 * r.w / n) : 0;
       const wp = (r.w / max) * 100, lp = (r.l / max) * 100;
-      const label = opts.link ? `<a href="${opts.link(r)}">${esc(r.label)}</a>` : esc(r.label);
+      // Zweizeilig (Decks): Name, darunter Commander klein – statt einer abgeschnittenen Zeile
+      const [t1, t2] = opts.twoLine ? String(r.label).split(" · ") : [r.label];
+      const text = `<span class="t1">${esc(t1)}</span>${t2 ? `<span class="t2">${esc(t2)}</span>` : ""}`;
+      const label = opts.link ? `<a href="${opts.link(r)}">${text}</a>` : text;
       const art = r.tile != null ? `<div class="art">${artCanvas(artOf(r.tile))}</div>` : "";
-      return `<div class="bar-row" data-tip="${esc(r.tipHtml || "")}"><div class="lbl">${art}<span class="t">${label}</span> <span class="muted small">(${n})</span></div><div class="bar-track"><div class="w" style="width:${wp}%"></div><div class="l" style="width:${lp}%"></div></div><div><b>${pct} %</b></div></div>`;
+      return `<div class="bar-row ${t2 ? "two" : ""}" data-tip="${esc(r.tipHtml || "")}"><div class="lbl">${art}<span class="t">${label}</span> <span class="muted small">(${n})</span></div><div class="bar-track"><div class="w" style="width:${wp}%"></div><div class="l" style="width:${lp}%"></div></div><div><b>${pct} %</b></div></div>`;
     }).join("") || `<div class="empty">${tr("Keine Daten")}</div>`;
     $$(".bar-row", el).forEach((row, i) => {
       const r = rows[i];

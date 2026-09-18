@@ -36,7 +36,7 @@ App.load().then((D) => {
       <div class="panel"><h3>${T("Matches pro Tag")}</h3><div id="chart-days"></div></div>
       <div class="panel"><h3>${T("Spiellänge in Zügen")}</h3><div id="chart-turns"></div></div>
       <div class="panel"><h3>${T("Spielbeginn")}</h3><div class="stat-split" id="playdraw"></div><div id="rate-time" style="margin-top:12px"></div></div>
-      <div class="panel"><h3>${T("Winrate pro Deck")}</h3><div id="rate-decks"></div></div>
+      <div class="panel"><h3>${T("Winrate pro Deck")}</h3><div id="rate-decks" class="rate-decks"></div></div>
       <div class="panel"><h3>${T("Winrate nach Format & Gegner-Plattform")}</h3><div id="rate-format"></div><div id="rate-platform" style="margin-top:10px"></div></div>
     </div>
     <h2 class="fold-h2" id="h-recent">${T("Letzte Matches")} <a href="matches.html">${T("alle anzeigen →")}</a></h2>
@@ -128,7 +128,7 @@ App.load().then((D) => {
     const slots = [[T("Morgen (6–12)"), 6, 12], [T("Nachmittag (12–18)"), 12, 18], [T("Abend (18–24)"), 18, 24], [T("Nacht (0–6)"), 0, 6]];
     A.rateRows(A.$("#rate-time"), slots.map(([label, lo, hi]) => { const ms = list.filter((m) => hourOf(m) >= lo && hourOf(m) < hi); return { label, w: ms.filter(isW).length, l: ms.filter(isL).length, tipHtml: `<b>${label}</b><br>${T("{n} Matches", { n: ms.length })}` }; }).filter((r) => r.w + r.l));
 
-    A.rateRows(A.$("#rate-decks"), rateOf(A.groupBy(list, A.deckLabel), (m) => m.tile), { link: (r) => "decks.html?deck=" + encodeURIComponent(r.label) });
+    A.rateRows(A.$("#rate-decks"), rateOf(A.groupBy(list, A.deckLabel), (m) => m.tile), { link: (r) => "decks.html?deck=" + encodeURIComponent(r.label), twoLine: true });
     A.rateRows(A.$("#rate-format"), rateOf(A.groupBy(list, (m) => m.format || A.eventLabel(m.eventId) || "?")));
     A.rateRows(A.$("#rate-platform"), rateOf(A.groupBy(list, (m) => m.opponentPlatform || "?")));
     A.$("#recent tbody").innerHTML = list.slice(0, 10).map((m) => `<tr class="clickable" onclick="location.href='replay.html?id=${m.matchId}'">
