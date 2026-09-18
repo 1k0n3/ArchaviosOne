@@ -865,7 +865,15 @@ button.reset { margin-right: 20px; }
 .dp-head { display: flex; align-items: center; gap: 6px; padding: 10px 10px 6px; }
 .dp-name { flex: 1; min-width: 0; font: 700 15px/1.2 var(--font-title); background: rgba(0,0,0,.18); border: 1px solid var(--line-2); border-radius: 8px; color: var(--ink); padding: 6px 8px; }
 .dp-name:hover, .dp-name:focus { border-color: var(--ink-3); background: rgba(0,0,0,.28); outline: none; }
-.dp-head .dd-btn { height: 30px; padding: 0 8px; }
+.dp-head .dd-btn { height: 32px; padding: 0 8px; }
+.dp-head .icon-btn { width: 32px; height: 32px; flex: none; padding: 0; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: var(--gold); color: var(--gold-ink); border: 1px solid var(--gold); }
+.dp-head .icon-btn svg { width: 16px; height: 16px; }
+.dp-head .icon-btn:hover { background: var(--gold-2); border-color: var(--gold-2); }
+.dp-head .dd-menu { min-width: 260px; max-width: 320px; }
+.dp-meta .dd-btn { height: 26px; padding: 0 7px; font-size: 12px; }
+.dp-meta .dd-btn svg { width: 14px; height: 14px; }
+/* Menüs (Format, Deckwahl) dürfen über den Rand der Deckbox hinausragen statt abgeschnitten zu werden */
+.deckpanel { overflow: visible; }
 .dp-head .dd-btn .lbl:empty { display: none; }
 .dp-meta { display: flex; align-items: center; gap: 10px; padding: 0 12px 6px; }
 .dp-meta .cnt { font: 800 18px/1 var(--font-title); color: var(--loss-ink); }

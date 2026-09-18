@@ -18,6 +18,18 @@
       sel.addEventListener("change", () => I.set(sel.value));
     }
   }
+  // Decksuche in den Einstellungen: Zeilen nach Name/Format filtern
+  const dq = document.querySelector(".deck-q");
+  if (dq) {
+    const rows = Array.from(dq.parentElement.querySelectorAll("tr"));
+    const none = dq.parentElement.querySelector(".deck-q-none");
+    dq.addEventListener("input", () => {
+      const t = dq.value.trim().toLowerCase();
+      let n = 0;
+      for (const r of rows) { const hit = !t || r.textContent.toLowerCase().includes(t); r.style.display = hit ? "" : "none"; if (hit) n++; }
+      if (none) none.hidden = n > 0;
+    });
+  }
   // Einklappbare Bereiche: Überschrift mit data-fold, der folgende Block ist der Inhalt; Zustand bleibt im Browser
   document.querySelectorAll(".fold-head[data-fold]").forEach((head) => {
     const body = head.nextElementSibling;

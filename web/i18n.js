@@ -382,6 +382,15 @@ window.I18N = (function () {
     "{who} sucht {g}": ["{who} seeks {g}", "{who} cherche {g}", "{who} busca {g}", "{who} cerca {g}", "{who} procura {g}", "{who}が{g}を探す"],
     "{who} durchforscht": ["{who} surveils", "{who} surveille", "{who} vigila", "{who} sorveglia", "{who} vigia", "{who}が諜報"],
     "{who} verliert das Spiel": ["{who} loses the game", "{who} perd la partie", "{who} pierde el juego", "{who} perde la partita", "{who} perde o jogo", "{who}が敗北"],
+    // Deckbau: Deckwahl
+    "Meine Decks": ["My decks", "Mes decks", "Mis mazos", "I miei mazzi", "Meus decks", "マイデッキ"],
+    "Deckname": ["Deck name", "Nom du deck", "Nombre del mazo", "Nome del mazzo", "Nome do deck", "デッキ名"],
+    "Aktuell geöffnet": ["Currently open", "Ouvert actuellement", "Abierto ahora", "Aperto ora", "Aberto agora", "現在開いています"],
+    "Öffnen": ["Open", "Ouvrir", "Abrir", "Apri", "Abrir", "開く"],
+    "Arena": ["Arena", "Arena", "Arena", "Arena", "Arena", "Arena"],
+    "Als neuen Entwurf aus Arena übernehmen": ["Copy from Arena as a new draft", "Copier depuis Arena comme nouveau brouillon", "Copiar de Arena como nuevo borrador", "Copia da Arena come nuova bozza", "Copiar do Arena como novo rascunho", "Arenaから新しい下書きとしてコピー"],
+    "Decks durchsuchen …": ["Search decks …", "Rechercher des decks …", "Buscar mazos …", "Cerca mazzi …", "Buscar decks …", "デッキを検索…"],
+    "Keine Treffer": ["No matches", "Aucun résultat", "Sin resultados", "Nessun risultato", "Nenhum resultado", "該当なし"],
     // Deckbau: Knöpfe unter der Deckliste
     "Alternativen suchen": ["Find alternatives", "Chercher des alternatives", "Buscar alternativas", "Cerca alternative", "Buscar alternativas", "代替カードを探す"],
     "als TXT speichern": ["save as TXT", "enregistrer en TXT", "guardar como TXT", "salva come TXT", "salvar como TXT", "TXTとして保存"],

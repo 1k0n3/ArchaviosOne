@@ -147,8 +147,8 @@ App.load().then(async (D) => {
     for (const grp of groups) grp[1].sort((a, b) => (byId.get(a[0])[8] - byId.get(b[0])[8]) || byId.get(a[0])[1].localeCompare(byId.get(b[0])[1]));
     const probs = problems();
     A.$("#deckpanel").innerHTML = `
-      <div class="dp-head"><input class="dp-name" id="dp-name" value="${A.esc(deck.name)}" maxlength="60" spellcheck="false"><div id="dp-format"></div><div id="dp-menu"></div></div>
-      <div class="dp-meta"><span class="cnt ${n >= f.min && (!f.max || n <= f.max) ? "ok" : ""}">${n}${f.max ? "/" + f.max : "/" + f.min}</span><span class="pips">${[...deckIdentity()].map((c) => A.manaSymbol({ 1: "w", 2: "u", 3: "b", 4: "r", 5: "g" }[c])).join("")}</span><span class="muted small">${T("{n} Länder", { n: st.lands })} · Ø ${st.avgCmc.toFixed(1)}</span></div>
+      <div class="dp-head"><input class="dp-name" id="dp-name" value="${A.esc(deck.name)}" maxlength="60" spellcheck="false" title="${T("Deckname")}"><button type="button" class="icon-btn" id="dp-new" title="${T("Neues Deck")}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button><div id="dp-menu"></div></div>
+      <div class="dp-meta"><span class="cnt ${n >= f.min && (!f.max || n <= f.max) ? "ok" : ""}">${n}${f.max ? "/" + f.max : "/" + f.min}</span><div id="dp-format"></div><span class="pips">${[...deckIdentity()].map((c) => A.manaSymbol({ 1: "w", 2: "u", 3: "b", 4: "r", 5: "g" }[c])).join("")}</span><span class="muted small">${T("{n} Länder", { n: st.lands })} · Ø ${st.avgCmc.toFixed(1)}</span></div>
       ${probs.length ? `<div class="dp-probs">${probs.map((p) => `<div>${FI.x} ${A.esc(p)}</div>`).join("")}</div>` : `<div class="dp-ok">${FI.check} ${T("Deck ist regelkonform")}</div>`}
       <div class="dp-curve">${st.curve.map((v, i) => `<div class="bar" style="--h:${Math.round(100 * v / Math.max(1, ...st.curve))}%" title="${T("{n} Karten mit Manawert {v}", { n: v, v: i === 7 ? "7+" : i })}"><b>${v || ""}</b><i></i><span>${i === 7 ? "7+" : i}</span></div>`).join("")}</div>
       <div class="dp-list">
@@ -160,12 +160,15 @@ App.load().then(async (D) => {
     A.$("#dp-name").addEventListener("change", (ev) => { deck.name = ev.target.value.trim() || T("Neues Deck"); persist(); });
     A.hoverPreview(A.$("#deckpanel"));   // Kartenbild neben der Zeile beim Überfahren
     A.dropdown(A.$("#dp-format"), { title: T("Format"), value: deck.format, defaultValue: deck.format, onChange: (v) => { deck.format = v; persist(); renderDeck(); renderPool(); }, items: Object.entries(FORMATS).map(([v, x]) => ({ v, label: x.label, icon: x.cmd ? FI.deck : FI.set })) });
-    A.dropdown(A.$("#dp-menu"), { title: T("Decks"), value: "", defaultValue: "", onChange: (v) => menu(v), items: [
-      { v: "", label: T("Deckmenü"), short: "", icon: FI.deck },
-      { v: "new", label: T("Neues Deck"), icon: FI.reset }, { v: "dup", label: T("Deck duplizieren"), icon: FI.copies }, { v: "import", label: T("Aus Arena-Text einfügen …"), icon: FI.download },
-      ...(D.decks || []).slice(0, 40).map((d) => ({ v: "arena:" + d.id, label: "↳ " + d.name, icon: FI.deck })),
-      ...decks.filter((d) => d !== deck).map((d) => ({ v: "open:" + d.id, label: "▸ " + d.name, icon: FI.play })),
+    // Deckwahl: durchsuchbare Liste der eigenen Entwürfe und der Arena-Decks, dazu Neu/Duplizieren/Einfügen/Löschen
+    const cnt = (d) => Object.values(d.main || {}).reduce((s, q) => s + q, 0);
+    A.dropdown(A.$("#dp-menu"), { title: T("Meine Decks"), value: "", defaultValue: "", searchable: true, onChange: (v) => menu(v), items: [
+      { v: "", label: T("Meine Decks"), short: T("Meine Decks") + " (" + decks.length + ")", icon: FI.deck },
+      { v: "new", label: "+ " + T("Neues Deck"), icon: FI.reset }, { v: "dup", label: T("Deck duplizieren"), icon: FI.copies }, { v: "import", label: T("Aus Arena-Text einfügen …"), icon: FI.download },
+      ...decks.map((d) => ({ v: "open:" + d.id, label: `${d.name} · ${(FORMATS[d.format] || FORMATS.standard).label} · ${cnt(d)}`, icon: d === deck ? FI.check : FI.play, title: d === deck ? T("Aktuell geöffnet") : T("Öffnen"), search: d.name })),
+      ...(D.decks || []).map((d) => ({ v: "arena:" + d.id, label: `${T("Arena")}: ${d.name}`, icon: FI.set, title: T("Als neuen Entwurf aus Arena übernehmen"), search: d.name })),
       { v: "delete", label: T("Dieses Deck löschen"), icon: FI.x }] });
+    A.$("#dp-new").addEventListener("click", () => menu("new"));
     A.$("#dp-copy").addEventListener("click", (ev) => { navigator.clipboard.writeText(exportText()); ev.currentTarget.innerHTML = FI.check + " " + T("Kopiert"); });
     A.$("#dp-save").addEventListener("click", () => { const u = URL.createObjectURL(new Blob([exportText()], { type: "text/plain;charset=utf-8" })); const l = document.createElement("a"); l.href = u; l.download = deck.name.replace(/[\/:*?"<>|]+/g, "_") + ".txt"; l.click(); setTimeout(() => URL.revokeObjectURL(u), 1000); });
     A.$("#dp-fix").addEventListener("click", () => showAlternatives(null));
