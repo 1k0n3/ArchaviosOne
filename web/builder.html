@@ -219,7 +219,7 @@ App.load().then(async (D) => {
     panel.innerHTML = `<div class="alt-head"><h3>${FI.swords} ${g != null ? T("Alternativen zu {n}", { n: A.esc(byId.get(g)[1]) }) : T("Fehlende Karten ersetzen")}</h3><span class="muted small">${T("aus deiner Sammlung · gleicher Typ, passende Farben, ähnlicher Manawert, ähnliche Fähigkeiten")}</span>${A.xButton("alt-x")}</div>
       ${targets.map((tg) => { const t = byId.get(tg); const alts = alternatives(tg, g != null ? 12 : 6); return `<div class="alt-row"><div class="alt-target">${A.cardTile(tg, { qty: deck.main[tg] || 1, compact: true })}<div class="muted small">${T("nicht im Besitz")}: ${Math.max(0, (deck.main[tg] || 1) - ownedOf(t))}×</div></div><div class="cards alt-cards">${alts.map((a) => A.cardTile(a.c[0], { qty: 0, extra: `<span class="own has">${ownedOf(a.c)}×</span>` })).map((h, i) => h.replace(/^<div /, `<div data-alt-for="${tg}" data-alt="${alts[i].c[0]}" `)).join("") || `<div class="muted small">${T("Keine passende Karte in der Sammlung")}</div>`}</div></div>`; }).join("")}`;
     A.$(".x-btn.alt-x", panel).addEventListener("click", () => panel.classList.add("hidden"));
-    A.bindCardImages(panel); A.Art.bind(panel); A.hoverPreview(panel);
+    A.bindCardImages(panel); A.Art.bind(panel);
     A.$$("[data-alt]", panel).forEach((el) => el.addEventListener("click", (ev) => { ev.stopPropagation(); const from = +el.dataset.altFor, to = +el.dataset.alt; const q = deck.main[from] || 0; const need = Math.max(1, q - ownedOf(byId.get(from))); deck.main[from] = q - need; if (deck.main[from] <= 0) delete deck.main[from]; deck.main[to] = (deck.main[to] || 0) + need; persist(); renderDeck(); toast(T("{a} → {b}", { a: byId.get(from)[1], b: byId.get(to)[1] })); }));
     panel.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -280,7 +280,7 @@ App.load().then(async (D) => {
     const slice = current.slice(page * PAGE, (page + 1) * PAGE); page++;
     const f = fmt();
     A.$("#grid").insertAdjacentHTML("beforeend", slice.map((c) => A.cardTile(c[0], { qty: 0, extra: `<span class="own ${ownedOf(c) ? "has" : ""}">${ownedOf(c) ? ownedOf(c) + "×" : "–"}</span><span class="indeck" data-g="${c[0]}"></span>${f.cmd && String(c[14] || "").includes("L") && c[6].split(",").includes("2") ? `<button type="button" class="mkcmd" data-g="${c[0]}" title="${T("Als Commander")}">★</button>` : ""}` })).join(""));
-    A.Art.bind(A.$("#grid")); A.hoverPreview(A.$("#grid"));
+    A.Art.bind(A.$("#grid"));   // Kartenvorschau beim Überfahren nur in der Deckliste rechts, nicht im Pool
     A.$("#more").innerHTML = page * PAGE < current.length ? `<button id="b-more">${T("Weitere {n} Karten laden ({r} übrig)", { n: Math.min(PAGE, current.length - page * PAGE), r: current.length - page * PAGE })}</button>` : (current.length ? "" : T("Keine Karten gefunden"));
     const b = A.$("#b-more"); if (b) b.addEventListener("click", more);
     markPool();

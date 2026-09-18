@@ -6,5 +6,6 @@
   "remoteDir": "public_html",
   "tls": true,
   "tlsVerify": true,
-  "url": "https://deine-domain.de"
+  "url": "https://deine-domain.de",
+  "pushGit": false
 }

@@ -85,7 +85,7 @@ Dasselbe gibt es im Tray-Menü als **Website hochladen (FTP)** – der Eintrag e
 node scripts/deploy.js install-hook
 ```
 
-legt einen `post-commit`-Hook an: nach jedem Commit wird die Website hochgeladen. `node scripts/deploy.js --all` überträgt einmal alles (z. B. nach manuellem Herumkopieren per FileZilla).
+legt einen `post-commit`-Hook an: nach jedem Commit wird das lokale Dashboard neu gebaut, die Website hochgeladen und – mit `"pushGit": true` in `deploy-config.json` – auch zu GitHub gepusht. So sind Desktop-App, Website und GitHub nach jedem Commit auf demselben Stand; hat sich Companion-Code (`src/`) geändert, erinnert der Hook daran, den Watcher über das Tray-Menü neu zu starten. `node scripts/deploy.js --all` überträgt einmal alles (z. B. nach manuellem Herumkopieren per Cyberduck/FileZilla).
 
 Ohne Skript geht es weiterhin von Hand: `node scripts/build-hosting.js` und `dist/hosting/` per FTP **überschreibend** hochladen.
 

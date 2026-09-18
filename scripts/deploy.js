@@ -26,6 +26,14 @@ const cmd = args.find((a) => !a.startsWith("--")) || "upload";
 const flag = (n) => args.includes("--" + n);
 
 function readJson(file) { return JSON.parse(fs.readFileSync(file, "utf8").replace(/^﻿/, "")); }
+const cfgHas = (k) => { try { return !!readJson(configFile)[k]; } catch (e) { return false; } };
+/** Optional: nach erfolgreichem Upload auch zu GitHub pushen ("pushGit": true in deploy-config.json) */
+function pushGit() {
+  try {
+    const out = execFileSync("git", ["push", "-q", "origin", "HEAD"], { cwd: root, stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).toString().trim();
+    console.log("GitHub: gepusht" + (out ? " (" + out + ")" : ""));
+  } catch (e) { console.log("GitHub-Push fehlgeschlagen: " + ((e.stderr || "").toString().trim() || e.message).split("\n")[0]); }
+}
 function loadConfig() {
   if (!fs.existsSync(configFile)) {
     if (flag("quiet-if-unconfigured")) process.exit(0);
@@ -146,11 +154,19 @@ function installHook() {
   if (!fs.existsSync(hooks)) { console.error("Kein Git-Repository (.git/hooks fehlt)."); process.exit(1); }
   const hook = path.join(hooks, "post-commit");
   const marker = "# mtga-stats deploy";
-  const line = `${marker}\nnode "${path.join(__dirname, "deploy.js").replace(/\\/g, "/")}" --quiet-if-unconfigured || echo "Website-Upload fehlgeschlagen (node scripts/deploy.js)"\n`;
+  const p = (f) => path.join(root, f).replace(/\\/g, "/");
+  const block = [
+    marker,
+    `node "${p("src/webgen.js")}" >/dev/null 2>&1 || echo "Dashboard-Neuaufbau fehlgeschlagen (node src/webgen.js)"`,     // lokales Dashboard auf den neuen Stand
+    `node "${p("scripts/deploy.js")}" --quiet-if-unconfigured || echo "Website-Upload fehlgeschlagen (node scripts/deploy.js)"`,
+    `git diff --quiet HEAD~1 HEAD -- src scripts/tray.ps1 2>/dev/null || echo "Hinweis: Companion-Code geändert – Watcher über das Tray-Menü neu starten (stoppen/starten)"`,
+    ""
+  ].join("\n");
   let body = fs.existsSync(hook) ? fs.readFileSync(hook, "utf8") : "#!/bin/sh\n";
-  if (body.includes(marker)) { console.log("Git-Hook ist bereits eingerichtet: " + hook); return; }
-  fs.writeFileSync(hook, body.replace(/\s*$/, "\n") + line);
-  console.log("Git-Hook angelegt: " + hook + "\nNach jedem Commit wird die Website automatisch hochgeladen (sobald deploy-config.json existiert).");
+  // vorhandenen Block ersetzen (Zeilen des Markers und unsere Befehle), sonst anhängen
+  body = body.split("\n").filter((l) => !(l.includes(marker) || /deploy\.js|webgen\.js|Watcher über das Tray/.test(l))).join("\n");
+  fs.writeFileSync(hook, body.replace(/\s*$/, "\n") + block);
+  console.log("Git-Hook eingerichtet: " + hook + "\nNach jedem Commit: Dashboard neu bauen, Website hochladen (sobald deploy-config.json existiert)" + (cfgHas("pushGit") ? ", git push" : "") + ".");
 }
 
 async function main() {
@@ -192,5 +208,6 @@ async function main() {
   else if (after.error) console.log(`Website nicht erreichbar: ${after.error}`);
   else if (after.commit && version.commit && after.commit !== version.commit) { console.log(`ACHTUNG: Website meldet ${fmtVersion(after)}, lokal ist ${fmtVersion(version)} – Upload prüfen (remoteDir richtig?).`); process.exitCode = 1; }
   else console.log(`Website aktuell: ${fmtVersion(after)}${changed.length ? ` (${changed.length} Datei(en) übertragen)` : ""}`);
+  if (cfg.pushGit && !process.exitCode) pushGit();
 }
 main().catch((e) => { console.error(e.message); process.exit(1); });
