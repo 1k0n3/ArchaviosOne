@@ -29,7 +29,8 @@ App.load().then((D) => {
       </div></div>
     <div class="hero" id="hero"></div>
     <div class="tiles" id="tiles" style="margin-top:14px"></div>
-    <div class="grid c2" style="margin-top:14px">
+    <h2 class="fold-h2" id="h-charts">${T("Statistik")}</h2>
+    <div class="grid c2" id="charts" style="margin-top:14px">
       <div class="panel"><h3>${T("Winrate-Verlauf")} <span class="muted small" style="text-transform:none;letter-spacing:0">${T("gleitend über 10 Matches")}</span></h3><div id="chart-trend"></div></div>
       <div class="panel"><h3>${T("Matches pro Tag")}</h3><div id="chart-days"></div></div>
       <div class="panel"><h3>${T("Spiellänge in Zügen")}</h3><div id="chart-turns"></div></div>
@@ -37,11 +38,13 @@ App.load().then((D) => {
       <div class="panel"><h3>${T("Winrate pro Deck")}</h3><div id="rate-decks"></div></div>
       <div class="panel"><h3>${T("Winrate nach Format & Gegner-Plattform")}</h3><div id="rate-format"></div><div id="rate-platform" style="margin-top:10px"></div></div>
     </div>
-    <h2>${T("Letzte Matches")} <a href="matches.html">${T("alle anzeigen →")}</a></h2>
-    <div class="panel" style="padding:6px 8px"><table id="recent"><thead><tr><th>${T("Wann")}</th><th>${T("Ergebnis")}</th><th>${T("Deck")}</th><th>${T("Gegner")}</th><th>${T("Event")}</th><th>${T("Züge")}</th><th>${T("Dauer")}</th><th></th></tr></thead><tbody></tbody></table></div>
+    <h2 class="fold-h2" id="h-recent">${T("Letzte Matches")} <a href="matches.html">${T("alle anzeigen →")}</a></h2>
+    <div class="panel" id="recent-panel" style="padding:6px 8px"><table id="recent"><thead><tr><th>${T("Wann")}</th><th>${T("Ergebnis")}</th><th>${T("Deck")}</th><th>${T("Gegner")}</th><th>${T("Event")}</th><th>${T("Züge")}</th><th>${T("Dauer")}</th><th></th></tr></thead><tbody></tbody></table></div>
   `);
   let range = 30;
   const FI = A.FI, rerender = () => render();
+  A.foldable(A.$("#h-charts"), A.$("#charts"), "index-charts", !A.isMobile());
+  A.foldable(A.$("#h-recent"), A.$("#recent-panel"), "index-recent", !A.isMobile());
   const fRange = A.dropdown(A.$("#f-range"), { title: T("Zeitraum"), value: "30", defaultValue: "30", onChange: (v) => { range = +v; render(); }, items: [
     { v: "7", label: T("Letzte 7 Tage"), short: T("7 Tage"), icon: FI.calendar }, { v: "30", label: T("Letzte 30 Tage"), short: T("30 Tage"), icon: FI.calendar }, { v: "90", label: T("Letzte 90 Tage"), short: T("90 Tage"), icon: FI.calendar }, { v: "0", label: T("Alle Matches"), short: T("Alle"), icon: FI.all }] });
   const fFormat = A.dropdown(A.$("#f-format"), { title: T("Format"), onChange: rerender, items: [{ v: "", label: T("Alle Formate"), short: T("Format"), icon: FI.set }, ...[...new Set(D.matches.map((m) => m.format).filter(Boolean))].sort().map((f) => ({ v: f, label: f, icon: FI.set }))] });

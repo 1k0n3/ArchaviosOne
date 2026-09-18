@@ -155,9 +155,9 @@ App.load().then((D) => {
       const titles = cmd.length && m === "img"
         ? `<div class="zone-titles"><div class="zone-title cmd" style="--n:${cmd.length}">${T("Commander")}</div>${shown.length ? `<div class="zone-title">${t} · ${n}</div>` : ""}</div>`
         : `<div class="zone-title">${cmd.length ? T("Commander") + " · " : ""}${t} · ${n}</div>`;
-      return `<section class="zone-sec">${titles}` +
-        (m === "img" ? `<div class="cards">${cmdHtml}${shown.map(([g, q]) => A.cardTile(g, { qty: q, compact: false })).join("")}</div>`
-          : cmdHtml + shown.map(([g, q]) => { const c = A.card(g); return `<div class="cardline"><span class="q">${q}</span><span>${A.esc(c.name)}</span><span class="set" title="${A.esc(A.setName(c.set))}">${A.esc(c.set)} ${A.esc(c.nr)}</span></div>`; }).join("")) + "</section>";
+      return `<section class="zone-sec" data-zone="${A.esc(t)}">${titles}` +
+        (m === "img" ? `<div class="cards zone-body">${cmdHtml}${shown.map(([g, q]) => A.cardTile(g, { qty: q, compact: false })).join("")}</div>`
+          : `<div class="zone-body">` + cmdHtml + shown.map(([g, q]) => { const c = A.card(g); return `<div class="cardline"><span class="q">${q}</span><span>${A.esc(c.name)}</span><span class="set" title="${A.esc(A.setName(c.set))}">${A.esc(c.set)} ${A.esc(c.nr)}</span></div>`; }).join("") + `</div>`) + "</section>";
     };
     A.$("#d-reset").addEventListener("click", () => { q = ""; dq.value = ""; setF = ""; ddSet.value = ""; colorsF.clear(); A.$$("#d-colors button").forEach((b) => b.classList.remove("on")); sortBy = "cmc"; ddSort.value = "cmc"; draw(); });
     const draw = () => {
@@ -165,7 +165,10 @@ App.load().then((D) => {
       zonesEl.className = mode === "img" ? "zones-flow" : "zones-list";
       zonesEl.innerHTML = mainSections.map((x, k) => secHtml(x, mode, k === 0)).join("") || `<div class="empty">${T("Keine Karte passt zur Suche")}</div>`;
       A.Art.bind(zonesEl); A.bindCardImages(zonesEl); A.hoverPreview(zonesEl); A.cardLinks(zonesEl);
+      // Abschnitte je Kartentyp einklappbar (Handy: nur der erste offen)
+      A.$$(".zone-sec", zonesEl).forEach((sec, k) => { const head = A.$(".zone-titles, .zone-title", sec); const body = A.$(".zone-body", sec); if (head && body && body !== head) A.foldable(head, body, "deck-zone:" + sec.dataset.zone, !A.isMobile() || k === 0); });
     };
+    { const fh = A.$(".deck-facts-head", el), fb = A.$(".deck-facts", el); if (fh && fb) A.foldable(fh, fb, "deck-facts", !A.isMobile()); }
     // Set-Filter nur mit Symbol (Sets aus diesem Deck), Farbfilter nur mit vorhandenen Farben, Sortierung wie in der Bibliothek
     const ddSet = A.dropdown(A.$("#d-set"), { title: T("Set"), searchable: setsInDeck.length > 8, onChange: (v) => { setF = v; draw(); }, items: [
       { v: "", label: T("Alle Sets"), short: "", icon: A.FI.set }, ...setsInDeck.map((c) => ({ v: c, label: c, short: "", title: A.setName(c), search: A.setName(c), icon: A.setIcon(c) }))] });

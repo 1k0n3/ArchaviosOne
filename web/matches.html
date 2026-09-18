@@ -20,6 +20,7 @@
 <script>
 App.load().then((D) => {
   const A = App, T = A.t;
+  if (A.isMobile()) { A.shell("matches.html", `<div class="topbar"><div><h1>${T("Matches")}</h1></div></div><div class="empty">${T("Die Match-Liste ist für große Bildschirme gedacht. Die letzten Matches findest du in der Übersicht.")}</div><p><a class="btn-replay" href="index.html">${T("Übersicht")}</a></p>`); return; }
   A.shell("matches.html", `
     <div class="topbar"><div><h1>${T("Matches")}</h1><div class="sub" id="count"></div></div>
       <div class="right filters">

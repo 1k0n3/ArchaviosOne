@@ -130,6 +130,22 @@ window.App = (function () {
       ${opts.qty > 1 ? `<span class="q">${opts.qty}</span>` : ""}${opts.extra || ""}</div>`;
   }
   const cardTile = (g, opts = {}) => cardHtml(g, opts);
+  /** Schmaler Bildschirm (Handy): weniger auf einmal zeigen, Sekundäres einklappen */
+  const isMobile = () => window.matchMedia("(max-width: 760px)").matches;
+  /**
+   * Abschnitt einklappbar machen: Klick auf die Überschrift klappt den Inhalt auf/zu, Zustand wird im Browser gemerkt.
+   * open = Standard, wenn nichts gemerkt ist (auf dem Handy meist zu, am Desktop auf).
+   */
+  function foldable(head, body, key, open = true) {
+    if (!head || !body) return;
+    const k = "mtga-fold:" + key;
+    let isOpen = open; try { const v = localStorage.getItem(k); if (v !== null) isOpen = v === "1"; } catch (e) { /* ohne Speicher */ }
+    head.classList.add("fold-head");
+    if (!$(".fold-chev", head)) head.insertAdjacentHTML("beforeend", '<span class="fold-chev">' + FI.chevron + "</span>");
+    const paint = () => { head.classList.toggle("folded", !isOpen); body.classList.toggle("fold-hidden", !isOpen); };
+    head.addEventListener("click", (ev) => { if (ev.target.closest("a, button, input, select")) return; isOpen = !isOpen; try { localStorage.setItem(k, isOpen ? "1" : "0"); } catch (e) { /* ignorieren */ } paint(); });
+    paint();
+  }
   /** Link zum Replay: groß mit Text oder als kleiner goldener Play-Knopf */
   const replayLink = (matchId, small) => small
     ? `<a class="btn-play" href="replay.html?id=${matchId}" title="${tr("Replay ▶")}" onclick="event.stopPropagation()">${FI.play}</a>`
@@ -290,7 +306,7 @@ window.App = (function () {
     const seg = Object.entries(st.colors).filter(([, n]) => n).map(([k, n]) => `<div class="seg c-${k}" style="flex:${n}" title="${tr("{n} {c}-Symbole ({p} %)", { n, c: k.toUpperCase(), p: Math.round(100 * n / total) })}"></div>`).join("");
     const pips = Object.entries(st.colors).filter(([, n]) => n).map(([k, n]) => `<span class="pip">${manaSymbol(k)}<b>${n}</b></span>`).join("");
     const tile = (l, v, icon) => `<div class="tile"><div class="label">${icon || ""}${l}</div><div class="value">${v}</div></div>`;
-    return `<div class="deck-facts">
+    return `<div class="deck-facts-head fold-head" data-fold="deck-facts">${tr("Statistik")}<span class="fold-chev">${FI.chevron}</span></div><div class="deck-facts">
       <div class="df-left">
         <div class="ds-block colors"><div class="ds-t">${tr("Farben")}</div><div class="cbar">${seg || '<div class="seg c-c" style="flex:1"></div>'}</div><div class="pips">${pips || `<span class="muted small">${tr("farblos")}</span>`}</div></div>
         <div class="tiles stat-rows fact-tiles">${tile(tr("Kreaturen"), st.creatures, FI.creature)}${tile(tr("Zauber"), st.spells, FI.instant)}${tile(tr("Andere"), st.others, FI.artifact)}${tile(tr("Länder"), st.lands, FI.land)}${tile(tr("Nichtländer"), st.nonLand, FI.copies)}${tile(tr("Ø Manawert"), st.avgCmc.toFixed(1), FI.mana)}</div>
@@ -375,6 +391,7 @@ window.App = (function () {
     const site = DATA && DATA.site;
     let pages = [["index.html", tr("Übersicht"), "dash"], ["matches.html", tr("Matches"), "matches"], ["decks.html", tr("Decks"), "decks"], ["library.html", tr("Bibliothek"), "lib"], ["builder.html", tr("Deckbau"), "build"]];
     if (site && site.shared) pages = [["decks.html", tr("Geteiltes Deck"), "decks"]];
+    if (isMobile()) pages = pages.filter((p) => p[0] !== "matches.html");   // Match-Tabelle ist nichts fürs Handy
     const siteLinks = site ? (site.shared ? `<a class="nav" href="/">${ICONS.dash}<span>${tr("Zur Website")}</span></a><a class="nav" href="/p/${esc(site.handle)}">${ICONS.lib}<span>${tr("Profil von {h}", { h: esc(site.handle) })}</span></a>` : `<a class="nav" href="/settings">${ICONS.decks}<span>${tr("Konto & Geräte")}</span></a><a class="nav" href="/">${ICONS.dash}<span>${tr("Website")}</span></a>`) : "";
     const player = (DATA && DATA.player) || tr("Spieler");
     const cur = pages.find((p) => p[0] === active); if (cur) document.title = "MTGA Stats · " + cur[1];
@@ -702,5 +719,5 @@ window.App = (function () {
     setInterval(check, 20000);
   })();
 
-  return { load, get DATA() { return DATA; }, $, $$, esc, card, cardName, artOf, artCanvas, cardTile, cardHtml, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, cmcOf, loadedImgs, t: tr, get LOGO() { return logoSvg(); } };
+  return { load, get DATA() { return DATA; }, $, $$, esc, card, cardName, artOf, artCanvas, cardTile, cardHtml, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, cmcOf, loadedImgs, t: tr, isMobile, foldable, get LOGO() { return logoSvg(); } };
 })();

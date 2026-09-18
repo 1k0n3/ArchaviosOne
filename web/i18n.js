@@ -51,6 +51,8 @@ window.I18N = (function () {
     "Sonstiges": ["Other","Autres","Otros","Altro","Outros","その他"],
     "Autoplay an – Replays starten von selbst": ["Autoplay on – replays start by themselves", "Lecture auto activée", "Reproducción automática activada", "Riproduzione automatica attiva", "Reprodução automática ligada", "自動再生オン"],
     "Autoplay aus": ["Autoplay off", "Lecture auto désactivée", "Reproducción automática desactivada", "Riproduzione automatica disattivata", "Reprodução automática desligada", "自動再生オフ"],
+    "Statistik": ["Statistics", "Statistiques", "Estadísticas", "Statistiche", "Estatísticas", "統計"],
+    "Die Match-Liste ist für große Bildschirme gedacht. Die letzten Matches findest du in der Übersicht.": ["The match list is made for large screens. Recent matches are on the overview.", "La liste des parties est conçue pour les grands écrans. Les dernières parties sont dans l'aperçu.", "La lista de partidas está pensada para pantallas grandes. Las últimas partidas están en el resumen.", "L'elenco partite è pensato per schermi grandi. Le ultime partite sono nella panoramica.", "A lista de partidas foi feita para telas grandes. As últimas partidas estão na visão geral.", "対戦リストは大画面向けです。最近の対戦は概要にあります。"],
     // Navigation, Rahmen
     "Übersicht": ["Overview", "Aperçu", "Resumen", "Panoramica", "Visão geral", "概要"],
     "Matches": ["Matches", "Parties", "Partidas", "Partite", "Partidas", "対戦"],
