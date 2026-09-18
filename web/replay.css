@@ -426,3 +426,182 @@ button.zi:hover { border-color: var(--gold); color: var(--gold-2); transform: tr
   .bottom .medal { order: 0; } .hand.me { order: 1; }
   .medal .zones { grid-template-columns: repeat(4, auto); }
 }
+
+/* ---- Hände gleich groß und nur leicht angeschnitten, gestapelte Karten sauber zoomen, Stapel nicht beschneiden ---- */
+.board { grid-template-rows: calc(var(--hh) * .72) auto calc(var(--hh) * .88); }
+.stage:fullscreen .board { grid-template-rows: calc(var(--hh) * .72) minmax(0, 1fr) calc(var(--hh) * .88); }
+.hand.opp { align-items: flex-start; }
+.hand.opp .fan { margin-top: calc(var(--hh) * -0.3); }
+.hand.opp .cc.back { width: var(--hw); height: var(--hh); margin-left: calc(var(--hw) * -0.6); transform-origin: 50% -230%; transform: rotate(calc((var(--k) - (var(--n) - 1) / 2) * -3.5deg)); }
+.hand.opp .cc.back:first-child { margin-left: 0; }
+.hand.me { align-items: flex-end; padding-bottom: 0; }
+.hand.me .fan { margin-bottom: calc(var(--hh) * -0.14); }
+.top { margin-bottom: -6px; } .bottom { margin-top: -10px; }
+/* Hover: ganze Kachel samt Stapel-Ebenen anheben, oberhalb der Nachbarn */
+.cc:not(.back):hover { z-index: 9; }
+.cc:not(.back):hover .inner { transform: translateY(-8px) scale(1.06); }
+.cc.stacked:not(.back):hover { transform: translateY(-8px) scale(1.06); }
+.cc.stacked:not(.back):hover .inner { transform: none; }
+.cc.tapped:hover .inner, .cc.stacked.tapped:hover .inner { transform: rotate(30deg) scale(.96); }
+.cc.stacked.tapped:hover { transform: translateY(-6px) scale(1.06); }
+.stack-col { overflow: visible; }
+.stack .sitems { overflow: visible; }
+.sitem:not(.top):hover { z-index: 70; transform: scale(1.04); }
+/* Beide Hände gleich groß und gleich wenig angeschnitten (je etwa 14 %) */
+.board { grid-template-rows: calc(var(--hh) * .88) auto calc(var(--hh) * .88); }
+.stage:fullscreen .board { grid-template-rows: calc(var(--hh) * .88) minmax(0, 1fr) calc(var(--hh) * .88); }
+.hand.opp .fan { margin-top: calc(var(--hh) * -0.14); }
+
+/* ---- Eigene Hand groß, Gegnerhand kleiner; Playbar liegt über dem Board; Länder größer, Hover ohne Größensprung ---- */
+.board { --lw: clamp(84px, 7.4vw, 122px); --oh: calc(var(--hw) * .72); grid-template-rows: calc(var(--oh) * 1.4 * .86) auto calc(var(--hh) * .95); padding-bottom: 96px; }
+.stage:fullscreen .board { grid-template-rows: calc(var(--oh) * 1.4 * .86) minmax(0, 1fr) calc(var(--hh) * .95); }
+.hand.opp .cc.back { width: var(--oh); height: calc(var(--oh) * 1.4); margin-left: calc(var(--oh) * -0.6); }
+.hand.opp .fan { margin-top: calc(var(--oh) * 1.4 * -0.14); }
+.hand.me .cc { margin-left: calc(var(--hw) * -0.58); }
+.hand.me .fan { margin-bottom: 0; }
+.playerbar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; background: linear-gradient(180deg, rgba(14,18,32,.55), rgba(12,16,26,.92) 40%); backdrop-filter: blur(8px); border-top: 1px solid rgba(255,255,255,.08); }
+.stage:fullscreen .playerbar { position: absolute; }
+.cc.tapped .inner, .cc.tapped:hover .inner, .cc.stacked.tapped:hover .inner { transform: rotate(30deg); transform-origin: 50% 100%; }
+.cc.tapped:hover .inner { transform: rotate(30deg) translateY(-6px) scale(1.06); }
+.cc.stacked.tapped:hover .inner { transform: rotate(30deg); }
+.cc.stacked.tapped:hover { transform: translateY(-6px) scale(1.06); }
+/* Gegnerhand kleiner und weiter oben, eigene Hand etwas größer */
+.board { --hw: clamp(118px, 10.4vw, 168px); --oh: calc(var(--hw) * .5); grid-template-rows: calc(var(--oh) * 1.4 * .7) auto calc(var(--hh) * .95); }
+.stage:fullscreen .board { grid-template-rows: calc(var(--oh) * 1.4 * .7) minmax(0, 1fr) calc(var(--hh) * .95); }
+.hand.opp .fan { margin-top: calc(var(--oh) * 1.4 * -0.3); }
+.hand.opp .cc.back { margin-left: calc(var(--oh) * -0.55); }
+.top { margin-bottom: -4px; }
+/* Handkarten beim Hover nur leicht anheben */
+.hand.me .cc:hover { transform: rotate(calc((var(--k, 0) - (var(--n, 1) - 1) / 2) * 3.5deg)) translateY(-10px) scale(1.02); z-index: 12; }
+.hand.me .cc:hover .inner { transform: none; box-shadow: 0 10px 22px rgba(0,0,0,.65), 0 0 0 2px var(--gold); }
+/* Protokoll und Popup über dem Stapel */
+.logpanel { z-index: 90; }
+.popup { z-index: 95; }
+/* "Bilder aus": Kacheln zeigen nur Rahmen und Namen */
+.board.noimgs .cc .inner img.cimg, .board.noimgs .cc.back img { display: none; }
+.board.noimgs .cc .inner::before { display: none; }
+.board.noimgs .cc .inner .fallback { display: flex; background: linear-gradient(180deg, #1c2340, #10131f); }
+.board.noimgs .cc .inner .fallback .fart { display: none; }
+.board.noimgs .cc .inner .fallback .fname { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; white-space: normal; padding: 6px; font-size: 11px; line-height: 1.25; background: none; }
+
+/* ---- Hover zoomt die ganze Kachel (Kampfwerte, Marken und Zähler zoomen mit) ---- */
+.cc:not(.back):hover { transform: translateY(-8px) scale(1.06); z-index: 9; }
+.cc:not(.back):hover .inner, .cc.stacked:not(.back):hover .inner { transform: none; }
+/* Getappt: überall 20 Grad */
+.cc.tapped .inner, .cc.tapped:hover .inner, .cc.stacked.tapped:hover .inner { transform: rotate(20deg); transform-origin: 50% 100%; }
+.cc.tapped:hover, .cc.stacked.tapped:hover { transform: translateY(-6px) scale(1.06); }
+.cc.stacked.tapped .lay.l1 { transform: rotate(20deg) translate(6px, -6px); }
+.cc.stacked.tapped .lay.l2 { transform: rotate(20deg) translate(12px, -12px); }
+.lands .cc.sm.tapped:last-child { margin-right: calc(var(--lh) * .28); }
+.perms .cc.tapped:last-child { margin-right: calc(var(--ch) * .28); }
+/* Emblem ohne Pille; Namen größer und linksbündig */
+.medal, .medal.active { border-radius: 0; background: none; border: 0; box-shadow: none; backdrop-filter: none; padding: 4px 8px 4px 4px; }
+.medal .pinfo { align-items: flex-start; text-align: left; max-width: 220px; }
+.medal .pname, .medal.me .pname { font-size: 17px; font-weight: 800; text-align: left; max-width: 220px; text-shadow: 0 2px 6px rgba(0,0,0,.8); }
+.medal .tag { text-align: left; }
+/* Aktiver Spieler: Farbverlauf in der Phasenleiste – oben rot (Gegner), unten blau (ich) */
+.phasebar { position: relative; overflow: hidden; }
+.phasebar.opp { background: linear-gradient(180deg, rgba(239,68,68,.55) 0%, rgba(239,68,68,.12) 30%, rgba(8,11,20,.55) 55%); border-color: rgba(239,68,68,.45); }
+.phasebar.me { background: linear-gradient(0deg, rgba(59,130,246,.6) 0%, rgba(59,130,246,.12) 30%, rgba(8,11,20,.55) 55%); border-color: rgba(59,130,246,.5); }
+.phasebar.opp::before, .phasebar.me::after { content: ""; position: absolute; left: 0; right: 0; height: 4px; }
+.phasebar.opp::before { top: 0; background: #ef4444; box-shadow: 0 0 14px #ef4444; }
+.phasebar.me::after { bottom: 0; background: #3b82f6; box-shadow: 0 0 14px #3b82f6; }
+/* Stapel: Zähler direkt am Stapel (unten mittig, am Drehpunkt), Stapel klar abgesetzt */
+.cc .cnt, .perms .cc.stacked .cnt { left: 50%; right: auto; top: auto; bottom: -11px; transform: translateX(-50%); font-size: 13px; padding: 0 9px; border-radius: 999px; background: var(--gold); color: var(--gold-ink); border: 2px solid #0c1019; }
+.cc.stacked .lay { background: #232b47; border: 1px solid rgba(242,177,52,.5); }
+.cc.stacked .lay.l1 { transform: translate(6px, -6px); } .cc.stacked .lay.l2 { transform: translate(12px, -12px); }
+.lands .cc.stacked, .perms .cc.stacked { margin-left: 20px !important; margin-right: 26px !important; }
+.lands .cc.stacked.tapped, .perms .cc.stacked.tapped { margin-right: calc(var(--lh) * .3 + 22px) !important; }
+.lands .cc.stacked:first-child, .perms .cc.stacked:first-child { margin-left: 4px !important; }
+.cc.stacked .pt { bottom: 12px; }
+/* "Bilder aus": nachempfundene Textkarten */
+.tcard { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 2px; padding: 4px; border-radius: inherit; background: var(--fc); color: #14100a; font-size: 9px; line-height: 1.25; overflow: hidden; }
+.tcard.f-w { background: var(--fw); } .tcard.f-u { background: var(--fu); } .tcard.f-b { background: var(--fb); } .tcard.f-r { background: var(--fr); } .tcard.f-g { background: var(--fg); }
+.tcard.f-m { background: var(--fm); } .tcard.f-a { background: var(--fa); } .tcard.f-l { background: var(--fl); }
+.tcard .th { display: flex; align-items: center; gap: 3px; padding: 2px 4px; border-radius: 4px 4px 2px 2px; background: rgba(255,255,255,.82); box-shadow: inset 0 0 0 1px rgba(0,0,0,.35); min-height: 16px; }
+.tcard .th .n { flex: 1; min-width: 0; font-weight: 800; font-size: 9.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tcard .th .m { flex: none; display: inline-flex; gap: 1px; }
+.tcard .th .m .ms { width: 10px; height: 10px; }
+.tcard .tt { padding: 1px 4px; border-radius: 2px; background: rgba(255,255,255,.7); font-weight: 700; font-size: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: inset 0 0 0 1px rgba(0,0,0,.3); }
+.tcard .tx { flex: 1; min-height: 0; overflow: hidden; padding: 3px 4px; border-radius: 2px 2px 4px 4px; background: rgba(250,246,232,.92); box-shadow: inset 0 0 0 1px rgba(0,0,0,.3); font-size: 8px; }
+.tcard .tx p { margin: 0 0 2px; }
+.tcard .tx .ms { width: 8px; height: 8px; vertical-align: -1px; }
+.cc.sm .tcard .tx { font-size: 7px; }
+.cc.hand .tcard, .cc.stackc .tcard { font-size: 10px; }
+.cc.hand .tcard .tx, .cc.stackc .tcard .tx { font-size: 9.5px; }
+.cc.hand .tcard .th .n, .cc.stackc .tcard .th .n { font-size: 11px; }
+.cc.stackc .tcard .tx { font-size: 11px; } .cc.stackc .tcard .th .n { font-size: 13px; } .cc.stackc .tcard .tt { font-size: 10px; }
+.board.noimgs .cc .inner { background: none; }
+
+/* ---- Inkrementelles Rendering: Platzhalter-Slots, bekannte Bilder ohne Einblenden ---- */
+.slot.ph { display: flex; min-height: 0; } .slot.ph .phasebar { flex: 1; }
+.slot.m-opp, .slot.m-me { display: flex; align-items: center; position: relative; z-index: 4; }
+.stack-col .slot.st:empty, .stack-col .slot.tk:empty { display: none; }
+.stack-col .slot.tk { margin-top: auto; }
+.cc .inner img.cimg[data-known] { opacity: 1; transition: none; }
+.cc .inner:has(img.cimg[data-known])::before { display: none; }
+.cc .inner { transition: transform .25s ease, box-shadow .2s; }
+/* Plaketten (Kampfwerte, Zähler, Marken) liegen beim Hover über der Karte */
+.cc:not(.back):hover .inner { z-index: auto; }
+.cc .pt, .cc .loy, .cc .cnt, .cc .tok, .cc .atk, .cc .blk { z-index: 8; }
+.cc .lay { z-index: 0; } .cc .inner { z-index: 1; }
+/* Getappt: 15 Grad */
+.cc.tapped .inner, .cc.tapped:hover .inner, .cc.stacked.tapped:hover .inner { transform: rotate(15deg); transform-origin: 50% 100%; }
+.cc.stacked.tapped .lay.l1 { transform: rotate(15deg) translate(6px, -6px); }
+.cc.stacked.tapped .lay.l2 { transform: rotate(15deg) translate(12px, -12px); }
+.lands .cc.sm.tapped:last-child { margin-right: calc(var(--lh) * .22); }
+.perms .cc.tapped:last-child { margin-right: calc(var(--ch) * .22); }
+.lands .cc.stacked.tapped, .perms .cc.stacked.tapped { margin-right: calc(var(--lh) * .24 + 22px) !important; }
+/* "Bilder aus": Platzhaltergrafik je Kartentyp */
+.tcard .ta { flex: 0 0 34%; display: flex; align-items: center; justify-content: center; border-radius: 2px; color: rgba(255,255,255,.92); box-shadow: inset 0 0 0 1px rgba(0,0,0,.35); background: linear-gradient(160deg, #4a5270, #23283c); }
+.tcard .ta svg { width: 46%; height: 70%; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+.tcard .ta.t-land { background: linear-gradient(160deg, #7a9a5a, #3c5a34 55%, #5a4a30); }
+.tcard .ta.t-creature { background: linear-gradient(160deg, #a0583c, #4a2418); }
+.tcard .ta.t-instant { background: linear-gradient(160deg, #3d7fd6, #1a2f6a); }
+.tcard .ta.t-sorcery { background: linear-gradient(160deg, #8a4ab0, #35184e); }
+.tcard .ta.t-ench { background: linear-gradient(160deg, #d9b24a, #6e4a10); }
+.tcard .ta.t-artifact { background: linear-gradient(160deg, #9aa6b0, #3e4852); }
+.tcard .ta.t-pw { background: linear-gradient(160deg, #e0763a, #5a2410); }
+.tcard .ta.t-battle { background: linear-gradient(160deg, #c0392b, #4a1410); }
+.cc.sm .tcard .tx { display: none; } .cc.sm .tcard .ta { flex: 1; }
+
+/* ---- "Bilder aus": düstere Illustrationen, Kartenrahmen mit Goldkante ---- */
+.tcard { padding: 5px; gap: 3px; box-shadow: inset 0 0 0 2px #070504, inset 0 0 0 3px rgba(242,177,52,.4); }
+.tcard .ta { flex: 0 0 42%; padding: 0; overflow: hidden; border-radius: 3px; background: #050304 !important; box-shadow: inset 0 0 0 1px rgba(0,0,0,.6), 0 0 0 1px rgba(242,177,52,.35); }
+.tcard .ta svg { width: 100%; height: 100%; display: block; filter: none; }
+.cc.sm .tcard .ta { flex: 1; }
+.tcard .th { background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(230,220,196,.85)); }
+.tcard .tx { background: linear-gradient(180deg, rgba(250,246,232,.95), rgba(232,222,198,.92)); }
+.cc:hover .tcard .ta svg { transform: scale(1.06); transition: transform .4s ease; }
+
+/* ---- Tap-Symbol auf getappten Karten (offiziell), klarere Kartenfarben der Textkarten ---- */
+.cc.tapped .inner::after { content: ""; position: absolute; right: 4px; top: 4px; width: 20px; height: 20px; z-index: 3; border-radius: 50%; background: #111 url("https://svgs.scryfall.io/card-symbols/T.svg") center/100% no-repeat; box-shadow: 0 0 0 2px rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.7); }
+.tcard { color: #120e08; }
+.tcard.f-w { background: linear-gradient(180deg, #fbf3d8, #e2d094); box-shadow: inset 0 0 0 2px #070504, inset 0 0 0 4px #efe2b4; }
+.tcard.f-u { background: linear-gradient(180deg, #5a9ae8, #1c4a9e); box-shadow: inset 0 0 0 2px #070504, inset 0 0 0 4px #7fb4f2; }
+.tcard.f-b { background: linear-gradient(180deg, #6a5e78, #251c2c); box-shadow: inset 0 0 0 2px #070504, inset 0 0 0 4px #8d80a0; }
+.tcard.f-r { background: linear-gradient(180deg, #e85a3c, #8a2210); box-shadow: inset 0 0 0 2px #070504, inset 0 0 0 4px #f28a70; }
+.tcard.f-g { background: linear-gradient(180deg, #56b862, #1f6a2c); box-shadow: inset 0 0 0 2px #070504, inset 0 0 0 4px #86d48e; }
+.tcard.f-m { background: linear-gradient(180deg, #f3d35e, #ad861c); box-shadow: inset 0 0 0 2px #070504, inset 0 0 0 4px #ffe58a; }
+.tcard.f-a { background: linear-gradient(180deg, #cfd9e2, #7f8d9a); box-shadow: inset 0 0 0 2px #070504, inset 0 0 0 4px #e6edf3; }
+.tcard.f-l { background: linear-gradient(180deg, #cf9d62, #7a4f2a); box-shadow: inset 0 0 0 2px #070504, inset 0 0 0 4px #e2b98a; }
+.tcard.f-c { background: linear-gradient(180deg, #b3bac4, #6c747e); box-shadow: inset 0 0 0 2px #070504, inset 0 0 0 4px #d3d9e0; }
+.tcard .th .cp { display: inline-flex; gap: 1px; flex: none; }
+.tcard .th .cp .ms { width: 11px; height: 11px; vertical-align: middle; }
+.cc.sm .tcard .th .cp { display: none; }
+
+/* ---- Textkarten: Emblem statt Bild, Text lesbar ---- */
+.tcard .ta { display: none; }
+.tcard .tt { display: flex; align-items: center; gap: 4px; white-space: normal; padding: 2px 4px; }
+.tcard .tt .tl { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tcard .emb { flex: none; width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.25); }
+.tcard .emb svg { width: 10px; height: 10px; }
+.tcard .emb.t-land { background: #4f7a3a; } .tcard .emb.t-creature { background: #8a2f1c; } .tcard .emb.t-instant { background: #2b63b8; } .tcard .emb.t-sorcery { background: #6e3a9c; }
+.tcard .emb.t-ench { background: #b8862a; } .tcard .emb.t-artifact { background: #5f6b76; } .tcard .emb.t-pw { background: #c25a22; } .tcard .emb.t-battle { background: #9a2a22; } .tcard .emb.t-other { background: #4a4a6a; }
+.tcard .tx { font-size: 9.5px; line-height: 1.3; }
+.tcard .tx p { margin: 0 0 3px; }
+.cc.sm .tcard .tx { display: block; font-size: 7.5px; }
+.cc.sm .tcard .tt .tl { font-size: 7px; }
+.cc.hand .tcard .tx, .cc.stackc .tcard .tx { font-size: 10.5px; }
+.cc.stackc .tcard .tx { font-size: 12px; }
+.cc.stackc .tcard .emb, .cc.hand .tcard .emb { width: 20px; height: 20px; } .cc.stackc .tcard .emb svg, .cc.hand .tcard .emb svg { width: 12px; height: 12px; }

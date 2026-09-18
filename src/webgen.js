@@ -59,6 +59,12 @@ function build(outDir, cards) {
     const p = path.join(srcDir, f);
     if (fs.statSync(p).isFile()) fs.copyFileSync(p, path.join(webDir, f));
   }
+  // Icons für Manifest, App-Fenster und Tab
+  const assets = path.join(__dirname, "..", "assets");
+  for (const [src, dst] of [["icon-192.png", "icon-192.png"], ["icon-512.png", "icon-512.png"], ["mtga-stats.ico", "favicon.ico"]]) {
+    const p = path.join(assets, src);
+    if (fs.existsSync(p)) fs.copyFileSync(p, path.join(webDir, dst));
+  }
 
   const decks = readDecks(cards);
   const deckById = new Map(decks.map((d) => [d.id, d]));
@@ -88,6 +94,21 @@ function build(outDir, cards) {
       for (const g of frameCards) { const c = cards.get(g); if (c) cardsForMatch[g] = cardEntry(c); }
       fs.writeFileSync(mf, "window.MTGA_MATCH=" + JSON.stringify({ match: Object.assign({}, m, { frames: undefined }), frames: m.frames, cards: cardsForMatch }) + ";");
     }
+  }
+  // Die Deckliste aus dem Player.log stammt vom Spielstart; wurde ein Deck danach geändert und gespielt, ist die
+  // Liste aus dem jüngsten Match aktueller. Dann wird sie übernommen (Commander, Hauptdeck, Sideboard).
+  for (const m of list) {
+    const d = deckById.get(m.myDeck.deckId);
+    if (!d || !(m.myDeck.cards || []).length) continue;
+    const at = new Date(m.start);
+    if (d.lastUpdated && new Date(d.lastUpdated) >= at) continue;
+    const toZone = (arr) => (arr || []).map((c) => [c.grpId, c.qty || 1]);
+    const zones = { MainDeck: toZone(m.myDeck.cards) };
+    if ((m.myDeck.commander || []).length) zones.CommandZone = toZone(m.myDeck.commander);
+    if ((m.myDeck.sideboard || []).length) zones.Sideboard = toZone(m.myDeck.sideboard);
+    if ((d.zones.Companions || []).length) zones.Companions = d.zones.Companions;
+    d.zones = zones; d.lastUpdated = at.toISOString(); d.fromMatch = true;
+    d.tile = d.tileId || ((zones.CommandZone || [])[0] || [d.tile])[0];
   }
   for (const d of decks) { usedCards.add(d.tile); for (const z of Object.values(d.zones)) for (const [g] of z) usedCards.add(g); }
 

@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MTGA Stats · Übersicht</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0b0e18">
 <link rel="stylesheet" href="app.css">
 <script src="data.js"></script>
 <script src="app.js"></script>
@@ -15,9 +19,9 @@ App.load().then((D) => {
   A.shell("index.html", `
     <div class="topbar"><div><h1>Übersicht</h1><div class="sub">Siege, Decks und Form auf einen Blick</div></div>
       <div class="right filters">
-        <div class="seg" id="f-range"><button data-v="7">7 Tage</button><button data-v="30" class="on">30 Tage</button><button data-v="90">90 Tage</button><button data-v="0">Alle</button></div>
-        <label class="f">Format <select id="f-format"><option value="">alle</option></select></label>
-        <label class="f">Deck <select id="f-deck"><option value="">alle</option></select></label>
+        <div id="f-range"></div>
+        <div id="f-format"></div>
+        <div id="f-deck"></div>
       </div></div>
     <div class="hero" id="hero"></div>
     <div class="tiles" id="tiles" style="margin-top:14px"></div>
@@ -33,11 +37,11 @@ App.load().then((D) => {
     <div class="panel" style="padding:6px 8px"><table id="recent"><thead><tr><th>Wann</th><th>Ergebnis</th><th>Deck</th><th>Gegner</th><th>Event</th><th>Züge</th><th>Dauer</th><th></th></tr></thead><tbody></tbody></table></div>
   `);
   let range = 30;
-  const fFormat = A.$("#f-format"), fDeck = A.$("#f-deck");
-  for (const f of [...new Set(D.matches.map((m) => m.format).filter(Boolean))].sort()) fFormat.insertAdjacentHTML("beforeend", `<option>${A.esc(f)}</option>`);
-  for (const d of [...new Set(D.matches.map(A.deckLabel))].sort()) fDeck.insertAdjacentHTML("beforeend", `<option>${A.esc(d)}</option>`);
-  A.$$("#f-range button").forEach((b) => b.addEventListener("click", () => { range = +b.dataset.v; A.$$("#f-range button").forEach((x) => x.classList.toggle("on", x === b)); render(); }));
-  for (const el of [fFormat, fDeck]) el.addEventListener("change", render);
+  const FI = A.FI, rerender = () => render();
+  const fRange = A.dropdown(A.$("#f-range"), { title: "Zeitraum", value: "30", defaultValue: "30", onChange: (v) => { range = +v; render(); }, items: [
+    { v: "7", label: "Letzte 7 Tage", short: "7 Tage", icon: FI.calendar }, { v: "30", label: "Letzte 30 Tage", short: "30 Tage", icon: FI.calendar }, { v: "90", label: "Letzte 90 Tage", short: "90 Tage", icon: FI.calendar }, { v: "0", label: "Alle Matches", short: "Alle", icon: FI.all }] });
+  const fFormat = A.dropdown(A.$("#f-format"), { title: "Format", onChange: rerender, items: [{ v: "", label: "Alle Formate", short: "Format", icon: FI.set }, ...[...new Set(D.matches.map((m) => m.format).filter(Boolean))].sort().map((f) => ({ v: f, label: f, icon: FI.set }))] });
+  const fDeck = A.dropdown(A.$("#f-deck"), { title: "Deck", searchable: true, onChange: rerender, items: [{ v: "", label: "Alle Decks", short: "Deck", icon: FI.deck }, ...[...new Set(D.matches.map(A.deckLabel))].sort().map((d) => ({ v: d, label: d, icon: FI.deck }))] });
 
   const isW = (m) => m.result === "Sieg", isL = (m) => m.result === "Niederlage";
   const matchLine = (m) => `<div class="row"><span class="${isW(m) ? "dotw" : "dotl"}"></span>${A.fmtTime(m.start)} ${A.esc(m.result)} vs <b>${A.esc(m.opponent)}</b> <span class="muted">(${A.esc(m.myDeck)}, ${m.turns} Züge)</span></div>`;

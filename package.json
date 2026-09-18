@@ -1,6 +1,6 @@
 {
   "name": "mtga-stats",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Local MTG Arena companion: collection export, match recording with replays, deck export and a dashboard that reads card art straight from the game files.",
   "license": "MIT",
   "private": false,
@@ -25,6 +25,7 @@
     "test": "node --test \"tests/*.test.js\"",
     "tray": "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File scripts/tray.ps1",
     "autostart": "powershell -ExecutionPolicy Bypass -File scripts/install-autostart.ps1",
+    "app": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1",
     "shortcut": "powershell -ExecutionPolicy Bypass -File scripts/create-shortcut.ps1"
   },
   "keywords": [
@@ -35,9 +36,5 @@
     "tracker",
     "replay",
     "dashboard"
-  ],
-  "repository": {
-    "type": "git",
-    "url": ""
-  }
+  ]
 }

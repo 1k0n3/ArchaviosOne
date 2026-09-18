@@ -37,7 +37,7 @@ function sendText(req, res, buf, type, cacheControl, key) {
 }
 const TEXT_EXT = new Set([".html", ".js", ".css", ".json", ".svg"]);
 
-const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".jpg": "image/jpeg", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
+const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".jpg": "image/jpeg", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json" };
 const BLOCK_BYTES = { 10: 8, 12: 16, 25: 16 };
 
 let bundleIndex = null;

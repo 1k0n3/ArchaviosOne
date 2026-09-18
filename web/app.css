@@ -606,3 +606,220 @@ a.chip:hover { border-color: var(--gold); color: var(--gold-2); transform: trans
 .zones-list .zone-sec { break-inside: avoid; margin-bottom: 14px; }
 .deck-body { grid-template-columns: minmax(0, 1fr) 300px; }
 @media (max-width: 900px) { .zones-list { columns: 1; } }
+
+/* ---- Artwork-Texturen: quadratisch gestauchte Texturen strecken, hohe beschneiden ---- */
+.deckbox .front canvas.artbg, .deck-cell .art canvas, .bar-row .lbl .art canvas, .c .fallback .fart canvas, .cc .inner .fallback .fart canvas { object-fit: cover; object-position: center 30%; }
+.deckbox .front canvas.artbg.sq, .deck-cell .art canvas.sq, .c .fallback .fart canvas.sq, .cc .inner .fallback .fart canvas.sq { object-fit: fill; }
+/* Schatten der Deckbox nicht von der Plakette abgeschnitten */
+.deckbox .box::after { bottom: -22px; height: 20px; left: 6%; right: -14%; }
+.deckbox .plate { margin-top: 30px; position: relative; }
+.deckbox.sm .plate { margin-top: 24px; }
+/* Hover-Vorschau größer */
+.card-preview .c.big { width: 340px; height: 476px; }
+/* Kachelgröße per Regler */
+.sizer { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-3); }
+.sizer svg { width: 14px; height: 14px; } .sizer .lg svg { width: 20px; height: 20px; }
+.sizer input[type=range] { width: 120px; accent-color: var(--gold); }
+.cards.lib .c { width: var(--tile-w, 136px); height: calc(var(--tile-w, 136px) * 1.4); }
+#zones .cards .c, #cmd-sec .cards .c { width: var(--tile-w, 136px); height: calc(var(--tile-w, 136px) * 1.4); }
+.lib-bar { display: flex; align-items: center; gap: 14px; margin: -4px 0 14px; flex-wrap: wrap; }
+.lib-bar .count { color: var(--ink-2); font-size: 13px; }
+.lib-bar .sizer { margin-left: auto; }
+/* Deckseite: Kopf mit vier Spalten, Statistik neben Commander, Werkzeuge rechts */
+.deck-panel { padding: 16px 18px 18px; }
+.deck-head { display: grid; grid-template-columns: auto minmax(240px, 1.2fr) minmax(200px, .8fr) minmax(240px, 1fr); gap: 18px; align-items: start; position: relative; padding-right: 30px; }
+.deck-head .x-btn.close { position: absolute; right: 0; top: 0; }
+.deck-head .info .t { font-size: 20px; }
+.tiles.stat-rows { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.tiles.stat-rows .tile { padding: 8px 12px; }
+.tiles.stat-rows .tile .value { font-size: 20px; }
+.tiles.stat-rows .tile .label { font-size: 10px; }
+.deck-head .col h3 { margin: 4px 0 8px; font-size: 12px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .8px; }
+.deck-head .col details { margin-top: 8px; }
+.deck-head .col summary { cursor: pointer; font-size: 12px; color: var(--ink-3); }
+.deck-head .col textarea.export { height: 160px; margin-top: 6px; }
+.deck-head .col.matches table td { padding: 4px 6px; font-size: 13px; }
+button.small { padding: 6px 10px; font-size: 12px; }
+.deck-top { display: flex; gap: 16px; align-items: stretch; margin-top: 16px; flex-wrap: wrap; }
+#cmd-sec:empty { display: none; }
+#cmd-sec .zone-sec { background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px 12px 12px; }
+.deck-stats { flex: 1; min-width: 320px; display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px; background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px 12px 12px; }
+.ds-t { font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; }
+.ds-block .curve { display: flex; gap: 5px; align-items: flex-end; height: 86px; }
+.ds-block .cb { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; }
+.ds-block .cb .bar { width: 100%; min-height: 2px; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, var(--gold-2), var(--gold)); transform-origin: bottom; animation: grow .5s ease both; }
+.ds-block .cb .v { position: absolute; top: -2px; font-size: 10px; color: var(--ink-2); transform: translateY(-100%); }
+.ds-block .cb .l { font-size: 10px; color: var(--ink-3); margin-top: 3px; }
+.ds-block .cb { padding-top: 14px; }
+.cbar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; gap: 2px; background: rgba(255,255,255,.06); }
+.cbar .seg { min-width: 4px; }
+.cbar .c-w { background: #f3e9c8; } .cbar .c-u { background: #3d7fd6; } .cbar .c-b { background: #9a8fb3; } .cbar .c-r { background: #d8482f; } .cbar .c-g { background: #3f9a4f; } .cbar .c-c { background: #8d95a8; }
+.ds-block .pips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.ds-block .pips .pip { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; }
+.ds-block .pips .pip .ms { width: 16px; height: 16px; }
+.ds-block .cnts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; font-size: 12px; color: var(--ink-2); }
+.ds-block .cnts span { display: inline-flex; align-items: center; gap: 5px; }
+.ds-block .cnts svg { width: 14px; height: 14px; color: var(--ink-3); }
+.ds-block .cnts b { color: var(--ink); }
+.deck-tools { display: flex; align-items: center; gap: 10px; margin-left: auto; align-self: flex-start; flex-wrap: wrap; }
+.deck-tools .seg button svg { width: 16px; height: 16px; display: block; }
+#zones { margin-top: 14px; }
+@media (max-width: 1100px) { .deck-head { grid-template-columns: auto minmax(0, 1fr); } .deck-head .col { grid-column: span 1; } }
+@media (max-width: 700px) { .deck-head { grid-template-columns: 1fr; } .deck-stats { grid-template-columns: 1fr; } .deck-tools { margin-left: 0; } }
+
+/* ---- Suche immer sichtbar ---- */
+.sbox input, .sbox.open input { width: 190px; opacity: 1; padding: 0 10px; border-width: 1px; margin-left: 6px; }
+@media (max-width: 900px) { .sbox input, .sbox.open input { width: 100%; } }
+/* ---- Deckansicht kompakter: Commander schmal, Statistik breit, Werkzeuge als Spalte ---- */
+.deck-panel { padding: 14px 16px 16px; }
+.deck-top { gap: 12px; margin-top: 12px; }
+#cmd-sec .zone-sec { padding: 8px 10px 10px; }
+#cmd-sec .cards .c { width: 104px; height: 146px; }
+.deck-stats { padding: 8px 12px 10px; gap: 14px; }
+.ds-block .curve { height: 72px; }
+.deck-tools { flex-direction: column; align-items: stretch; gap: 8px; margin-left: 0; min-width: 220px; padding: 8px 12px 10px; background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: var(--r-sm); }
+.deck-tools .ds-t { margin-bottom: 0; }
+.deck-tools .sbox input, .deck-tools .sbox.open input { width: 100%; flex: 1; }
+.deck-tools .sbox { display: flex; }
+.deck-tools .sizer input[type=range] { flex: 1; width: auto; }
+.deck-tools .seg { justify-content: center; }
+.deck-tools .seg button { flex: 1; }
+.deck-head { gap: 14px; }
+.tiles.stat-rows { gap: 6px; margin-top: 6px; }
+.tiles.stat-rows .tile { padding: 6px 10px; }
+.tiles.stat-rows .tile .value { font-size: 19px; }
+#zones { margin-top: 12px; }
+.zones-grid { gap: 10px; }
+.zones-grid .zone-sec { padding: 8px 10px 10px; }
+@media (max-width: 900px) { .deck-tools { min-width: 0; width: 100%; } }
+/* Deckseite: Farben unter der Manakurve, Export als Box mit Leiste, Kartendetails etwas größer */
+.deck-stats { grid-template-columns: 1.4fr 1fr; }
+.deck-stats .ds-block.curve { grid-row: 1; }
+.deck-stats .ds-block.colors { grid-row: 2; grid-column: 1; }
+.deck-stats .ds-block.counts { grid-row: 1 / span 2; grid-column: 2; align-self: start; }
+.ds-block.colors .ds-t { margin-top: 4px; }
+.export-box { border: 1px solid var(--line); border-radius: var(--r-sm); background: rgba(0,0,0,.25); overflow: hidden; }
+pre.export { margin: 0; max-height: 132px; overflow: auto; padding: 8px 10px; font: 11.5px/1.45 ui-monospace, Consolas, monospace; color: var(--ink-2); white-space: pre; scrollbar-width: thin; cursor: text; }
+.export-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-top: 1px solid var(--line); background: rgba(255,255,255,.03); }
+.export-bar .muted { margin-left: auto; }
+.export-bar button svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+.deck-head .col h3 .muted { text-transform: none; letter-spacing: 0; font-weight: 500; margin-left: 6px; }
+.modal .m-box.wide { grid-template-columns: 360px minmax(0, 1fr); max-width: 960px; width: min(96vw, 960px); }
+.modal .c.big { width: 360px; height: 504px; }
+@media (max-width: 760px) { .modal .c.big { width: 260px; height: 364px; } }
+/* Export kompakt: Aktionen oben, Vorschau eingeklappt (Klick klappt auf) */
+.export-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.export-actions button svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+pre.export { border: 1px solid var(--line); border-radius: var(--r-sm); background: rgba(0,0,0,.25); max-height: 220px; cursor: pointer; position: relative; }
+pre.export.collapsed { max-height: 58px; overflow: hidden; }
+pre.export.collapsed::after { content: "… mehr"; position: absolute; right: 8px; bottom: 4px; font: 600 10px system-ui, sans-serif; color: var(--gold); background: rgba(10,13,22,.85); padding: 1px 6px; border-radius: 6px; }
+
+/* ---- Deckansicht flach wie die Bibliothek: keine Rahmen, nur trennende Überschriften ---- */
+.deck-detail { margin-bottom: 26px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.deck-facts { display: grid; grid-template-columns: minmax(280px, 1.1fr) minmax(220px, 1fr) minmax(180px, .8fr); gap: 22px; align-items: start; margin-top: 16px; }
+.deck-facts .ds-block { grid-row: auto !important; grid-column: auto !important; }
+.fact-tiles { margin-top: 0 !important; }
+.fact-tiles .tile .label svg { width: 12px; height: 12px; vertical-align: -2px; margin-right: 4px; opacity: .8; }
+.deck-toolbar { display: flex; align-items: center; gap: 12px; margin: 18px 0 6px; }
+.deck-toolbar .sbox { flex: 1; display: flex; }
+.deck-toolbar .sbox input, .deck-toolbar .sbox.open input { flex: 1; width: auto; }
+.deck-toolbar .seg button svg { width: 16px; height: 16px; display: block; }
+.zones-flow .zone-sec, .zones-list .zone-sec { background: none; border: 0; padding: 0; margin: 0 0 6px; }
+.zones-flow .zone-title, .zones-list .zone-title { margin: 16px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.zones-flow .cards { gap: 10px; }
+#zones { margin-top: 0; }
+.deckbox.sm .plate { margin-top: 0px; }
+@media (max-width: 1000px) { .deck-facts { grid-template-columns: 1fr; gap: 14px; } }
+@media (max-width: 700px) { .deck-toolbar { flex-wrap: wrap; } .deck-toolbar .sbox { flex-basis: 100%; } }
+
+.deckbox .box { margin: 40px 0 0 15px; }
+.deckbox .plate { margin-top: 0px; }
+/* Commander: normale erste Kachel im Raster; Überschrift so breit wie die Kachel, daneben die Abschnittsüberschrift */
+.zone-titles { display: flex; gap: 10px; align-items: flex-end; }
+.zone-titles .zone-title { flex: 1; min-width: 0; }
+.zone-titles .zone-title.cmd { flex: none; width: calc(var(--tile-w, 136px) * var(--n, 1) + 10px * (var(--n, 1) - 1)); color: var(--gold-2); border-bottom-color: rgba(242,177,52,.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cardline.cmd { color: var(--gold-2); font-weight: 700; }
+.cardline.cmd .q { color: var(--gold-2); }
+.cardline.cmd .badge { margin-left: 8px; }
+/* Commander-Kachel: goldene Kartenkante, keine Box */
+.c.cmdr { box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(242,177,52,.35), 0 6px 16px rgba(0,0,0,.55); }
+
+/* ---- Deck-Kopf: links Box + Infos, darunter Fakten; rechts Export und Matches über beide Zeilen ---- */
+.deck-head { grid-template-columns: auto minmax(0, 1fr) minmax(300px, 34%); row-gap: 18px; }
+.deck-side { grid-column-start: 3; grid-row-start: 1; grid-row-end: 3; padding-left: 30px; min-width: 0; }
+.deck-side .col.export { margin-bottom: 20px; }
+.deck-head .deck-facts { grid-column: 1 / 3; grid-row: 2; margin-top: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+.deck-facts .df-left { min-width: 0; }
+.deck-facts .ds-block.colors { margin-bottom: 20px; }
+.deck-facts .ds-block.colors .ds-t { margin-top: 0; }
+.deck-facts .ds-block .curve { height: 110px; }
+@media (max-width: 1100px) {
+  .deck-head { grid-template-columns: auto minmax(0, 1fr); }
+  .deck-side { grid-column: 1 / -1; grid-row: auto; padding-left: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .deck-side .col.export { margin-bottom: 0; }
+  .deck-head .deck-facts { grid-column: 1 / -1; grid-row: auto; }
+}
+@media (max-width: 700px) { .deck-head { grid-template-columns: 1fr; } .deck-side { grid-template-columns: 1fr; } .deck-head .deck-facts { grid-template-columns: 1fr; } }
+/* ---- Deckseite: Kacheln und Fakten nach Vorlage ---- */
+.deck-head .tile .label { color: var(--ink-3); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; line-height: 2; }
+.deck-head .tile .value { font-weight: 800; letter-spacing: -.5px; margin-top: -16px; line-height: 1.25; text-align: right; }
+.deck-head .deck-facts { grid-column: 1 / 3; grid-row: 2; margin-top: 0; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+.ds-block .curve { display: flex; gap: 5px; align-items: flex-end; height: auto; margin-top: 25px; }
+.deck-facts .ds-block .curve { height: 131px; }
+
+/* ---- Offizielle Symbole: Bild von Scryfall über der eigenen Zeichnung ---- */
+.ms { position: relative; display: inline-block; width: 18px; height: 18px; vertical-align: -4px; }
+.ms svg, .ms img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ms img { border-radius: 50%; }
+.seti { display: inline-flex; width: 16px; height: 16px; align-items: center; justify-content: center; vertical-align: -3px; margin-right: 5px; }
+.seti img { width: 100%; height: 100%; filter: invert(1) brightness(1.4); }
+.seti svg { width: 100%; height: 100%; }
+.badge.set { display: inline-flex; align-items: center; }
+.dd-list button .seti { margin-right: 0; }
+/* ---- Kartendetails: Regeltext als Absätze mit Schlüsselwörtern, Kosten und Erinnerungstext ---- */
+.m-rules { padding: 6px 0; background: none; border: 0; }
+.m-rules p.ab { margin: 0; padding: 8px 12px; border-left: 3px solid rgba(242,177,52,.5); background: rgba(255,255,255,.035); border-radius: 0 8px 8px 0; }
+.m-rules p.ab + p.ab { margin-top: 6px; }
+.m-rules .kw { color: var(--gold-2); font-weight: 800; }
+.m-rules .cost { font-weight: 700; color: var(--ink); background: rgba(255,255,255,.07); padding: 1px 6px; border-radius: 6px; }
+.m-rules .rem { color: var(--ink-3); }
+.m-rules .flavor { margin-top: 10px; padding: 0 12px; border-left: 3px solid transparent; }
+.m-type { display: flex; align-items: center; gap: 10px; }
+.m-type .m-pt { margin-left: auto; padding: 2px 10px; border-radius: 8px; background: var(--panel-3); border: 1px solid var(--line-2); color: var(--ink); font-size: 14px; }
+
+/* ---- Kartendetails: Regeltext wie auf der Karte (Fließtext, Serifen, Erinnerungstext kursiv) ---- */
+.m-rules { padding: 10px 14px; background: rgba(250,246,232,.06); border: 1px solid var(--line); border-radius: var(--r-sm); font-family: Georgia, "Times New Roman", serif; font-size: 14px; line-height: 1.45; }
+.m-rules p.ab { margin: 0 0 8px; padding: 0; border: 0; background: none; border-radius: 0; }
+.m-rules p.ab:last-of-type { margin-bottom: 0; }
+.m-rules .kw { color: inherit; font-weight: inherit; }
+.m-rules .cost { background: none; padding: 0; border-radius: 0; font-weight: inherit; color: inherit; }
+.m-rules .rem { color: var(--ink-2); font-style: italic; }
+.m-rules .flavor { margin-top: 10px; padding: 10px 0 0; border-top: 1px solid var(--line); border-left: 0; color: var(--ink-2); }
+/* ---- Hinweis auf neue Daten ---- */
+.toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; padding: 10px 14px; border-radius: 12px; background: var(--panel-3); border: 1px solid var(--gold); box-shadow: 0 12px 30px rgba(0,0,0,.6); z-index: 300; animation: fadeUp .3s ease; font-size: 13px; }
+/* Deckseite: Abstände nach Vorlage */
+.zones-flow .zone-title, .zones-list .zone-title { margin: 10px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.deck-toolbar { display: flex; align-items: center; gap: 12px; margin: 25px 0 6px; }
+
+/* Deck-Werkzeuge: Set-Filter nur als Symbol, Farbfilter wie in der Bibliothek */
+.dd.icon-only .dd-btn .lbl:empty { display: none; }
+.dd.icon-only .dd-btn { padding: 0 6px 0 8px; }
+.dd.icon-only .dd-btn .seti { margin-right: 0; width: 18px; height: 18px; }
+.deck-toolbar .seg.colors button { width: 32px; }
+.deck-toolbar .seg.colors button .ms { width: 20px; height: 20px; }
+/* Set-Dropdown: nur Abkürzungen, größer, mit großem Set-Symbol, dreispaltig */
+.dd.sets .dd-menu { min-width: 340px; max-width: 420px; }
+.dd.sets .dd-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+.dd.sets .dd-list button { font-size: 15px; font-weight: 800; letter-spacing: .5px; padding: 8px 10px; gap: 10px; }
+.dd.sets .dd-list button:first-child { grid-column: 1 / -1; font-size: 13px; font-weight: 600; letter-spacing: 0; }
+.dd.sets .dd-list .seti { width: 26px; height: 26px; margin-right: 0; flex: none; }
+.dd.sets .dd-list .seti svg { width: 20px; height: 20px; }
+
+/* Zurücksetzen-Knopf: klein, rund, nur sichtbar wenn Filter oder Sortierung abweichen */
+button.reset { display: none; width: 26px; height: 26px; padding: 0; border-radius: 50%; align-items: center; justify-content: center; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink-3); }
+button.reset.show { display: inline-flex; }
+button.reset svg { width: 14px; height: 14px; }
+button.reset:hover { color: var(--gold-2); border-color: var(--gold); }
+/* Reset-Knopf: Platz bleibt reserviert, damit die Filter nicht springen */
+button.reset { display: inline-flex; visibility: hidden; }
+button.reset.show { visibility: visible; }

@@ -16,11 +16,14 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $name = "MTGA Stats"
+$appName = "MTGA Stats Dashboard"
 $startMenu = Join-Path ([Environment]::GetFolderPath("Programs")) "$name.lnk"
 $desktopLnk = Join-Path ([Environment]::GetFolderPath("Desktop")) "$name.lnk"
+$appMenu = Join-Path ([Environment]::GetFolderPath("Programs")) "$appName.lnk"
+$appDesktop = Join-Path ([Environment]::GetFolderPath("Desktop")) "$appName.lnk"
 
 if ($Remove) {
-  foreach ($p in @($startMenu, $desktopLnk)) { if (Test-Path $p) { Remove-Item $p -Force; Write-Host "entfernt: $p" } }
+  foreach ($p in @($startMenu, $desktopLnk, $appMenu, $appDesktop)) { if (Test-Path $p) { Remove-Item $p -Force; Write-Host "entfernt: $p" } }
   exit 0
 }
 
@@ -40,6 +43,21 @@ foreach ($p in $targets) {
   $lnk.IconLocation = "$icon,0"
   $lnk.WindowStyle = 7
   $lnk.Description = "MTGA Stats: Tray-Icon, Watcher und Dashboard starten"
+  $lnk.Save()
+  Write-Host "Verknüpfung: $p"
+}
+# Zweite Verknüpfung: Dashboard als eigenes App-Fenster (startet Tray und Watcher bei Bedarf mit)
+$openApp = Join-Path $root "scripts\open-app.ps1"
+$appTargets = @($appMenu)
+if ($Desktop) { $appTargets += $appDesktop }
+foreach ($p in $appTargets) {
+  $lnk = $shell.CreateShortcut($p)
+  $lnk.TargetPath = $ps
+  $lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$openApp`""
+  $lnk.WorkingDirectory = $root
+  $lnk.IconLocation = "$icon,0"
+  $lnk.WindowStyle = 7
+  $lnk.Description = "MTGA Stats Dashboard als eigenes Fenster öffnen"
   $lnk.Save()
   Write-Host "Verknüpfung: $p"
 }

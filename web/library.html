@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MTGA Stats · Bibliothek</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0b0e18">
 <link rel="stylesheet" href="app.css">
 <script src="data.js"></script>
 <script src="app.js"></script>
@@ -13,17 +17,17 @@
 App.load().then(async (D) => {
   const A = App, FI = A.FI;
   A.shell("library.html", `
-    <div class="topbar"><div><h1>Kartenbibliothek</h1><div class="sub" id="count">lade …</div></div>
+    <div class="topbar"><div><h1>Kartenbibliothek</h1><div class="sub" id="sub">Alle Karten des Spiels mit Besitzstand</div></div>
       <div class="right filters">
-        <div id="f-q"></div>
         <div id="f-set"></div>
         <div id="f-rar"></div>
         <div id="f-type"></div>
         <div class="seg colors" id="f-colors" title="Farbe">${[["1", "w", "Weiß"], ["2", "u", "Blau"], ["3", "b", "Schwarz"], ["4", "r", "Rot"], ["5", "g", "Grün"], ["0", "c", "Farblos"]].map(([v, k, t]) => `<button data-v="${v}" title="${t}">${A.manaSymbol(k)}</button>`).join("")}</div>
         <div id="f-own"></div>
         <div id="f-sort"></div>
+        <button type="button" class="reset" id="f-reset" title="Filter und Sortierung zurücksetzen">${A.FI.reset}</button>
       </div></div>
-    <div class="lib-stats" id="libstats"></div>
+    <div class="lib-bar"><div id="f-q"></div><span class="count" id="count">lade …</span><div id="f-size"></div></div>
     <div class="cards lib" id="grid">${Array.from({ length: 36 }, () => '<div class="c sk"></div>').join("")}</div>
     <div class="empty" id="more"></div>
   `);
@@ -56,7 +60,8 @@ App.load().then(async (D) => {
   const params = new URLSearchParams(location.search);
   const rerender = () => render();
   const fQ = A.searchBox(A.$("#f-q"), { placeholder: "Name suchen", value: params.get("q") || "", onInput: A.debounce(rerender, 160) });
-  const fSet = A.dropdown(A.$("#f-set"), { icon: FI.set, title: "Set", searchable: true, onChange: rerender, items: [{ v: "", label: "Alle Sets", short: "Set", icon: FI.set }, ...sets.map((s) => ({ v: s, label: `${A.setName(s)}${A.setName(s) !== s ? " · " + s : ""}`, short: s, icon: FI.set }))] });
+  const fSet = A.dropdown(A.$("#f-set"), { icon: FI.set, title: "Set", searchable: true, onChange: rerender, items: [{ v: "", label: "Alle Sets", short: "Set", icon: FI.set }, ...sets.map((s) => ({ v: s, label: s, short: s, title: A.setName(s), search: A.setName(s), icon: A.setIcon(s) }))] });
+  A.$("#f-set").classList.add("sets");
   const gem = (c) => FI.gem(c);
   const fRar = A.dropdown(A.$("#f-rar"), { title: "Seltenheit", onChange: rerender, items: [
     { v: "", label: "Alle Seltenheiten", short: "Seltenheit", icon: gem("#8d95a8") }, { v: "2", label: "Common", icon: gem("#1f242e") }, { v: "3", label: "Uncommon", icon: gem("#b9c4cc") },
@@ -70,6 +75,7 @@ App.load().then(async (D) => {
     { v: "name", label: "Name A–Z", short: "Name", icon: FI.az }, { v: "wins", label: "Meiste Siege", short: "Siege", icon: FI.trophy }, { v: "played", label: "Meist gespielt", short: "Gespielt", icon: FI.play },
     { v: "decks", label: "Meist in Decks", short: "Decks", icon: FI.deck }, { v: "owned", label: "Meiste Exemplare", short: "Exemplare", icon: FI.copies }, { v: "cmc", label: "Manawert", short: "Mana", icon: FI.mana },
     { v: "rarity", label: "Seltenheit", icon: gem("#e0b654") }, { v: "set", label: "Set und Nummer", short: "Set", icon: FI.set }] });
+  A.sizeSlider(A.$("#f-size"), A.$("#grid"));
   let colors = new Set(), page = 0;
   const PAGE = 120;
   A.$$("#f-colors button").forEach((b) => b.addEventListener("click", () => { const v = b.dataset.v; if (colors.has(v)) colors.delete(v); else colors.add(v); b.classList.toggle("on", colors.has(v)); render(); }));
@@ -114,8 +120,13 @@ App.load().then(async (D) => {
     return list;
   }
   let current = [];
+  A.$("#f-reset").addEventListener("click", () => {
+    fQ.value = ""; fQ.dispatchEvent(new Event("input")); fSet.value = ""; fRar.value = ""; fType.value = ""; fOwn.value = "1"; fSort.value = "name";
+    colors.clear(); A.$$("#f-colors button").forEach((b) => b.classList.remove("on")); render();
+  });
   function render() {
     current = filtered(); page = 0;
+    A.$("#f-reset").classList.toggle("show", !!(fQ.value || fSet.value || fRar.value || fType.value || colors.size || fOwn.value !== "1" || fSort.value !== "name"));
     const owned = current.filter((c) => c[9]).length, copies = current.reduce((s, c) => s + c[9], 0);
     A.$("#count").textContent = `${current.length} Karten · ${owned} im Besitz (${copies} Exemplare) · ${sets.length} Sets`;
     A.$("#grid").innerHTML = "";

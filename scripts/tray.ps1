@@ -89,7 +89,10 @@ function Restart-Watcher([string]$reason) {
 }
 function Open-Dashboard {
   if (-not (Test-WatcherRunning)) { Start-Watcher; Start-Sleep -Milliseconds 1500 }
-  Start-Process (Get-DashboardUrl)
+  # Als eigenständiges App-Fenster (Chrome/Edge im App-Modus), sonst im Standardbrowser
+  $app = Join-Path $script:dir "scriptsopen-app.ps1"
+  if (Test-Path $app) { Start-Process powershell -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$app`" -Port $(Get-ConfigValue "webPort" 8765)" }
+  else { Start-Process (Get-DashboardUrl) }
 }
 
 # ---- Icon: Schild mit goldenem Funken und fünf Mana-Steinen, Statuspunkt unten rechts --------------

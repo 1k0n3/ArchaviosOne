@@ -73,3 +73,11 @@ $bw.Flush()
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Out) | Out-Null
 [System.IO.File]::WriteAllBytes($Out, $ico.ToArray())
 Write-Host "Icon geschrieben: $Out ($($ico.Length) Bytes)"
+# PNG-Icons für das Web-Manifest (App-Installation) und das App-Fenster
+$assets = Split-Path -Parent $Out
+foreach ($px in @(192, 512)) {
+  $bmp = Draw-Emblem $px
+  $bmp.Save((Join-Path $assets ("icon-{0}.png" -f $px)), [System.Drawing.Imaging.ImageFormat]::Png)
+  $bmp.Dispose()
+}
+Write-Host "PNG-Icons geschrieben: icon-192.png, icon-512.png"

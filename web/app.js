@@ -7,7 +7,7 @@ window.App = (function () {
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const pad = (n) => String(n).padStart(2, "0");
   let DATA = window.MTGA_DATA || null;
-  for (const href of ["https://cards.scryfall.io", "https://backs.scryfall.io"]) { const l = document.createElement("link"); l.rel = "preconnect"; l.href = href; l.crossOrigin = ""; document.head.appendChild(l); }
+  for (const href of ["https://cards.scryfall.io", "https://backs.scryfall.io", "https://svgs.scryfall.io"]) { const l = document.createElement("link"); l.rel = "preconnect"; l.href = href; l.crossOrigin = ""; document.head.appendChild(l); }
   // Set-Namen (Code -> Name) vom Server, einmal je Seite; ohne Server bleiben die Codes
   let SETS = null, setsPromise = null;
   function loadSets() {
@@ -80,6 +80,8 @@ window.App = (function () {
         get(+c.dataset.art, +c.dataset.w || 256).then((bmp) => {
           if (!bmp) { c.closest(".c, .cc, .deck-tile, .deckbox, .deck-cell, .bar-row")?.classList.add("noimg"); return; }
           c.width = bmp.width; c.height = bmp.height;
+          // Arena speichert das Artwork oft quadratisch gestaucht: quadratische Texturen werden gestreckt statt beschnitten
+          c.classList.add(bmp.width === bmp.height ? "sq" : bmp.height > bmp.width ? "tall" : "wide");
           c.getContext("2d").drawImage(bmp, 0, 0);
         });
       }
@@ -128,6 +130,7 @@ window.App = (function () {
   const cardTile = (g, opts = {}) => cardHtml(g, opts);
   const bigCard = (c) => cardHtml(c, { w: 512, cls: "big" });
   /** Fehlgeschlagene Kartenbilder auf Artwork-Fallback umschalten (Bild aus den Spieldaten) */
+  const loadedImgs = new Set(); // bereits geladene Kartenbilder: neue Kacheln damit blenden nicht erneut ein
   function bindCardImages(root) {
     for (const im of $$("img.cimg", root)) {
       if (im.dataset.bound) continue;
@@ -144,7 +147,7 @@ window.App = (function () {
         // Scryfall kann kurzzeitig gesperrt sein: das echte Kartenbild nach einer Pause erneut anfordern
         if (tries++ < 3 && im.isConnected) setTimeout(() => { if (im.isConnected) im.src = im.src.split("&r=")[0].split("?r=")[0] + (im.src.includes("?") ? "&" : "?") + "r=" + tries; }, 20000 * tries);
       };
-      const done = () => { const box = im.closest(".c, .cc"); if (box && im.naturalWidth > 0) { box.classList.remove("fb"); box.classList.add("ld"); } };
+      const done = () => { const box = im.closest(".c, .cc"); if (box && im.naturalWidth > 0) { box.classList.remove("fb"); box.classList.add("ld"); loadedImgs.add(im.getAttribute("src")); } };
       im.addEventListener("load", done);
       if (im.complete && im.naturalWidth > 0) done();
       else if (im.complete && im.naturalWidth === 0 && im.src) fail();
@@ -200,6 +203,10 @@ window.App = (function () {
     az: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18 8 6l4 12M5.5 14h5"/><path d="M14 6h6l-6 12h6"/></svg>',
     copies: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
     mana: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M8 12h8"/></svg>',
+    download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 4v11M7 10l5 5 5-5M4 19h16"/></svg>',
+    reset: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 12a8 8 0 1 1 2.6 5.9"/><path d="M4 18v-6h6"/></svg>',
+    calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+    swords: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20l7-7M13 11l7-7M14 4h6v6M4 14v6h6"/></svg>',
     chevron: '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m6 9 6 6 6-6"/></svg>'
   };
   let ddOpen = null;
@@ -218,8 +225,8 @@ window.App = (function () {
     const paint = () => {
       const it = find(value);
       const isDefault = String(value) === String(opts.defaultValue != null ? opts.defaultValue : items[0].v);
-      el.innerHTML = `<button type="button" class="dd-btn ${isDefault ? "" : "on"}">${it.icon || opts.icon || ""}<span class="lbl">${esc(it.short || it.label)}</span>${FI.chevron}</button>
-        <div class="dd-menu">${opts.searchable ? '<input type="search" class="dd-q" placeholder="Filtern …">' : ""}<div class="dd-list">${items.map((x) => `<button type="button" data-v="${esc(x.v)}" class="${String(x.v) === String(value) ? "on" : ""}">${x.icon || ""}<span>${esc(x.label)}</span></button>`).join("")}</div></div>`;
+      el.innerHTML = `<button type="button" class="dd-btn ${isDefault ? "" : "on"}">${it.icon || opts.icon || ""}<span class="lbl">${esc(it.short != null ? it.short : it.label)}</span>${FI.chevron}</button>
+        <div class="dd-menu">${opts.searchable ? '<input type="search" class="dd-q" placeholder="Filtern …">' : ""}<div class="dd-list">${items.map((x) => `<button type="button" data-v="${esc(x.v)}" class="${String(x.v) === String(value) ? "on" : ""}"${x.title ? ` title="${esc(x.title)}"` : ""}${x.search ? ` data-q="${esc(x.search)}"` : ""}>${x.icon || ""}<span>${esc(x.label)}</span></button>`).join("")}</div></div>`;
       $(".dd-btn", el).addEventListener("click", () => {
         const open = !el.classList.contains("open");
         if (ddOpen && ddOpen !== el) ddOpen.classList.remove("open");
@@ -228,17 +235,66 @@ window.App = (function () {
       });
       $$(".dd-list button", el).forEach((b) => b.addEventListener("click", () => { value = b.dataset.v; el.classList.remove("open"); ddOpen = null; paint(); if (opts.onChange) opts.onChange(value); }));
       const q = $(".dd-q", el);
-      if (q) q.addEventListener("input", () => { const t = q.value.trim().toLowerCase(); $$(".dd-list button", el).forEach((b) => { b.style.display = !t || b.textContent.toLowerCase().includes(t) ? "" : "none"; }); });
+      if (q) q.addEventListener("input", () => { const t = q.value.trim().toLowerCase(); $$(".dd-list button", el).forEach((b) => { b.style.display = !t || (b.textContent + " " + (b.dataset.q || "")).toLowerCase().includes(t) ? "" : "none"; }); });
     };
     paint();
     return { get value() { return value; }, set value(v) { value = v; paint(); }, el };
+  }
+  /** Schieberegler für die Kachelgröße eines Kartenrasters (gemerkt im Browser) */
+  function sizeSlider(el, grid, key = "mtga-tile-w", min = 90, max = 220) {
+    let v = 136;
+    try { v = +localStorage.getItem(key) || v; } catch (e) { /* ohne Speicher */ }
+    v = Math.max(min, Math.min(max, v));
+    el.classList.add("sizer");
+    el.innerHTML = `<span class="sm" title="Kleiner">${FI.copies}</span><input type="range" min="${min}" max="${max}" step="2" value="${v}" title="Kartengröße"><span class="lg" title="Größer">${FI.copies}</span>`;
+    const apply = (x) => { grid.style.setProperty("--tile-w", x + "px"); };
+    apply(v);
+    $("input", el).addEventListener("input", (ev) => { const x = +ev.target.value; apply(x); try { localStorage.setItem(key, String(x)); } catch (e) { /* ignorieren */ } });
+  }
+  /** Manawert einer Kostenangabe wie {2}{G}{W}; X zählt 0 */
+  function cmcOf(cost) {
+    let n = 0;
+    for (const m of String(cost || "").matchAll(/\{([^}]+)\}/g)) { const p = m[1]; const num = parseInt(p, 10); if (!isNaN(num)) n += num; else if (p !== "X") n += 1; }
+    return n;
+  }
+  /** Deck-Statistik: Manakurve, Farbanteile (Mana-Symbole), Anzahl je Typ, Ø Manawert */
+  function deckStats(d) {
+    const curve = [0, 0, 0, 0, 0, 0, 0, 0], colors = { w: 0, u: 0, b: 0, r: 0, g: 0 };
+    let lands = 0, creatures = 0, spells = 0, others = 0, cmcSum = 0, nonLand = 0;
+    const entries = [...(d.zones.CommandZone || []), ...(d.zones.MainDeck || [])];
+    for (const [g, q] of entries) {
+      const c = card(g);
+      if (c.isLand) { lands += q; continue; }
+      const cmc = cmcOf(c.cost);
+      curve[Math.min(7, cmc)] += q; cmcSum += cmc * q; nonLand += q;
+      for (const m of String(c.cost || "").matchAll(/\{([^}]+)\}/g)) for (const ch of m[1].toLowerCase()) if (colors[ch] != null) colors[ch] += q;
+      if (c.creature) creatures += q; else if (c.types.includes(4) || c.types.includes(10)) spells += q; else others += q;
+    }
+    return { curve, colors, lands, creatures, spells, others, nonLand, avgCmc: nonLand ? cmcSum / nonLand : 0 };
+  }
+  /** Deck-Fakten: Kartenzähler als Kacheln (gleiche Optik wie die Match-Statistik), Manakurve, Farbanteile */
+  function deckStatsHtml(st) {
+    const max = Math.max(1, ...st.curve);
+    const curve = st.curve.map((n, i) => `<div class="cb" title="${n} Karten mit Manawert ${i === 7 ? "7+" : i}"><div class="bar" style="height:${Math.round(100 * n / max)}%"></div><span class="v">${n || ""}</span><span class="l">${i === 7 ? "7+" : i}</span></div>`).join("");
+    const total = Object.values(st.colors).reduce((x, y) => x + y, 0) || 1;
+    const seg = Object.entries(st.colors).filter(([, n]) => n).map(([k, n]) => `<div class="seg c-${k}" style="flex:${n}" title="${n} ${k.toUpperCase()}-Symbole (${Math.round(100 * n / total)} %)"></div>`).join("");
+    const pips = Object.entries(st.colors).filter(([, n]) => n).map(([k, n]) => `<span class="pip">${manaSymbol(k)}<b>${n}</b></span>`).join("");
+    const tile = (l, v, icon) => `<div class="tile"><div class="label">${icon || ""}${l}</div><div class="value">${v}</div></div>`;
+    return `<div class="deck-facts">
+      <div class="df-left">
+        <div class="ds-block colors"><div class="ds-t">Farben</div><div class="cbar">${seg || '<div class="seg c-c" style="flex:1"></div>'}</div><div class="pips">${pips || '<span class="muted small">farblos</span>'}</div></div>
+        <div class="tiles stat-rows fact-tiles">${tile("Kreaturen", st.creatures, FI.creature)}${tile("Zauber", st.spells, FI.instant)}${tile("Andere", st.others, FI.artifact)}${tile("Länder", st.lands, FI.land)}${tile("Nichtländer", st.nonLand, FI.copies)}${tile("Ø Manawert", st.avgCmc.toFixed(1), FI.mana)}</div>
+      </div>
+      <div class="ds-block curve"><div class="ds-t">Manakurve</div><div class="curve">${curve}</div></div>
+    </div>`;
   }
   /** Ausklappbare Suche: Lupe, bei Klick öffnet sich das Feld; bleibt offen, solange etwas eingetippt ist */
   function searchBox(el, opts = {}) {
     el.classList.add("sbox");
     el.innerHTML = `<button type="button" class="dd-btn sb-btn" title="${esc(opts.title || "Suchen")}">${FI.search}</button><input type="search" placeholder="${esc(opts.placeholder || "Suchen …")}" value="${esc(opts.value || "")}">`;
     const input = $("input", el), btn = $(".sb-btn", el);
-    const sync = () => { el.classList.toggle("open", document.activeElement === input || !!input.value); btn.classList.toggle("on", !!input.value); };
+    el.classList.add("open"); // Suche bleibt immer sichtbar
+    const sync = () => { btn.classList.toggle("on", !!input.value); };
     btn.addEventListener("click", () => { el.classList.add("open"); input.focus(); });
     input.addEventListener("focus", sync); input.addEventListener("blur", sync);
     input.addEventListener("input", () => { sync(); if (opts.onInput) opts.onInput(input.value); });
@@ -320,7 +376,7 @@ window.App = (function () {
       btn.addEventListener("click", () => filters.classList.toggle("open"));
       filters.parentElement.insertBefore(btn, filters);
     }
-    if (!document.querySelector("link[rel=icon]")) {
+    if (!document.querySelector("link[rel=icon]") && !document.querySelector("link[rel=manifest]")) {
       const l = document.createElement("link"); l.rel = "icon"; l.href = "data:image/svg+xml," + encodeURIComponent(logoSvg().replace('class="mark" ', "")); document.head.appendChild(l);
     }
   }
@@ -489,17 +545,33 @@ window.App = (function () {
     c: '<circle cx="12" cy="12" r="11" fill="#b9c4cc"/><path d="M12 5l6 7-6 7-6-7z" fill="#3a4450"/>',
     t: '<circle cx="12" cy="12" r="11" fill="#c8c8c8"/><path d="M12 6a6 6 0 1 1-4.2 10.2" fill="none" stroke="#222" stroke-width="2.2"/><path d="M6.5 13.5 8 17.5l3.5-2.5z" fill="#222"/>'
   };
+  /** Offizielles Symbol von Scryfall (nur verlinkt), darunter die eigene Zeichnung als Rückfall ohne Netz */
+  const SYM_CDN = "https://svgs.scryfall.io/card-symbols/";
   function manaSymbol(s, cls) {
-    const k = String(s).toLowerCase();
-    const inner = SYM[k] || `<circle cx="12" cy="12" r="11" fill="#c9c9c9"/><text x="12" y="16.5" text-anchor="middle" font-size="13" font-weight="800" fill="#222" font-family="system-ui,sans-serif">${esc(String(s).toUpperCase())}</text>`;
-    return `<svg class="ms ms-${esc(k.replace(/[^a-z0-9]/g, ""))} ${cls || ""}" viewBox="0 0 24 24" aria-label="${esc(s)}">${inner}</svg>`;
+    const raw = String(s).trim();
+    const k = raw.toLowerCase();
+    const code = raw.toUpperCase().replace(/[{}\s]/g, "").replace(/\//g, "");
+    const inner = SYM[k] || `<circle cx="12" cy="12" r="11" fill="#c9c9c9"/><text x="12" y="16.5" text-anchor="middle" font-size="13" font-weight="800" fill="#222" font-family="system-ui,sans-serif">${esc(raw.toUpperCase())}</text>`;
+    return `<span class="ms ms-${esc(k.replace(/[^a-z0-9]/g, ""))} ${cls || ""}" aria-label="${esc(raw)}"><svg viewBox="0 0 24 24">${inner}</svg>${/^[A-Z0-9]{1,6}$/.test(code) ? `<img src="${SYM_CDN}${code}.svg" alt="" loading="lazy" onerror="this.remove()">` : ""}</span>`;
   }
+  /** Offizielles Set-Symbol (Scryfall); fehlt es, bleibt das Würfel-Symbol */
+  const setIcon = (code) => `<span class="seti"><img src="https://svgs.scryfall.io/sets/${esc(String(code || "").toLowerCase())}.svg" alt="" loading="lazy" onerror="this.parentElement.innerHTML=window.App.FI.set"></span>`;
   // "{2}{G}" oder MTGA-Notation "{o2oG}" -> Mana-Symbole
   const manaHtml = (cost) => String(cost || "").replace(/\{([^}]+)\}/g, (m, s) => {
     const parts = s.startsWith("o") ? s.split("o").filter(Boolean) : [s];
     return parts.map((p) => manaSymbol(p)).join("");
   });
-  const ruleHtml = (t) => manaHtml(esc(t)).replace(/\boT\b/g, manaSymbol("t"));
+  const ruleHtml = (t) => {
+    // Erinnerungstext zuerst markieren (die Symbol-Bilder enthalten selbst Klammern), dann Symbole einsetzen
+    let h = esc(t).replace(/\(([^()]{3,})\)/g, '<i class="rem">($1)</i>');
+    h = manaHtml(h).replace(/\boT\b/g, manaSymbol("t"));
+    if (/^[A-Z][a-z' \-]+(?:, [a-z][a-z' \-]+)*$/.test(t.trim())) return `<b class="kw">${h}</b>`;  // reine Schlüsselwortzeile
+    h = h.replace(/^([A-Z][a-z]+(?: [a-z]+)?)(?= (?:<span class="ms|\d|from |&mdash;|—))/, '<b class="kw">$1</b>'); // Schlüsselwort mit Kosten/Parameter
+    h = h.replace(/^([A-Z][A-Za-z' ]+) — /, '<b class="kw">$1</b> — ');                              // Fähigkeitswort
+    const m = h.match(/^((?:<span class="ms[^]*?<\/span>|[^:<]){1,60}?): /);                       // Aktivierungskosten
+    if (m && /<span class="ms|\{|\bPay\b|\bSacrifice\b|\bDiscard\b|\bTap\b|\bRemove\b|\bExile\b/.test(m[1])) h = `<span class="cost">${m[1]}</span>: ` + h.slice(m[0].length);
+    return h;
+  };
   const X_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
   const xButton = (cls) => `<button class="x-btn ${cls || ""}" type="button" title="Schließen (Esc)" aria-label="Schließen">${X_ICON}</button>`;
   let modal;
@@ -526,7 +598,7 @@ window.App = (function () {
     if (pv) pv.style.display = "none";
     const c = card(grpId, dict);
     const st = cardStats(grpId, dict);
-    if (!SETS) loadSets().then(() => { const b = $(".m-meta .badge", modal); if (b) b.innerHTML = `${esc(setName(c.set))} · ${esc(c.set)} ${esc(c.nr)}`; });
+    if (!SETS) loadSets().then(() => { const b = $(".m-meta .badge", modal); if (b) b.innerHTML = `${setIcon(c.set)}${esc(setName(c.set))} · ${esc(c.set)} ${esc(c.nr)}`; });
     const matchRow = (m, extra) => `<a class="m-match" href="replay.html?id=${m.matchId}"><span class="${m.result === "Sieg" ? "dotw" : "dotl"}"></span><span class="d">${relDate(m.start)}</span><span class="o">vs ${esc(m.opponent)}</span><span class="muted small">${esc(extra || m.myDeck || "")}</span></a>`;
     const pct = (x) => x.w + x.l ? Math.round(100 * x.w / (x.w + x.l)) + " %" : "–";
     const statsHtml = `<div class="m-stats">
@@ -546,14 +618,14 @@ window.App = (function () {
       const ptv = d ? (d.power !== "" && d.power != null ? d.power + "/" + d.toughness : "") : c.pt;
       const owned = d ? (d.owned ? `<span class="badge win">${d.owned}× im Besitz</span>` : `<span class="badge unk">nicht im Besitz</span>`) : skeleton.text("90px", 20);
       const prints = d && d.printings.length > 1 ? `<button class="ghost small" id="m-prints-toggle">Drucke (${d.printings.length}) ▾</button><div class="m-prints hidden">${d.printings.map((p) => `<button class="ghost small ${p[0] === d.grpId ? "on" : ""}" data-g="${p[0]}">${esc(p[1])} ${esc(p[2])}${p[4] ? ` · ${p[4]}×` : ""}</button>`).join("")}</div>` : "";
-      const rules = text ? text.split("\n").map((l) => `<p>${ruleHtml(l)}</p>`).join("") : (d ? "" : `<p>${skeleton.text("95%")}</p><p>${skeleton.text("70%")}</p>`);
+      const rules = text ? text.split("\n").filter((l) => l.trim()).map((l) => `<p class="ab">${ruleHtml(l)}</p>`).join("") : (d ? '<p class="muted small">Kein Regeltext.</p>' : `<p>${skeleton.text("95%")}</p><p>${skeleton.text("70%")}</p>`);
       modal.innerHTML = `<div class="m-box wide">${xButton("m-close")}
         <div class="m-card">${bigCard(cc)}</div>
         <div class="m-info">
           <div class="m-title"><h2>${esc(c.name)}</h2><span class="m-cost">${manaHtml(cost)}</span></div>
           <div class="m-type">${esc(typeLine || c.typeText)}${ptv ? ` <b class="m-pt">${esc(ptv)}</b>` : ""}</div>
           <div class="m-rules">${rules}${d && d.flavor ? `<p class="flavor">${esc(d.flavor)}</p>` : ""}</div>
-          <div class="m-meta"><span class="badge unk" title="${esc(setName(c.set))}">${esc(setName(c.set))} · ${esc(c.set)} ${esc(c.nr)}</span><span class="badge unk">${esc(c.rarity)}</span>${owned}${d && d.isRebalanced ? '<span class="badge loss">Rebalanced</span>' : ""}${d && d.artist ? `<span class="muted small">Illustration: ${esc(d.artist)}</span>` : ""}</div>
+          <div class="m-meta"><span class="badge unk set" title="${esc(setName(c.set))}">${setIcon(c.set)}${esc(setName(c.set))} · ${esc(c.set)} ${esc(c.nr)}</span><span class="badge unk">${esc(c.rarity)}</span>${owned}${d && d.isRebalanced ? '<span class="badge loss">Rebalanced</span>' : ""}${d && d.artist ? `<span class="muted small">Illustration: ${esc(d.artist)}</span>` : ""}</div>
           ${statsHtml}
           <div class="m-links">${prints}<a href="library.html?q=${encodeURIComponent(c.name)}">Bibliothek</a><a href="https://scryfall.com/search?q=${encodeURIComponent('!"' + c.name + '"')}" target="_blank" rel="noopener">Scryfall ↗</a><a href="https://gatherer.wizards.com/Pages/Search/Default.aspx?name=${encodeURIComponent(c.name)}" target="_blank" rel="noopener">Gatherer ↗</a></div>
         </div></div>`;
@@ -579,6 +651,32 @@ window.App = (function () {
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
 
   function param(name) { return new URLSearchParams(location.search).get(name); }
+  // Live-Aktualisierung: alle 20 s prüfen, ob der Watcher neue Daten geschrieben hat (ETag von data.json);
+  // dann Hinweis zeigen und nach kurzer Zeit neu laden, außer der Nutzer ist gerade aktiv oder ein Dialog ist offen
+  (function watchData() {
+    if (!location.protocol.startsWith("http") || /replay\.html$/.test(location.pathname)) return;
+    let tag = null, lastInput = 0, notified = false;
+    for (const ev of ["pointerdown", "keydown", "input", "scroll"]) window.addEventListener(ev, () => { lastInput = Date.now(); }, { passive: true, capture: true });
+    const check = async () => {
+      try {
+        const r = await fetch("data.json", { method: "HEAD", cache: "no-cache" });
+        const t = r.headers.get("etag");
+        if (!t) return;
+        if (tag && t !== tag && !notified) {
+          notified = true;
+          const el = document.createElement("div"); el.className = "toast";
+          el.innerHTML = '<span>Neue Daten vom Watcher</span><button type="button" class="primary small">Jetzt aktualisieren</button>';
+          $("button", el).addEventListener("click", () => location.reload());
+          document.body.appendChild(el);
+          const tryReload = () => { const busyUi = (modal && !modal.classList.contains("hidden")) || Date.now() - lastInput < 20000 || document.hidden; if (busyUi) setTimeout(tryReload, 5000); else location.reload(); };
+          setTimeout(tryReload, 4000);
+        }
+        tag = tag || t;
+      } catch (e) { /* Server weg: still bleiben */ }
+    };
+    setTimeout(check, 3000);
+    setInterval(check, 20000);
+  })();
 
-  return { load, get DATA() { return DATA; }, $, $$, esc, card, cardName, artOf, artCanvas, cardTile, cardHtml, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, searchBox, FI, loadSets, setName, get LOGO() { return logoSvg(); } };
+  return { load, get DATA() { return DATA; }, $, $$, esc, card, cardName, artOf, artCanvas, cardTile, cardHtml, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, cmcOf, loadedImgs, get LOGO() { return logoSvg(); } };
 })();

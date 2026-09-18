@@ -1,53 +1,72 @@
-# MTGA Stats (deutsche Kurzfassung)
+<p align="center">
+  <img src="assets/icon-192.png" width="96" alt="MTGA Stats Logo">
+</p>
 
-Lokaler Begleiter für MTG Arena unter Windows: Sammlungs-Export, Match-Aufzeichnung mit Replay,
-Deck-Export und ein Dashboard im Stil des Spiels. Kartenbilder kommen direkt aus den Spieldaten,
-nichts wird heruntergeladen oder hochgeladen. Vollständige Dokumentation: [README.md](README.md).
+<h1 align="center">MTGA Stats</h1>
 
-## Schnellstart
+<p align="center">
+  Lokaler Begleiter für <strong>Magic: The Gathering Arena</strong> unter Windows.<br>
+  Sammlungs-Export, Match-Aufzeichnung mit Replays, Deck-Export und ein Dashboard im Stil des Spiels.<br>
+  <strong>Alles bleibt auf deinem PC. Kein Konto, keine Cloud, kein Upload.</strong>
+</p>
 
-```bash
-npm run tray        # Tray-Icon: startet Watcher und Dashboard-Server, Linksklick öffnet das Dashboard
-npm run autostart   # Tray-Icon bei der Windows-Anmeldung starten (keine Adminrechte)
-npm run shortcut    # Verknüpfung "MTGA Stats" im Startmenü anlegen
-```
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" width="900" alt="Dashboard">
+</p>
 
-Dashboard: <http://localhost:8765/> (solange der Watcher läuft). Weitere Befehle: `npm start`,
-`npm run export`, `npm run decks`, `npm run matches`, `npm run serve`, `npm test`.
+> Ausführliche Dokumentation auf Englisch: [README.md](README.md)
 
-## Voraussetzungen
+## Installation mit einem Klick
 
-Windows, MTG Arena, Node.js 22.13 oder neuer, in MTGA die Option **Detailed Logs** aktiv.
+1. **Herunterladen**: grüner Button **Code** → **Download ZIP**, dann irgendwo entpacken (zum Beispiel `C:\Spiele\mtga-stats`).
+2. **Doppelklick auf `Install.cmd`.**
+3. Fertig. Das Dashboard öffnet sich als eigenes Fenster, neben der Uhr erscheint ein Tray-Symbol, und ab jetzt werden deine Matches aufgezeichnet.
 
-## Tray-Menü
+Der Installer prüft Node.js und installiert es bei Bedarf automatisch über den Windows-Paketmanager (`winget`). Er legt zwei Startmenü-Einträge an (**MTGA Stats** = Tray und Watcher, **MTGA Stats Dashboard** = das App-Fenster) und fragt einmal, ob alles beim Windows-Start mitlaufen soll. `Uninstall.cmd` entfernt alles wieder; deine Daten bleiben, wenn du es nicht anders willst.
 
-Dashboard öffnen (ganz oben, auch per Linksklick), Status, Watcher starten/stoppen, Sammlung
-exportieren, Intervalle (Prüfen ob MTGA läuft, Änderungsprüfung, kompletter Scan), Speicherort,
-Ausgabeordner, Protokoll, Einstellungen (JSON), Beenden. Farbe des Statuspunkts: grün = Watcher
-läuft und MTGA offen, blau = wartet auf MTGA, grau = gestoppt.
+Einmal in Arena einschalten: **Einstellungen → Konto → Detaillierte Protokolle (Plugin-Unterstützung)**. Ohne diese Option schreibt Arena keine Match-Daten.
+
+## Was du bekommst
+
+- **Übersicht**: Winrate, Verlauf, Matches pro Tag, Spiellänge, Spielbeginn, Winrate je Deck, Format und Gegner-Plattform.
+- **Matches**: jedes Spiel mit Gegner, Deck, Ergebnis, Zügen, Dauer und den gesehenen Gegnerkarten.
+- **Replays**: jedes Match Schritt für Schritt auf einem Spielfeld wie in Arena, mit Player-Leiste und Ereignisprotokoll.
+- **Decks**: alle Arena-Decks als 3D-Deckboxen; Detailansicht mit Statistik, Manakurve, Farben, Kartenliste nach Typ, Suche, Filtern und Arena-Export.
+- **Bibliothek**: alle Karten des Spiels mit Besitzstand, Suche, Filtern und Sortierung nach Siegen, Spielen oder Deck-Nutzung.
+- **Kartendetails**: gedruckte Karte, Regeltext mit offiziellen Symbolen, Drucke und deine eigene Statistik zur Karte.
+- **Sammlungs-Export** als CSV vor und nach jeder Sitzung mit fortlaufendem Änderungslog.
+
+<p align="center">
+  <img src="docs/screenshots/replay.png" width="440" alt="Replay">
+  <img src="docs/screenshots/decks.png" width="440" alt="Decks">
+</p>
 
 ## Woher die Daten kommen
 
-- **Sammlung** aus dem Arbeitsspeicher des laufenden Clients (seit 2021 nicht mehr im Log). Nur Lesezugriff.
+- **Sammlung** aus dem Arbeitsspeicher des laufenden Clients (nur lesend; seit 2021 steht sie nicht mehr im Log).
 - **Matches und Decks** aus der `Player.log`.
-- **Kartennamen, Texte, Sets** aus der Kartendatenbank des Spiels (SQLite).
-- **Kartenbilder**: immer die echte gedruckte Karte, direkt von Scryfall verlinkt. Der lokale Server löst nur
-  den Link auf (Set + Sammlernummer, dann Arena-ID, dann Name; nur im Speicher, gedrosselt) und leitet den
-  Browser dorthin weiter. Nichts wird lokal abgelegt. Wird eine Karte online nicht gefunden, zeigt das
-  Dashboard das Artwork aus den Spieldaten, es ist also immer ein Bild da. Deckboxen nutzen das Artwork direkt.
-- **Kartendetails mit Statistik**: Regeltext, Drucke, Links sowie Decks, in denen die Karte liegt, Matches, in
-  denen sie gespielt wurde (mit Winrate), und wie oft Gegner sie gezeigt haben.
-- **Schnell und robust**: Gzip und ETag beim Ausliefern, Skeleton-Platzhalter und Lade-Animationen, erneuter
-  Bildversuch, wenn Scryfall drosselt; der Watcher protokolliert unerwartete Fehler statt stehenzubleiben.
+- **Kartennamen, Texte, Sets** aus der Kartendatenbank des Spiels.
+- **Kartenbilder und Symbole** werden nur **verlinkt** (Scryfall), nie gespeichert. Fehlt eine Karte online, wird das Artwork aus den Spieldaten angezeigt, es ist also immer ein Bild da.
 
-## Ausgabedateien (`out\`)
+## Bedienung
 
-Vorher-/Nachher-CSV der Sammlung je Sitzung, `changes.csv` (fortlaufendes Änderungslog),
-`sessions.csv`, Decks (`decks\`), Matches (`matches\`, je Match JSON mit Replay, Gegnerkarten als
-Text), Dashboard (`web\`), `watch.log`. CSV mit Semikolon und BOM für Excel.
+- **Tray-Symbol**: Dashboard öffnen (auch per Linksklick), Status, Watcher starten/stoppen, Sammlung jetzt exportieren, Intervalle und Speicherort ändern, Protokoll öffnen.
+- **App-Fenster**: Startmenü-Eintrag „MTGA Stats Dashboard“ oder `npm run app`.
+- **Als App installieren**: `http://localhost:8765/` in Chrome oder Edge öffnen und „App installieren“ wählen.
 
-## Hinweise
+## Voraussetzungen
 
-Das Auslesen des Prozessspeichers ist kein von Wizards vorgesehener Weg; Nutzung auf eigene
-Verantwortung. Die Gegnerhand steht nicht im Log und bleibt verdeckt. Sleeves und Avatare liegen
-nicht in den Kartenbild-Bundles, das Replay nutzt generierte.
+Windows 10 oder 11, MTG Arena, Node.js 22.13 oder neuer (installiert `Install.cmd` bei Bedarf), in Arena die Option „Detaillierte Protokolle“.
+
+## Wenn etwas nicht klappt
+
+| Problem | Ursache und Lösung |
+|---|---|
+| Im Log steht `Zugriff auf MTGA verweigert (Win32 5)` | Arena läuft als Administrator. Arena normal starten oder den Autostart erhöht einrichten: `npm run autostart -- -Elevated`. |
+| Keine Matches | In Arena „Detaillierte Protokolle“ einschalten und ein Match spielen. |
+| Karten zeigen kurz nur das Artwork | Scryfall drosselt kurz die Bildabfragen, die Seite versucht es von selbst erneut. |
+| `EADDRINUSE` beim Start | Es läuft schon eine Instanz. Über das Tray stoppen oder `webPort` ändern. |
+
+## Lizenz
+
+MIT, siehe [LICENSE](LICENSE). MTGA Stats ist inoffizieller Fan-Inhalt gemäß der Fan Content Policy von Wizards of the Coast und wird von Wizards weder unterstützt noch genehmigt. Kartenbilder und Symbole stammen von [Scryfall](https://scryfall.com) und werden verlinkt, nicht weiterverbreitet.

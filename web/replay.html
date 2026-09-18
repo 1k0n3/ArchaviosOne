@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MTGA Stats · Replay</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0b0e18">
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="replay.css">
 <script src="data.js"></script>
@@ -156,16 +160,56 @@ App.load().then((D) => {
     }
 
     // ---- Karten: echte Kartenbilder, Fallback Artwork aus den Spieldaten ----
-    const cardImg = (g, v = "small") => { const c = A.card(g, dict); return `<img class="cimg" src="card-img/${g}?v=${v}" alt="${A.esc(c.name)}" loading="eager" decoding="async" data-art="${c.art || 0}" data-w="256"><div class="fallback"><div class="fart"></div><div class="fname">${A.esc(c.name)}</div></div>`; };
+    // Textkarten ("Bilder aus"): kleines Typ-Emblem statt Bild, der Regeltext bekommt den Platz
+    const TYPE_EMBLEM = (c) => c.isLand ? ["land", A.FI.land] : c.creature ? ["creature", A.FI.creature] : c.types.includes(8) ? ["pw", A.FI.planeswalker] : c.types.includes(4) ? ["instant", A.FI.instant] : c.types.includes(10) ? ["sorcery", A.FI.sorcery] : c.types.includes(3) ? ["ench", A.FI.enchantment] : c.types.includes(1) ? ["artifact", A.FI.artifact] : c.types.includes(14) ? ["battle", A.FI.battle] : ["other", A.FI.copies];
+    const textCard = (g) => { const c = A.card(g, dict); const [k, ic] = TYPE_EMBLEM(c); return `<div class="tcard f-${c.frame}"><div class="th"><span class="cp">${c.colors.map((x) => A.manaSymbol(x)).join("")}</span><span class="n">${A.esc(c.name)}</span><span class="m">${A.manaHtml(c.cost)}</span></div><div class="tt"><span class="emb t-${k}">${ic}</span><span class="tl">${A.esc(c.typeLine || c.typeText)}</span></div><div class="tx">${c.text ? c.text.split("\n").map((l) => `<p>${A.ruleHtml(l)}</p>`).join("") : ""}</div></div>`; };
+    const cardImg = (g, v = "small") => { if (!imgs) return textCard(g); const c = A.card(g, dict); const src = `card-img/${g}?v=${v}`; return `<img class="cimg" src="${src}" alt="${A.esc(c.name)}" loading="eager" decoding="${A.loadedImgs.has(src) ? "sync" : "async"}"${A.loadedImgs.has(src) ? " data-known" : ""} data-art="${c.art || 0}" data-w="256"><div class="fallback"><div class="fart"></div><div class="fname">${A.esc(c.name)}</div></div>`; };
     const isLand = (o) => o[6] == null && o[7] == null && o[12] == null;
     const info = (o) => { const [, , , , tapped, atk, p, t, , kind, , sick] = o; return [p != null ? `${p}/${t}` : "", tapped ? "getappt" : "", atk === 1 ? "greift an" : atk === 2 ? "blockt" : "", sick ? "einsatzverzögert" : "", kind === 1 ? "Token" : ""].filter(Boolean).join(" · "); };
-    function tile(o, size, count) {
+    function tileParts(o, size, count) {
       const [iid, g, ctrl, owner, tapped, atk, p, t, dmg, kind, parent, sick, loy] = o;
-      const cls = ["cc", size || "", tapped ? "tapped" : "", atk === 1 ? "attacking" : atk === 2 ? "blocking" : "", sick ? "sick" : "", count > 1 ? "stacked" : ""].join(" ");
+      const cls = ["cc", size || "", tapped ? "tapped" : "", atk === 1 ? "attacking" : atk === 2 ? "blocking" : "", sick ? "sick" : "", count > 1 ? "stacked" : ""].filter(Boolean).join(" ");
       const pt = p != null && t != null && (dmg || p !== undefined) ? `<span class="pt ${dmg ? "hurt" : ""}">${dmg ? (t - dmg) + "/" : ""}${p}/${t}</span>` : (loy != null ? `<span class="loy">${loy}</span>` : "");
       const badges = `${kind === 1 ? '<span class="tok">TOKEN</span>' : ""}${atk === 1 ? '<span class="atk">⚔️</span>' : atk === 2 ? '<span class="blk">🛡️</span>' : ""}${pt}${count > 1 ? `<span class="cnt">×${count}</span>` : ""}`;
       const layers = count > 1 ? `<div class="lay l2"></div><div class="lay l1"></div>` : "";
-      return `<div class="${cls}" data-g="${g}" data-pt="${A.esc(info(o))}">${layers}<div class="inner">${cardImg(g)}</div>${badges}</div>`;
+      return { g, cls, pt: info(o), layers, badges };
+    }
+    const tileHtml = (x) => `<div class="${x.cls}" data-g="${x.g}" data-pt="${A.esc(x.pt)}">${x.layers}<div class="inner">${cardImg(x.g)}</div>${x.badges}</div>`;
+    const tile = (o, size, count) => tileHtml(tileParts(o, size, count));
+    /** Kachel-Eintrag für eine Reihe: gleiche Karte wird an Ort und Stelle aktualisiert (Klasse, Plaketten), das Bild bleibt */
+    const tileItem = (key, o, size, count) => { const parts = tileParts(o, size, count); return { key, parts, sig: parts.cls + "|" + parts.pt + "|" + parts.badges + "|" + (imgs ? 1 : 0), html: () => tileHtml(parts) }; };
+    /** Reihe abgleichen: vorhandene Elemente (data-key) behalten, nur Neues einfügen, Entferntes löschen */
+    function syncRow(row, items, emptyHtml) {
+      const old = new Map();
+      for (const ch of [...row.children]) { if (ch.dataset.key) old.set(ch.dataset.key, ch); else ch.remove(); }
+      let prev = null;
+      for (const it of items) {
+        let el = old.get(it.key);
+        if (el) old.delete(it.key);
+        if (el && el.__sig !== it.sig) {
+          if (it.parts && el.dataset.g === String(it.parts.g) && el.__imgs === imgs) {
+            const keep = ["ld", "fb"].filter((c) => el.classList.contains(c)).join(" ");
+            el.className = it.parts.cls + (keep ? " " + keep : "");
+            el.dataset.pt = it.parts.pt;
+            for (const ch of [...el.children]) if (!ch.classList.contains("inner")) ch.remove();
+            el.insertAdjacentHTML("afterbegin", it.parts.layers);
+            el.insertAdjacentHTML("beforeend", it.parts.badges);
+            el.__sig = it.sig;
+          } else { el.remove(); el = null; }
+        }
+        if (!el) {
+          const t = document.createElement("template");
+          t.innerHTML = it.html().trim();
+          el = t.content.firstElementChild;
+          el.dataset.key = it.key; el.__sig = it.sig; el.__imgs = imgs;
+        }
+        if (it.vars) { el.style.setProperty("--k", it.vars.k); el.style.setProperty("--n", it.vars.n); }
+        const ref = prev ? prev.nextSibling : row.firstChild;
+        if (ref !== el) row.insertBefore(el, ref);
+        prev = el;
+      }
+      for (const el of old.values()) el.remove();
+      if (!items.length && emptyHtml) row.insertAdjacentHTML("beforeend", emptyHtml);
     }
     const grpTile = (g, size, k, n) => `<div class="cc ${size || ""}" data-g="${g}"${k != null ? ` style="--k:${k};--n:${n}"` : ""}><div class="inner">${cardImg(g, size === "stackc" ? "normal" : "small")}</div></div>`;
     const backs = (n, cls, from = 0, total = n) => Array.from({ length: n }, (_, k) => `<div class="cc back ${cls || ""}" style="--k:${from + k};--n:${total}"><img src="card-back" alt="" onerror="this.remove()"></div>`).join("");
@@ -246,39 +290,49 @@ App.load().then((D) => {
       return `<div class="sitem ${isAbility ? "ability" : ""} ${k === 0 ? "top" : ""}" style="--k:${k}" title="${isAbility ? "Fähigkeit" : "Zauberspruch"} · ${ctrl === me ? "ich" : "Gegner"} · Klick für Details">${tileHtml}<div class="st">${isAbility ? "Fähigkeit" : "Zauber"} · ${ctrl === me ? "ich" : "Gegner"}</div></div>`;
     }
 
+    let built = false;
+    const lastHtml = new Map();
+    const setHtml = (el, html) => { if (lastHtml.get(el) === html) return false; lastHtml.set(el, html); el.innerHTML = html; return true; };
     function render() {
       const f = frames[i];
-      const perms = (seat) => permGroups(f.bf.filter((o) => o[2] === seat && !isLand(o)));
-      const lands = (seat) => grouped(f.bf.filter((o) => o[2] === seat && isLand(o)));
-      const manaLabel = (seat) => { const ls = f.bf.filter((o) => o[2] === seat && isLand(o)); const open = ls.filter((o) => !o[4]).length; return `<div class="zlab"><span class="t">Mana</span><span class="n">${open}<em>/${ls.length}</em></span></div>`; };
-      const permsLabel = (seat) => { const n = perms(seat).reduce((x, gr) => x + gr.n, 0); return `<div class="zlab perm"><span class="t">${seat === me ? "Ich" : "Gegner"}</span><span class="n">${n}</span></div>`; };
-      const oppHand = f.hc[opp - 1];
+      if (!built) {
+        boardEl.innerHTML = `<div class="top"><div class="slot m-opp"></div><div class="hand opp"><div class="fan"></div></div></div>
+          <div class="field"><div class="slot ph"></div>
+            <div class="bf"><div class="lands opp"></div><div class="perms opp"></div><div class="divider"></div><div class="perms me"></div><div class="lands me"></div></div>
+            <div class="stack-col"><div class="slot st"></div><div class="slot tk"></div></div></div>
+          <div class="bottom"><div class="slot m-me"></div><div class="hand me"><div class="fan"></div></div></div>`;
+        lastHtml.clear();
+        built = true;
+      }
+      const q = (sel) => A.$(sel, boardEl);
+      const landItems = (seat) => grouped(f.bf.filter((o) => o[2] === seat && isLand(o))).map((gr) => tileItem(`L${gr.o[1]}|${gr.o[4]}|${gr.o[5]}|${gr.o[11]}`, gr.o, "sm", gr.n));
+      const permItems = (seat) => [
+        ...f.cmd.filter((o) => o[3] === seat).map((o) => tileItem("C" + o[0], o, "", 1)),
+        ...permGroups(f.bf.filter((o) => o[2] === seat && !isLand(o))).map((gr) => tileItem(gr.n > 1 ? `T${gr.o[1]}|${gr.o[4]}|${gr.o[5]}|${gr.o[6]}|${gr.o[7]}|${gr.o[8]}|${gr.o[11]}` : "P" + gr.o[0], gr.o, "", gr.n))
+      ];
+      const none = '<span class="zl center">keine bleibenden Karten</span>';
+      syncRow(q(".lands.opp"), landItems(opp));
+      syncRow(q(".perms.opp"), permItems(opp), none);
+      syncRow(q(".perms.me"), permItems(me), none);
+      syncRow(q(".lands.me"), landItems(me));
+      // Hände: eigene Karten bleiben erhalten (nur Fächerposition ändert sich), Gegnerhand nur bei anderer Anzahl neu
       const myHand = f.h[me - 1].filter(Boolean), myHc = f.hc[me - 1];
-      const cmdz = (seat) => f.cmd.filter((o) => o[3] === seat);
+      const seen = new Map();
+      const handItems = myHand.map((g, k) => { const c = (seen.get(g) || 0) + 1; seen.set(g, c); return { key: `H${g}#${c}`, sig: "h" + g + (imgs ? 1 : 0), vars: { k, n: myHc }, html: () => grpTile(g, "hand", k, myHc) }; });
+      for (let k = myHand.length; k < myHc; k++) handItems.push({ key: "HB" + k, sig: "hb", vars: { k, n: myHc }, html: () => backs(1, "me", k, myHc) });
+      syncRow(q(".hand.me .fan"), handItems);
+      setHtml(q(".hand.opp .fan"), backs(f.hc[opp - 1], "opp"));
+      // Embleme, Phasenleiste, Stapel, Ticker: nur bei Änderung neu
+      const bindZones = (slot) => A.$$(".zi[data-kind]", slot).forEach((el) => el.addEventListener("click", () => openPile(el.dataset.kind, +el.dataset.seat)));
+      if (setHtml(q(".slot.m-opp"), medal(opp, f, false))) bindZones(q(".slot.m-opp"));
+      if (setHtml(q(".slot.m-me"), medal(me, f, true))) bindZones(q(".slot.m-me"));
+      setHtml(q(".slot.ph"), phaseBar(f));
       const stackHtml = f.st.length ? `<div class="stack" style="--n:${f.st.length}"><div class="stitle">Stapel · ${f.st.length}${f.st.length > 1 ? " · oben wird zuerst verrechnet" : ""}</div><div class="sitems">${[...f.st].reverse().map((x, k) => stackItem(x, f, k)).join("")}</div></div>`
         : `<div class="turninfo"><div class="big">${f.act === me ? "Dein Zug" : f.act === opp ? "Zug des Gegners" : "–"}</div><div class="phase">${A.esc(f.ph || "")}${f.stp ? " · " + A.esc(f.stp) : ""}</div><div class="muted small">Zug ${f.turn}${f.g > 1 ? " · Spiel " + f.g : ""}</div></div>`;
-      const ticker = f.ev.length ? `<div class="ticker">${f.ev.map(evText).join(" · ")}</div>` : "";
-      boardEl.innerHTML = `
-        <div class="top">
-          ${medal(opp, f, false)}
-          <div class="hand opp"><div class="fan">${backs(oppHand, "opp")}</div></div>
-        </div>
-        <div class="field">
-          ${phaseBar(f)}
-          <div class="bf">
-            <div class="lands opp">${lands(opp).map((gr) => tile(gr.o, "sm", gr.n)).join("")}</div>
-            <div class="perms opp">${cmdz(opp).map((o) => tile(o, "", 1)).join("")}${perms(opp).map((gr) => tile(gr.o, "", gr.n)).join("") || '<span class="zl center">keine bleibenden Karten</span>'}</div>
-            <div class="divider"></div>
-            <div class="perms me">${cmdz(me).map((o) => tile(o, "", 1)).join("")}${perms(me).map((gr) => tile(gr.o, "", gr.n)).join("") || '<span class="zl center">keine bleibenden Karten</span>'}</div>
-            <div class="lands me">${lands(me).map((gr) => tile(gr.o, "sm", gr.n)).join("")}</div>
-          </div>
-          <div class="stack-col">${stackHtml}${ticker}</div>
-        </div>
-        <div class="bottom">
-          ${medal(me, f, true)}
-          <div class="hand me"><div class="fan">${myHand.map((g, k) => grpTile(g, "hand", k, myHc)).join("")}${backs(myHc - myHand.length, "me", myHand.length, myHc)}</div></div>
-        </div>`;
+      setHtml(q(".slot.st"), stackHtml);
+      setHtml(q(".slot.tk"), f.ev.length ? `<div class="ticker">${f.ev.map(evText).join(" · ")}</div>` : "");
       prevLife = [...f.life];
+      boardEl.classList.toggle("noimgs", !imgs);
       fitRows();
       A.Art.bind(boardEl);
       A.bindCardImages(boardEl);
@@ -290,7 +344,6 @@ App.load().then((D) => {
       A.$("#played").style.width = pct + "%";
       A.$$("#log .e").forEach((el) => el.classList.toggle("cur", +el.dataset.fi === i));
       if (logOpen) { const c = A.$("#log .e.cur"); if (c) c.scrollIntoView({ block: "nearest" }); }
-      A.$$(".zi[data-kind]", boardEl).forEach((el) => el.addEventListener("click", () => openPile(el.dataset.kind, +el.dataset.seat)));
       if (!popup.classList.contains("hidden") && popup.dataset.kind && popup.dataset.kind !== "deck") openPile(popup.dataset.kind, +popup.dataset.seat);
     }
 
@@ -330,7 +383,7 @@ App.load().then((D) => {
     A.$("#b-tprev").onclick = prevTurn;
     A.$("#b-play").onclick = () => setPlaying(!timer);
     A.$$("#speed button").forEach((b) => b.addEventListener("click", () => { speed = +b.dataset.v; A.$$("#speed button").forEach((x) => x.classList.toggle("on", x === b)); if (timer) setPlaying(true); }));
-    A.$("#b-imgs").onclick = () => { imgs = !imgs; try { localStorage.setItem("mtga-replay-imgs", imgs ? "1" : "0"); } catch (e) {} A.$("#b-imgs").textContent = imgs ? "Bilder aus" : "Bilder an"; render(); };
+    A.$("#b-imgs").onclick = () => { imgs = !imgs; try { localStorage.setItem("mtga-replay-imgs", imgs ? "1" : "0"); } catch (e) {} A.$("#b-imgs").textContent = imgs ? "Bilder aus" : "Bilder an"; built = false; render(); };
     A.$("#b-log").onclick = () => setLog(!logOpen);
     A.$(".b-log-x").onclick = () => setLog(false);
     A.$("#b-full").onclick = () => { const st = A.$("#stage"); if (document.fullscreenElement) document.exitFullscreen(); else st.requestFullscreen && st.requestFullscreen(); };
@@ -350,6 +403,8 @@ App.load().then((D) => {
     });
     window.addEventListener("resize", A.debounce(fitRows, 120));
     setLog(logOpen);
+    // Startschritt per URL (?step=120), sonst Anfang
+    i = Math.max(0, Math.min(frames.length - 1, parseInt(A.param("step") || "0", 10) || 0));
     render();
   }
 });
