@@ -20,3 +20,7 @@ server/.env
 hosting/config.php
 hosting/data/
 dist/
+# FTP-Zugangsdaten fuer den Website-Upload (scripts/deploy.js)
+deploy-config.json
+# Versionsstempel entsteht nur im Build (dist/hosting/app/version.php)
+hosting/app/version.php

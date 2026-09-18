@@ -40,7 +40,7 @@ function dispatch(string $m, string $p): void {
     $log = @file_get_contents(DATA_DIR . '/app.log', false, null, $before) ?: '';
     send(200, "Modus: " . cfg('mail.mode', 'mail') . "\nAbsender: " . cfg('mail.from') . "\nErgebnis: " . ($ok ? 'gesendet (Postfach und Spam-Ordner prüfen)' : 'FEHLGESCHLAGEN') . "\n" . ($log ? "Protokoll:\n" . $log : ''), 'text/plain; charset=utf-8');
   }
-  if ($p === '/healthz') send_json(200, ['ok' => true, 'cards' => (int)db_val('SELECT COUNT(*) FROM cards')]);
+  if ($p === '/healthz') send_json(200, ['ok' => true, 'cards' => (int)db_val('SELECT COUNT(*) FROM cards'), 'version' => app_version()]);
   if (preg_match('#^/card-img/(\d+)$#', $p, $x)) card_img((int)$x[1]);
 
   // ---- API für den Companion ----

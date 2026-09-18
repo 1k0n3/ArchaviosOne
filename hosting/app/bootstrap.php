@@ -44,6 +44,8 @@ function iso_in(int $seconds): string { return gmdate('Y-m-d\TH:i:s.v\Z', time()
 function random_id(int $bytes = 24): string { return rtrim(strtr(base64_encode(random_bytes($bytes)), '+/', '-_'), '='); }
 function esc($s): string { return htmlspecialchars((string)($s ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 function json_out($data, int $flags = 0): string { return json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | $flags); }
+/** Stand dieser Kopie (Versionsstempel aus dem Build-Skript; bei der Entwicklungskopie null) */
+function app_version(): ?array { $f = APP_ROOT . '/app/version.php'; return is_file($f) ? (array)(include $f) : null; }
 function app_log(string $msg): void {
   @file_put_contents(DATA_DIR . '/app.log', '[' . now_iso() . '] ' . $msg . "\n", FILE_APPEND);
 }

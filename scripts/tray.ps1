@@ -349,6 +349,7 @@ $script:miAutostartAdmin = Add-Item "Mit Administratorrechten (wenn MTGA als Adm
 }
 $menu.Add_Opening({
   $script:miSite.Enabled = [bool](Get-ConfigValue "syncUrl" "")
+  if ($script:miDeploy) { $script:miDeploy.Visible = Test-Path (Join-Path $script:dir "deploy-config.json") }
   $t = Get-AutostartTask
   $script:miAutostart.Checked = [bool]($t -and $t.State -ne "Disabled")
   $script:miAutostartAdmin.Checked = $(if ($t) { $t.Principal.RunLevel -eq "Highest" } else { [bool](Get-ConfigValue "autostartElevated" $false) })
@@ -388,6 +389,13 @@ $script:miSyncNow = Add-Item "Jetzt synchronisieren" {
 $script:miDisconnect = Add-Item "Verbindung trennen" {
   Invoke-NodeHidden @("src\sync.js", "disconnect") | Out-Null
   Show-Balloon "Cloud-Sync getrennt."
+}
+# Eigene Website per FTP auf den lokalen Stand bringen (nur mit deploy-config.json; siehe hosting/DEPLOY.md)
+$script:miDeploy = Add-Item "Website hochladen (FTP)" {
+  Show-Balloon "Website wird abgeglichen …"
+  $out = Invoke-NodeHidden @("scripts\deploy.js")
+  $lines = @(($out -split "`r?`n") | Where-Object { $_.Trim() -and $_ -notmatch "Dateien hochgeladen" })
+  Show-Balloon (($lines | Select-Object -Last 2) -join "`n")
 }
 Add-Separator
 $script:miExit = Add-Item "Beenden" { Exit-Tray }

@@ -28,6 +28,9 @@
     "app": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1",
     "shortcut": "powershell -ExecutionPolicy Bypass -File scripts/create-shortcut.ps1",
     "sync": "node src/sync.js",
+    "hosting": "node scripts/build-hosting.js",
+    "deploy": "node scripts/deploy.js",
+    "deploy:check": "node scripts/deploy.js check",
     "server": "cd server && npm start"
   },
   "keywords": [

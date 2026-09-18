@@ -60,9 +60,34 @@ Ohne Cron geht es auch: die Adresse `https://deine-domain.de/cron?key=…` 8–1
 
 Danach synchronisiert der Companion nach jedem Match, bei Deck-Änderungen und alle 5 Minuten; offline wird gesammelt und später nachgeschickt.
 
-## 6. Updates einspielen
+## 6. Updates einspielen – automatisch per Skript
 
-`node scripts/build-hosting.js` erneut ausführen und `dist/hosting/` per FTP **überschreibend** hochladen. `config.php` und `data/` bleiben unberührt; neue Migrationen laufen beim nächsten Aufruf automatisch.
+Damit Online-Version und lokale Version immer gleich sind, lädt `scripts/deploy.js` per FTP hoch – nur die Dateien, die sich geändert haben. Einmalig einrichten:
+
+1. `deploy-config.example.json` als `deploy-config.json` kopieren (bleibt lokal, nicht im Git) und eintragen: `host`, `user`, `password` aus dem Hosting-Panel, `remoteDir` (Web-Verzeichnis relativ zum FTP-Anmeldeordner, z. B. `public_html`; leer lassen, wenn der FTP-Zugang direkt dort landet) und `url` der Website.
+2. Testen:
+
+```bash
+npm run deploy:check
+```
+
+zeigt lokalen Stand, Server-Stand und die Dateien, die sich unterscheiden – ohne etwas zu ändern. Dann:
+
+```bash
+npm run deploy
+```
+
+baut `dist/hosting/` neu, überträgt die Unterschiede (verschlüsselt per FTPS; `"tls": false`, falls der Hoster kein FTPS bietet, `"tlsVerify": false` bei Zertifikatsfehlern), löscht nicht mehr vorhandene Dateien und prüft danach über `/healthz`, ob die Website den neuen Stand meldet. `config.php` und `data/` werden nie angefasst; neue Migrationen laufen beim nächsten Aufruf automatisch. Den Stand der Website sieht man auch in den Einstellungen unter „Companion verbinden“ (Website-Stand) und unter `/healthz`.
+
+Dasselbe gibt es im Tray-Menü als **Website hochladen (FTP)** – der Eintrag erscheint, sobald `deploy-config.json` existiert. Wer mit Git arbeitet, lässt es ganz automatisch laufen:
+
+```bash
+node scripts/deploy.js install-hook
+```
+
+legt einen `post-commit`-Hook an: nach jedem Commit wird die Website hochgeladen. `node scripts/deploy.js --all` überträgt einmal alles (z. B. nach manuellem Herumkopieren per FileZilla).
+
+Ohne Skript geht es weiterhin von Hand: `node scripts/build-hosting.js` und `dist/hosting/` per FTP **überschreibend** hochladen.
 
 ## 7. Backup
 

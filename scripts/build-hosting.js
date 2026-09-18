@@ -3,6 +3,7 @@
 // Ausgeschlossen: hosting/data (Datenbank, Geheimnisse) und hosting/config.php (eigene Einstellungen bleiben auf dem Server)
 const fs = require("fs");
 const path = require("path");
+const { execFileSync } = require("child_process");
 const root = path.join(__dirname, "..");
 const out = path.join(root, "dist", "hosting");
 
@@ -22,6 +23,12 @@ fs.mkdirSync(path.join(out, "static"), { recursive: true });
 for (const f of ["site.css", "favicon.ico"]) fs.copyFileSync(path.join(root, "server", "static", f), path.join(out, "static", f));
 fs.mkdirSync(path.join(out, "data"), { recursive: true });
 fs.writeFileSync(path.join(out, "data", ".htaccess"), "Require all denied\n");
+// Versionsstempel (Commit und dessen Zeit): zeigt /healthz an; scripts/deploy.js vergleicht damit lokal und online
+let commit = "", build = "";
+const git = (...a) => execFileSync("git", a, { cwd: root, stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+try { [commit, build] = git("log", "-1", "--format=%h|%cI").split("|"); if (git("status", "--porcelain")) commit += "+"; } catch (e) { build = new Date().toISOString(); }
+const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+fs.writeFileSync(path.join(out, "app", "version.php"), `<?php\n// Vom Build-Skript erzeugt (scripts/build-hosting.js): Stand dieser Kopie\nreturn ['version' => '${pkg.version}', 'commit' => '${commit}', 'build' => '${build}'];\n`);
 const count = (dir) => fs.readdirSync(dir, { withFileTypes: true }).reduce((n, e) => n + (e.isDirectory() ? count(path.join(dir, e.name)) : 1), 0);
 console.log(`Upload-Ordner gebaut: ${out} (${count(out)} Dateien)`);
 console.log("Inhalt per FTP in das Web-Verzeichnis (htdocs / public_html) hochladen, dann config.example.php als config.php anpassen.");

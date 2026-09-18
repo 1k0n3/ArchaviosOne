@@ -1,0 +1,10 @@
+{
+  "_hinweis": "Als deploy-config.json speichern (bleibt lokal, nicht im Git). FTP-Zugangsdaten aus dem Hosting-Panel.",
+  "host": "ftp.deine-domain.de",
+  "user": "ftp-benutzer",
+  "password": "ftp-passwort",
+  "remoteDir": "public_html",
+  "tls": true,
+  "tlsVerify": true,
+  "url": "https://deine-domain.de"
+}
