@@ -252,6 +252,22 @@ async function matchLoop(pid) {
 
 // ---- Sitzung -----------------------------------------------------------------------------------------
 
+/**
+ * Plausibilität eines Sammlungs-Scans gegenüber dem letzten gespeicherten Stand: deutlich weniger Drucke (< 60 %)
+ * oder deutlich mehr Karten (> 150 %) deuten auf einen unvollständigen Speicher (Spiel lädt noch) hin.
+ * Ohne Vergleichsstand gilt der Mindestwert minCards.
+ */
+function plausible(snapshot) {
+  const prev = loadState();
+  if (!prev || !prev.snapshot) return snapshot.size > 0;
+  const prevMap = prev.snapshot instanceof Map ? prev.snapshot : new Map(prev.snapshot);
+  const prints = snapshot.size, prevPrints = prevMap.size;
+  const cardsNow = lib.totalCards(snapshot), cardsPrev = lib.totalCards(prevMap);
+  if (prevPrints >= 100 && prints < prevPrints * 0.6) return false;
+  if (cardsPrev >= 100 && cardsNow > cardsPrev * 1.5) return false;
+  return true;
+}
+
 async function runSession(pid) {
   const startedAt = new Date();
   const session = lib.stampDate(startedAt) + "_" + lib.stampTime(startedAt);
@@ -261,10 +277,13 @@ async function runSession(pid) {
   if (cfg.startDelaySec > 0) await sleep(cfg.startDelaySec);
 
   // Startzustand holen (mit Wiederholung, bis die Sammlung im Speicher liegt)
-  let start = null;
+  let start = null, implausible = 0;
   while (!start) {
     if (lib.mtgaPid() !== pid) { log("MTGA wurde beendet, bevor die Sammlung gelesen werden konnte."); return; }
     start = fullScan(pid);
+    // Direkt nach dem Spielstart liegt die Sammlung oft nur teilweise im Speicher (wenige Drucke, absurde Stückzahlen):
+    // so einen Stand nicht übernehmen und nicht zur Website schicken, sondern kurz warten und erneut lesen
+    if (start && !plausible(start.snapshot) && implausible++ < 6) { log(`Sammlung unplausibel (${start.snapshot.size} Drucke, ${lib.totalCards(start.snapshot)} Karten) – lese in ${cfg.retrySec}s erneut`); start = null; }
     if (!start) await sleep(cfg.retrySec);
   }
   if (cfg.once) { await matchTask; }
@@ -305,6 +324,7 @@ async function runSession(pid) {
     }
     checks++;
     block = res.block;
+    if (!plausible(res.snapshot)) { log(`Sammlung unplausibel (${res.snapshot.size} Drucke, ${lib.totalCards(res.snapshot)} Karten) – Stand verworfen, nächste Prüfung liest komplett`); forceFull = true; continue; }
     const d = lib.diffSnapshots(current, res.snapshot);
     if (d.length) {
       recordChanges(d, session, "während Sitzung");

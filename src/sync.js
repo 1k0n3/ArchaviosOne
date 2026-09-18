@@ -188,8 +188,19 @@ async function syncAll(log = () => {}) {
   if ((me.matches || 0) < localMatches || (me.decks || 0) < localDecks) {
     log(`Server hat ${me.matches} Matches / ${me.decks} Decks, lokal ${localMatches} / ${localDecks}: schicke alles nach`);
     r = await resendAll(log);
+  } else {
+    // Sammlung und Konto: hat der Server einen älteren Stand (oder andere Zahlen), den aktuellen lokalen nachschicken
+    const snap = readJson(path.join(outDir(), "state.json"), null);
+    const localSnap = snap && snap.snapshot ? new Map(snap.snapshot) : null;
+    const localCards = localSnap ? [...localSnap.values()].reduce((s, q) => s + q, 0) : 0;
+    const sc = me.collection || null;
+    let extra = 0;
+    if (localSnap && (!sc || sc.prints !== localSnap.size || sc.cards !== localCards)) { log(`Sammlung: Server ${sc ? sc.prints + " Drucke / " + sc.cards + " Karten" : "keine"}, lokal ${localSnap.size} / ${localCards}: schicke nach`); enqueueCollection(localSnap); extra++; }
+    const acct = readJson(path.join(outDir(), "account.json"), null);
+    if (acct && acct.takenAt && (!me.account || me.account < acct.takenAt)) { log("Konto: Server älter, schicke nach"); enqueueAccount(acct); extra++; }
+    if (extra) { const r2 = await flush(log); r.sent += r2.sent; r.left = r2.left; r.error = r2.error; }
   }
-  return Object.assign(r, { server: { matches: me.matches, decks: me.decks }, local: { matches: localMatches, decks: localDecks } });
+  return Object.assign(r, { server: { matches: me.matches, decks: me.decks, collection: me.collection || null }, local: { matches: localMatches, decks: localDecks, collection: (() => { const s = readJson(path.join(outDir(), "state.json"), null); return s && s.snapshot ? { prints: s.snapshot.length, cards: s.snapshot.reduce((a, p) => a + p[1], 0) } : null; })() } });
 }
 
 if (require.main === module) {

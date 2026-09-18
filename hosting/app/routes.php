@@ -252,6 +252,8 @@ function api_dispatch(string $m, string $p): void {
     $r = api_device();
     send_json(200, ['user' => ['handle' => $r['user']['handle'], 'displayName' => $r['user']['display_name']], 'device' => ['id' => $r['device']['id'], 'name' => $r['device']['name']],
       'decks' => (int)db_val('SELECT COUNT(*) FROM decks WHERE user_id = ? AND deleted_at IS NULL', $r['user']['id']), 'matches' => (int)db_val('SELECT COUNT(*) FROM matches WHERE user_id = ?', $r['user']['id']),
+      'collection' => (function () use ($r) { $c = db_get('SELECT taken_at, snapshot FROM collections WHERE user_id = ? ORDER BY taken_at DESC LIMIT 1', $r['user']['id']); if (!$c) return null; $s = json_decode($c['snapshot'], true) ?: []; $n = 0; foreach ($s as $p) $n += (int)($p[1] ?? 0); return ['takenAt' => $c['taken_at'], 'prints' => count($s), 'cards' => $n]; })(),
+      'account' => db_val('SELECT taken_at FROM account_state WHERE user_id = ?', $r['user']['id']),
       'limits' => ['postMaxBytes' => ini_bytes(ini_get('post_max_size'))]]);
   }
   if ($p === '/api/v1/sync' && $m === 'POST') {
