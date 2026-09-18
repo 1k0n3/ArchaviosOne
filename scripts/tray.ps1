@@ -5,7 +5,7 @@
 .DESCRIPTION
   Startet watch.js im Hintergrund (Watcher + lokaler Dashboard-Server) und zeigt ein Symbol
   im Infobereich. Linksklick oder Doppelklick öffnet das Dashboard im Browser.
-  Statuspunkt: grün = Watcher läuft, MTGA offen · blau = wartet auf MTGA · grau = gestoppt.
+  Statuspunkt: grün = Watcher läuft, MTGA offen · gold = wartet auf MTGA · grau = gestoppt.
   Rechtsklick: Dashboard, Status, Watcher starten/stoppen, Sammlung exportieren, Intervalle,
   Speicherort, Ordner/Protokoll, Einstellungen, Beenden.
 
@@ -109,7 +109,7 @@ function New-TrayIcon([System.Drawing.Color]$dot) {
   $r = 7.5 * $s; $x0 = 1 * $s; $y0 = 1 * $s; $w = 30 * $s
   $path.AddArc($x0, $y0, 2 * $r, 2 * $r, 180, 90); $path.AddArc($x0 + $w - 2 * $r, $y0, 2 * $r, 2 * $r, 270, 90)
   $path.AddArc($x0 + $w - 2 * $r, $y0 + $w - 2 * $r, 2 * $r, 2 * $r, 0, 90); $path.AddArc($x0, $y0 + $w - 2 * $r, 2 * $r, 2 * $r, 90, 90); $path.CloseFigure()
-  $bgBrush = New-Object System.Drawing.Drawing2D.LinearGradientBrush (New-Object System.Drawing.PointF 0, 0), (New-Object System.Drawing.PointF 0, (32 * $s)), ([System.Drawing.Color]::FromArgb(26, 33, 64)), ([System.Drawing.Color]::FromArgb(11, 14, 24))
+  $bgBrush = New-Object System.Drawing.Drawing2D.LinearGradientBrush (New-Object System.Drawing.PointF 0, 0), (New-Object System.Drawing.PointF 0, (32 * $s)), ([System.Drawing.Color]::FromArgb(44, 32, 24)), ([System.Drawing.Color]::FromArgb(16, 13, 11))
   $g.FillPath($bgBrush, $path)
   $g.DrawPath((New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(140, 242, 177, 52)), ([Math]::Max(0.8, 0.8 * $s))), $path)
   $cols = @(@(243, 233, 200), @(61, 127, 214), @(154, 143, 179), @(216, 72, 47), @(63, 154, 79))
@@ -121,12 +121,12 @@ function New-TrayIcon([System.Drawing.Color]$dot) {
     $g.DrawLine($pen, [single]$x, [single](25 * $s - 1.5 * $s), [single]$x, [single]((25 - $hs[$i]) * $s + 1.5 * $s))
   }
   $g.FillEllipse((New-Object System.Drawing.SolidBrush $dot), 21, 21, 10, 10)
-  $g.DrawEllipse((New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(12, 16, 34)), 1.5), 21, 21, 10, 10)
+  $g.DrawEllipse((New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(16, 13, 11)), 1.5), 21, 21, 10, 10)
   $g.Dispose()
   return [System.Drawing.Icon]::FromHandle($bmp.GetHicon())
 }
 $script:iconGreen = New-TrayIcon ([System.Drawing.Color]::FromArgb(34, 197, 94))
-$script:iconBlue = New-TrayIcon ([System.Drawing.Color]::FromArgb(59, 130, 246))
+$script:iconBlue = New-TrayIcon ([System.Drawing.Color]::FromArgb(242, 177, 52))
 $script:iconGray = New-TrayIcon ([System.Drawing.Color]::FromArgb(120, 128, 150))
 
 # ---- Tray + Menü ------------------------------------------------------------------------------------
@@ -139,10 +139,62 @@ function Show-Balloon([string]$text, [string]$title = "MTGA Stats") {
   try { $script:tray.ShowBalloonTip(5000, $title, $text, [System.Windows.Forms.ToolTipIcon]::Info) } catch {}
 }
 
+# ---- Menü im App-Design: warmes Dunkel, Gold als Akzent (wie app.css) ------------------------------
+Add-Type -ReferencedAssemblies System.Windows.Forms, System.Drawing -TypeDefinition @"
+using System.Drawing;
+using System.Windows.Forms;
+public class MtgaColorTable : ProfessionalColorTable {
+  static readonly Color Bg = Color.FromArgb(26, 21, 18), Hi = Color.FromArgb(44, 36, 28), Line = Color.FromArgb(74, 60, 47), Gold = Color.FromArgb(242, 177, 52);
+  public override Color ToolStripDropDownBackground { get { return Bg; } }
+  public override Color MenuBorder { get { return Line; } }
+  public override Color MenuItemBorder { get { return Color.FromArgb(120, 242, 177, 52); } }
+  public override Color MenuItemSelected { get { return Hi; } }
+  public override Color MenuItemSelectedGradientBegin { get { return Hi; } }
+  public override Color MenuItemSelectedGradientEnd { get { return Hi; } }
+  public override Color MenuItemPressedGradientBegin { get { return Hi; } }
+  public override Color MenuItemPressedGradientMiddle { get { return Hi; } }
+  public override Color MenuItemPressedGradientEnd { get { return Hi; } }
+  public override Color ImageMarginGradientBegin { get { return Bg; } }
+  public override Color ImageMarginGradientMiddle { get { return Bg; } }
+  public override Color ImageMarginGradientEnd { get { return Bg; } }
+  public override Color SeparatorDark { get { return Line; } }
+  public override Color SeparatorLight { get { return Bg; } }
+  public override Color CheckBackground { get { return Hi; } }
+  public override Color CheckSelectedBackground { get { return Hi; } }
+  public override Color CheckPressedBackground { get { return Hi; } }
+  public override Color ButtonSelectedBorder { get { return Gold; } }
+}
+public class MtgaRenderer : ToolStripProfessionalRenderer {
+  static readonly Color Ink = Color.FromArgb(245, 238, 226), Muted = Color.FromArgb(148, 133, 114), Gold = Color.FromArgb(242, 177, 52);
+  public MtgaRenderer() : base(new MtgaColorTable()) { RoundedEdges = false; }
+  protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e) {
+    if (!e.Item.Enabled) e.TextColor = e.Item.ForeColor == SystemColors.ControlText ? Muted : e.Item.ForeColor;
+    else if (e.Item.Selected) e.TextColor = Color.FromArgb(255, 211, 107);
+    else e.TextColor = Ink;
+    base.OnRenderItemText(e);
+  }
+  protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e) { e.ArrowColor = e.Item.Selected ? Gold : Muted; base.OnRenderArrow(e); }
+  protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e) {
+    // goldener Haken statt Systembild
+    Rectangle r = e.ImageRectangle;
+    using (Pen p = new Pen(Gold, 2f)) {
+      e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+      int cx = r.Left + r.Width / 2, cy = r.Top + r.Height / 2;
+      e.Graphics.DrawLines(p, new Point[] { new Point(cx - 5, cy), new Point(cx - 1, cy + 4), new Point(cx + 6, cy - 4) });
+    }
+  }
+}
+"@
+$script:renderer = New-Object MtgaRenderer
+[System.Windows.Forms.ToolStripManager]::Renderer = $script:renderer
+
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
-$menu.Renderer = New-Object System.Windows.Forms.ToolStripProfessionalRenderer
+$menu.Renderer = $script:renderer
+$menu.BackColor = [System.Drawing.Color]::FromArgb(26, 21, 18)
+$menu.ForeColor = [System.Drawing.Color]::FromArgb(245, 238, 226)
 $menu.Font = New-Object System.Drawing.Font("Segoe UI", 9.5)
 $menu.ShowImageMargin = $false
+$menu.Padding = New-Object System.Windows.Forms.Padding(2, 6, 2, 6)
 
 function Add-Item([string]$text, [scriptblock]$onClick, [bool]$enabled = $true, [bool]$bold = $false) {
   $mi = New-Object System.Windows.Forms.ToolStripMenuItem $text
@@ -157,7 +209,7 @@ function Add-Header([string]$text) {
   $mi = New-Object System.Windows.Forms.ToolStripMenuItem $text
   $mi.Enabled = $false
   $mi.Font = New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Bold)
-  $mi.ForeColor = [System.Drawing.Color]::FromArgb(110, 120, 150)
+  $mi.ForeColor = [System.Drawing.Color]::FromArgb(242, 177, 52)
   [void]$menu.Items.Add($mi)
 }
 
@@ -187,6 +239,9 @@ Add-Header "INTERVALLE"
 function Add-IntervalMenu([string]$title, [string]$key, [int]$default, [hashtable[]]$choices) {
   $parent = New-Object System.Windows.Forms.ToolStripMenuItem $title
   $parent.Tag = $key
+  $parent.DropDown.Renderer = $script:renderer
+  $parent.DropDown.BackColor = $menu.BackColor
+  $parent.DropDown.ForeColor = $menu.ForeColor
   foreach ($ch in $choices) {
     $mi = New-Object System.Windows.Forms.ToolStripMenuItem $ch.label
     $mi.Tag = [int]$ch.value
@@ -247,6 +302,55 @@ $script:miOpenLog = Add-Item "Protokoll öffnen" {
   if (Test-Path $l) { Start-Process notepad.exe $l } else { Show-Balloon "Noch kein Protokoll vorhanden." }
 }
 $script:miOpenCfg = Add-Item "Alle Einstellungen bearbeiten (JSON)" { Start-Process notepad.exe $script:configPath }
+Add-Separator
+
+# ---- Autostart (Aufgabenplanung, siehe install-autostart.ps1) ----------------------------------------
+Add-Header "AUTOSTART"
+$script:taskName = "MTGA Collection Export"
+function Get-AutostartTask { Get-ScheduledTask -TaskName $script:taskName -ErrorAction SilentlyContinue }
+# PowerShell-Befehl unsichtbar ausführen, bei Bedarf mit Administratorrechten (UAC-Abfrage)
+function Invoke-PsHidden([string]$command, [bool]$admin) {
+  $a = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$command`""
+  try {
+    if ($admin) { Start-Process powershell.exe -ArgumentList $a -Verb RunAs -WindowStyle Hidden -Wait }
+    else { Start-Process powershell.exe -ArgumentList $a -WindowStyle Hidden -Wait }
+    return $true
+  } catch { Show-Balloon "Abgebrochen: $($_.Exception.Message)"; return $false }
+}
+function Register-Autostart {
+  $elev = [bool](Get-ConfigValue "autostartElevated" $false)
+  $inst = Join-Path $script:dir "scripts\install-autostart.ps1"
+  $cmd = "& '$inst' -NoStart" + $(if ($elev) { " -Elevated" } else { "" })
+  Invoke-PsHidden $cmd $elev
+}
+$script:miAutostart = Add-Item "Beim Anmelden automatisch starten" {
+  $t = Get-AutostartTask
+  if ($t) {
+    $admin = ($t.Principal.RunLevel -eq "Highest")
+    $cmd = $(if ($t.State -eq "Disabled") { "Enable-ScheduledTask" } else { "Disable-ScheduledTask" }) + " -TaskName '$($script:taskName)' | Out-Null"
+    [void](Invoke-PsHidden $cmd $admin)
+  } else { [void](Register-Autostart) }
+  $t = Get-AutostartTask
+  Show-Balloon $(if ($t -and $t.State -ne "Disabled") { "Autostart eingeschaltet." } else { "Autostart ausgeschaltet." })
+}
+$script:miAutostartAdmin = Add-Item "Mit Administratorrechten (wenn MTGA als Admin läuft)" {
+  $new = -not [bool](Get-ConfigValue "autostartElevated" $false)
+  Set-ConfigValue "autostartElevated" $new
+  $t = Get-AutostartTask
+  if ($t) {
+    # bestehende Aufgabe mit der neuen Rechtestufe neu anlegen (Entfernen der alten braucht ggf. Adminrechte)
+    $inst = Join-Path $script:dir "scripts\install-autostart.ps1"
+    $cmd = "& '$inst' -NoStart" + $(if ($new) { " -Elevated" } else { "" })
+    [void](Invoke-PsHidden $cmd ($new -or $t.Principal.RunLevel -eq "Highest"))
+  }
+  Show-Balloon $(if ($new) { "Autostart läuft künftig mit Administratorrechten." } else { "Autostart läuft künftig ohne Administratorrechte." })
+}
+$menu.Add_Opening({
+  $t = Get-AutostartTask
+  $script:miAutostart.Checked = [bool]($t -and $t.State -ne "Disabled")
+  $script:miAutostartAdmin.Checked = $(if ($t) { $t.Principal.RunLevel -eq "Highest" } else { [bool](Get-ConfigValue "autostartElevated" $false) })
+})
+$menu.ShowCheckMargin = $true
 # node ohne Konsolenfenster ausführen und die Ausgabe zurückgeben
 function Invoke-NodeHidden([string[]]$nodeArgs) {
   $nodeExe = Get-NodePath

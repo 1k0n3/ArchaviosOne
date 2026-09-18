@@ -15,10 +15,10 @@ async function main() {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],                       // Dashboard-Seiten haben Inline-Skripte
         scriptSrcAttr: ["'unsafe-inline'"],                             // onclick/onerror im gemeinsamen Frontend
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         imgSrc: ["'self'", "data:", "https://cards.scryfall.io", "https://backs.scryfall.io", "https://svgs.scryfall.io"],
         connectSrc: ["'self'"],
-        fontSrc: ["'self'"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
         frameAncestors: ["'none'"],
         formAction: ["'self'", "https://discord.com", "https://accounts.google.com"]
       }

@@ -11,10 +11,12 @@
 .PARAMETER Uninstall  Aufgabe entfernen
 .PARAMETER Elevated   Aufgabe mit höchsten Rechten einrichten (nötig, wenn MTGA mit Administratorrechten läuft).
                       Dieses Skript dann aus einer Administrator-PowerShell aufrufen.
+.PARAMETER NoStart    Aufgabe nur einrichten, nicht sofort starten (wenn das Tray schon läuft).
 #>
 param(
   [switch]$Uninstall,
-  [switch]$Elevated
+  [switch]$Elevated,
+  [switch]$NoStart
 )
 
 $ErrorActionPreference = "Stop"
@@ -40,7 +42,7 @@ $isAdmin = (New-Object System.Security.Principal.WindowsPrincipal([System.Securi
 if ($Elevated -and -not $isAdmin) {
   # Selbst mit Administratorrechten neu starten (UAC-Abfrage), Ausgabe im neuen Fenster
   Write-Host "Starte mit Administratorrechten neu (UAC-Abfrage bestätigen) ..."
-  $args = "-NoProfile -ExecutionPolicy Bypass -NoExit -File `"$PSCommandPath`" -Elevated"
+  $args = "-NoProfile -ExecutionPolicy Bypass -NoExit -File `"$PSCommandPath`" -Elevated" + $(if ($NoStart) { " -NoStart" } else { "" })
   Start-Process -FilePath (Get-Command powershell.exe).Source -ArgumentList $args -Verb RunAs
   exit 0
 }
@@ -66,9 +68,10 @@ $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interac
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal `
   -Description "Wartet auf MTGA und exportiert Sammlung, Änderungen und Decks nach $dir\out" | Out-Null
 if ($Elevated) { Write-Host "Aufgabe läuft mit höchsten Rechten (für MTGA mit Administratorrechten)." }
-Start-ScheduledTask -TaskName $taskName
+if (-not $NoStart) { Start-ScheduledTask -TaskName $taskName }
 
-Write-Host "Aufgabe '$taskName' eingerichtet und gestartet (Symbol im Infobereich)."
+$suffix = if ($NoStart) { "." } else { " und gestartet (Symbol im Infobereich)." }
+Write-Host "Aufgabe '$taskName' eingerichtet$suffix"
 Write-Host "  Tray:          $tray (startet src\watch.js)"
 Write-Host "  Einstellungen: $dir\watch-config.json (nach Änderung: dieses Skript erneut ausführen)"
 Write-Host "  Exporte:       $dir\out"

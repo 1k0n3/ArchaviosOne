@@ -8,6 +8,9 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#0b0e18">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap">
 <link rel="stylesheet" href="app.css">
 <script src="data.js"></script>
 <script src="i18n.js"></script>
@@ -79,7 +82,7 @@ App.load().then((D) => {
           <div class="export-actions"><button class="primary small" id="copy-exp" title="${T("Arena-Importformat in die Zwischenablage")}">${A.FI.copies} ${T("Für Arena kopieren")}</button><button class="ghost small" id="save-exp" title="${T("Als Textdatei herunterladen")}">${A.FI.download} ${T("Als .txt speichern")}</button></div>
           <pre class="export collapsed" id="exp" title="${T("Klick zum Auf- und Zuklappen")}">${A.esc(deckText(d))}</pre></div>
         <div class="col matches"><h3>${T("Matches mit diesem Deck")}</h3>
-          <table><tbody>${ms.slice(0, 6).map((m) => `<tr class="clickable" onclick="location.href='replay.html?id=${m.matchId}'"><td>${A.relDate(m.start)}</td><td>${A.resultBadge(m.result)}</td><td>${A.esc(m.opponent)}</td><td class="muted small">${m.turns} ${T("Züge")}</td></tr>`).join("") || `<tr><td class="muted">${T("noch keine")}</td></tr>`}</tbody></table>
+          <table><tbody>${ms.slice(0, 6).map((m) => `<tr class="clickable" onclick="location.href='replay.html?id=${m.matchId}'"><td>${A.relDate(m.start)}</td><td>${A.resultBadge(m.result)}</td><td>${A.esc(m.opponent)}</td><td class="muted small">${m.turns} ${T("Züge")}</td><td class="play">${A.replayLink(m.matchId, true)}</td></tr>`).join("") || `<tr><td class="muted">${T("noch keine")}</td></tr>`}</tbody></table>
           ${ms.length > 6 ? `<a class="small" href="matches.html?deck=${encodeURIComponent(label(d))}">${T("alle {n} anzeigen →", { n: ms.length })}</a>` : ""}</div></div>
         ${A.deckStatsHtml(A.deckStats(d))}
         ${A.xButton("close")}

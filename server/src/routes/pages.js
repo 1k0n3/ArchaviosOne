@@ -35,7 +35,7 @@ module.exports = async function pagesRoutes(app) {
     render(reply, { title: "Start", flash: req.flash, body: pages.home({ decks: publicDecks(12), stats }) });
   });
   app.get("/decks", async (req, reply) => render(reply, { title: "Öffentliche Decks", body: pages.deckList(publicDecks(60)) }));
-  app.get("/download", async (req, reply) => render(reply, { title: "Companion", body: pages.download() }));
+  app.get("/download", async (req, reply) => render(reply, { title: "Companion", body: pages.download({ downloadUrl: config.downloadUrl, repoUrl: config.githubRepo ? "https://github.com/" + config.githubRepo : "" }) }));
   app.get("/impressum", async (req, reply) => render(reply, { title: "Impressum", body: pages.legal("Impressum", "Angaben zum Betreiber bitte hier eintragen (Name, Anschrift, Kontakt).") }));
   app.get("/datenschutz", async (req, reply) => render(reply, { title: "Datenschutz", body: pages.legal("Datenschutz", "Gespeichert werden E-Mail-Adresse, Anzeigename, verknüpfte Konten sowie die vom Companion synchronisierten Spieldaten (Decks, Matches, Sammlung). Kartenbilder werden von Scryfall geladen. Sitzungen laufen über ein HttpOnly-Cookie.") }));
   app.get("/app", async (req, reply) => { if (!requireUser(req, reply)) return; reply.redirect(`/u/${req.user.handle}/`); });

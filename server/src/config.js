@@ -46,5 +46,8 @@ module.exports = {
     google: { id: env("GOOGLE_CLIENT_ID", ""), secret: env("GOOGLE_CLIENT_SECRET", "") }
   },
   scryfall: { userAgent: "MTGAStatsServer/0.1 (+https://github.com/mtga-stats)" },
-  registrationOpen: env("REGISTRATION_OPEN", "1") === "1"
+  registrationOpen: env("REGISTRATION_OPEN", "1") === "1",
+  // Download des Companions: GitHub-Repository (owner/name); DOWNLOAD_URL überschreibt den direkten ZIP-Link
+  githubRepo: env("GITHUB_REPO", ""),
+  downloadUrl: env("DOWNLOAD_URL", "") || (env("GITHUB_REPO", "") ? `https://github.com/${env("GITHUB_REPO", "")}/archive/refs/heads/main.zip` : "")
 };

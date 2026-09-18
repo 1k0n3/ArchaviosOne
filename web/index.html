@@ -8,6 +8,9 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#0b0e18">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap">
 <link rel="stylesheet" href="app.css">
 <script src="data.js"></script>
 <script src="i18n.js"></script>
@@ -107,7 +110,7 @@ App.load().then((D) => {
     A.$("#recent tbody").innerHTML = list.slice(0, 10).map((m) => `<tr class="clickable" onclick="location.href='replay.html?id=${m.matchId}'">
       <td>${A.relDate(m.start)}<div class="muted small">${A.fmtTime(m.start)}</div></td><td>${A.resultBadge(m.result)}<div class="muted small">${A.esc(m.reason)}</div></td>
       <td>${A.deckCell(m)}</td><td><b>${A.esc(m.opponent)}</b><div class="muted small">${A.esc(m.opponentPlatform)}</div></td>
-      <td>${A.esc(A.eventLabel(m.eventId))}</td><td>${m.turns}</td><td>${A.fmtDur(m.durationSec)}</td><td><a href="replay.html?id=${m.matchId}">${T("Replay ▶")}</a></td></tr>`).join("") ||
+      <td>${A.esc(A.eventLabel(m.eventId))}</td><td>${m.turns}</td><td>${A.fmtDur(m.durationSec)}</td><td>${A.replayLink(m.matchId)}</td></tr>`).join("") ||
       `<tr><td colspan="8" class="empty">${T("Keine Matches im Zeitraum")}</td></tr>`;
     A.Art.bind(document.body);
   }

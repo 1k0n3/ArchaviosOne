@@ -1,6 +1,6 @@
 /* Website-Rahmen (Konto, Einstellungen, Startseite); baut auf app.css auf */
 body.site { display: block; }
-.site-head { display: flex; align-items: center; gap: 18px; padding: 14px 28px; border-bottom: 1px solid var(--line); background: rgba(10,13,22,.85); backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 20; }
+.site-head { display: flex; align-items: center; gap: 18px; padding: 14px 28px; border-bottom: 1px solid var(--line); background: rgba(16,13,11,.85); backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 20; }
 .site-head .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); }
 .site-head .brand b { display: block; font-size: 16px; } .site-head .brand small { color: var(--ink-3); font-size: 11px; }
 .site-head nav { margin-left: auto; display: flex; align-items: center; gap: 16px; }
@@ -14,9 +14,10 @@ body.site { display: block; }
 .site-main.wide { max-width: 1500px; }
 .site-foot { max-width: 1100px; margin: 0 auto; padding: 20px 24px 40px; color: var(--ink-3); font-size: 12px; }
 .flash { padding: 10px 14px; border-radius: 10px; margin-bottom: 18px; border: 1px solid var(--line-2); background: var(--panel-2); }
-.flash.error { border-color: rgba(217,119,6,.6); } .flash.ok { border-color: rgba(59,130,246,.6); }
+.flash.error { border-color: var(--loss-line); } .flash.ok { border-color: var(--win-line); }
 .card-form { max-width: 460px; margin: 30px auto; background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); border-radius: var(--r); padding: 26px 28px; box-shadow: var(--shadow); }
 .card-form h1 { font-size: 22px; margin-bottom: 14px; }
+.site-head .brand b { font-family: var(--font-title); letter-spacing: .5px; }
 .fld { display: flex; flex-direction: column; gap: 5px; margin: 0 0 12px; font-size: 13px; color: var(--ink-2); }
 .fld input, .card-form select, .panel select { width: 100%; }
 .oauth { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
@@ -24,7 +25,7 @@ body.site { display: block; }
 .oauth-btn.discord { background: #5865f2; border-color: #5865f2; color: #fff !important; }
 .oauth-btn.google { background: #fff; border-color: #ddd; color: #222 !important; }
 .hero-site { display: grid; grid-template-columns: 1.4fr 1fr; gap: 30px; align-items: center; padding: 30px 0 20px; }
-.hero-site h1 { font-size: 34px; line-height: 1.15; margin-bottom: 12px; }
+.hero-site h1 { font-size: 34px; line-height: 1.2; margin-bottom: 12px; }
 .hero-site p { color: var(--ink-2); font-size: 15px; }
 .stats-site { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .stats-site div { text-align: center; padding: 16px 8px; border-radius: var(--r); background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); }

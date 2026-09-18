@@ -130,6 +130,10 @@ window.App = (function () {
       ${opts.qty > 1 ? `<span class="q">${opts.qty}</span>` : ""}${opts.extra || ""}</div>`;
   }
   const cardTile = (g, opts = {}) => cardHtml(g, opts);
+  /** Link zum Replay: groß mit Text oder als kleiner goldener Play-Knopf */
+  const replayLink = (matchId, small) => small
+    ? `<a class="btn-play" href="replay.html?id=${matchId}" title="${tr("Replay ▶")}" onclick="event.stopPropagation()">${FI.play}</a>`
+    : `<a class="btn-replay" href="replay.html?id=${matchId}">${FI.play}<span>${tr("Replay")}</span></a>`;
   const bigCard = (c) => cardHtml(c, { w: 512, cls: "big" });
   /** Fehlgeschlagene Kartenbilder auf Artwork-Fallback umschalten (Bild aus den Spieldaten) */
   const loadedImgs = new Set(); // bereits geladene Kartenbilder: neue Kacheln damit blenden nicht erneut ein
@@ -233,7 +237,11 @@ window.App = (function () {
         const open = !el.classList.contains("open");
         if (ddOpen && ddOpen !== el) ddOpen.classList.remove("open");
         el.classList.toggle("open", open); ddOpen = open ? el : null;
-        if (open) { const q = $(".dd-q", el); if (q) { q.value = ""; q.focus(); } const on = $(".dd-list .on", el); if (on) on.scrollIntoView({ block: "center" }); }
+        if (open) {
+          const menu = $(".dd-menu", el); menu.classList.remove("right");
+          if (menu.getBoundingClientRect().right > window.innerWidth - 8) menu.classList.add("right");
+          const q = $(".dd-q", el); if (q) { q.value = ""; q.focus(); } const on = $(".dd-list .on", el); if (on) on.scrollIntoView({ block: "center" });
+        }
       });
       $$(".dd-list button", el).forEach((b) => b.addEventListener("click", () => { value = b.dataset.v; el.classList.remove("open"); ddOpen = null; paint(); if (opts.onChange) opts.onChange(value); }));
       const q = $(".dd-q", el);
@@ -346,7 +354,7 @@ window.App = (function () {
     const cols = ["#f3e9c8", "#3d7fd6", "#9a8fb3", "#d8482f", "#3f9a4f"], hs = [34, 25, 17, 25, 34];
     const bars = cols.map((c, i) => `<rect x="${8.5 + i * 10}" y="${50 - hs[i]}" width="7" height="${hs[i]}" rx="3" fill="${c}"/>`).join("");
     logoCache = `<svg class="mark" viewBox="0 0 64 64" width="44" height="44" aria-hidden="true">
-      <defs><linearGradient id="lg-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a2140"/><stop offset="1" stop-color="#0b0e18"/></linearGradient></defs>
+      <defs><linearGradient id="lg-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c2018"/><stop offset="1" stop-color="#100d0b"/></linearGradient></defs>
       <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#lg-bg)" stroke="#f2b134" stroke-opacity=".55" stroke-width="1.6"/>
       ${bars}
     </svg>`;
@@ -691,5 +699,5 @@ window.App = (function () {
     setInterval(check, 20000);
   })();
 
-  return { load, get DATA() { return DATA; }, $, $$, esc, card, cardName, artOf, artCanvas, cardTile, cardHtml, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, cmcOf, loadedImgs, t: tr, get LOGO() { return logoSvg(); } };
+  return { load, get DATA() { return DATA; }, $, $$, esc, card, cardName, artOf, artCanvas, cardTile, cardHtml, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, cmcOf, loadedImgs, t: tr, get LOGO() { return logoSvg(); } };
 })();
