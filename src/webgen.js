@@ -11,9 +11,13 @@ function cardEntry(c) {
 }
 
 /** Ausgabeordner aus watch-config.json (Standard: out/) – für das Deck-Archiv */
+function readConfig() {
+  try { return JSON.parse(fs.readFileSync(path.join(__dirname, "..", "watch-config.json"), "utf8").replace(/^﻿/, "")); } catch (e) { return {}; }
+}
 function defaultOutDir() {
   const root = path.join(__dirname, "..");
-  try { const c = JSON.parse(fs.readFileSync(path.join(root, "watch-config.json"), "utf8").replace(/^﻿/, "")); if (c.outDir) return path.isAbsolute(c.outDir) ? c.outDir : path.join(root, c.outDir); } catch (e) { /* Standard */ }
+  const c = readConfig();
+  if (c.outDir) return path.isAbsolute(c.outDir) ? c.outDir : path.join(root, c.outDir);
   return path.join(root, "out");
 }
 /**
@@ -154,7 +158,7 @@ function build(outDir, cards) {
   for (const g of usedCards) { const c = cards.get(g); if (c) cardDict[g] = cardEntry(c); }
 
   let account = null; try { account = JSON.parse(fs.readFileSync(path.join(outDir, "account.json"), "utf8")); } catch (e) { /* noch keine Kontodaten */ }
-  const data = { generatedAt: new Date().toISOString(), format: FORMAT, player: myName, matches: summaries, decks, cards: cardDict, account };
+  const data = { generatedAt: new Date().toISOString(), format: FORMAT, player: myName, matches: summaries, decks, cards: cardDict, account, syncUrl: String(readConfig().syncUrl || "").replace(/\/$/, "") || null };
   fs.writeFileSync(path.join(webDir, "data.js"), "window.MTGA_DATA=" + JSON.stringify(data) + ";");
   fs.writeFileSync(path.join(webDir, "data.json"), JSON.stringify(data));
   return { index: path.join(webDir, "index.html"), matches: summaries.length, decks: decks.length };

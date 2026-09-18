@@ -410,7 +410,10 @@ window.App = (function () {
       <div class="spacer"></div>
       ${site && site.own
         ? `<div class="player link"><a class="who" href="/settings" title="${tr("Konto & Geräte")}"><div class="av">${esc(player.slice(0, 1).toUpperCase())}</div><div><div class="n">${esc(player)}</div><div class="s">${tr("{n} Matches", { n: st.n })} · ${Math.round(st.rate * 100)} % ${tr("Winrate")}</div></div></a>${site.csrf ? `<form method="post" action="/logout" class="inline"><input type="hidden" name="csrf" value="${esc(site.csrf)}"><button class="out" type="submit" title="${tr("Abmelden")}">${ICONS.out}</button></form>` : ""}</div>`
-        : `<div class="player"><div class="av">${esc(player.slice(0, 1).toUpperCase())}</div><div><div class="n">${esc(player)}</div><div class="s">${tr("{n} Matches", { n: st.n })} · ${Math.round(st.rate * 100)} % ${tr("Winrate")}</div></div></div>`}
+        : (DATA && DATA.syncUrl
+          // lokales Dashboard mit verbundener Website: Klick öffnet Konto & Geräte dort
+          ? `<div class="player link"><a class="who" href="${esc(DATA.syncUrl)}/settings" target="_blank" rel="noopener" title="${tr("Konto & Geräte auf der Website")}"><div class="av">${esc(player.slice(0, 1).toUpperCase())}</div><div><div class="n">${esc(player)}</div><div class="s">${tr("{n} Matches", { n: st.n })} · ${Math.round(st.rate * 100)} % ${tr("Winrate")}</div></div></a></div>`
+          : `<div class="player" title="${tr("Einstellungen: Tray-Menü (Rechtsklick auf das Symbol). Konto & Geräte: nach dem Verbinden mit der Website hier klicken.")}"><div class="av">${esc(player.slice(0, 1).toUpperCase())}</div><div><div class="n">${esc(player)}</div><div class="s">${tr("{n} Matches", { n: st.n })} · ${Math.round(st.rate * 100)} % ${tr("Winrate")}</div></div></div>`)}
       ${langSel}
       <div class="foot">${tr("Stand")} ${DATA && DATA.generatedAt ? fmtDate(DATA.generatedAt) + " " + fmtTime(DATA.generatedAt) : "?"}${Art.supported ? "" : " · " + tr("Bilder: WebGL S3TC nicht verfügbar")}</div>
     </aside>`;
