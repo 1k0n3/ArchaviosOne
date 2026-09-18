@@ -52,6 +52,7 @@ body.site.app .content { padding: 22px 26px 40px; }
 .settings-grid h3 .cnt { color: var(--gold); margin-left: 4px; }
 .settings-grid h3.fold-head.folded { margin-bottom: 0; }
 .settings-grid .deck-q { width: 100%; margin: 4px 0 8px; }
+.settings-grid .arch { color: var(--gold); font-weight: 700; letter-spacing: .5px; font-size: 11px; text-transform: uppercase; }
 /* Listen (Geräte, Decks): Zeile als Flex, Name wird abgeschnitten, Knopf/Auswahl bleibt immer sichtbar */
 .settings-grid table, .settings-grid tbody { display: block; width: 100%; }
 .settings-grid tr { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(42,51,80,.6); }

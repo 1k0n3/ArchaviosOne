@@ -166,7 +166,7 @@ App.load().then(async (D) => {
       { v: "", label: T("Meine Decks"), short: T("Meine Decks") + " (" + decks.length + ")", icon: FI.deck },
       { v: "new", label: "+ " + T("Neues Deck"), icon: FI.reset }, { v: "dup", label: T("Deck duplizieren"), icon: FI.copies }, { v: "import", label: T("Aus Arena-Text einfügen …"), icon: FI.download },
       ...decks.map((d) => ({ v: "open:" + d.id, label: `${d.name} · ${(FORMATS[d.format] || FORMATS.standard).label} · ${cnt(d)}`, icon: d === deck ? FI.check : FI.play, title: d === deck ? T("Aktuell geöffnet") : T("Öffnen"), search: d.name })),
-      ...(D.decks || []).map((d) => ({ v: "arena:" + d.id, label: `${T("Arena")}: ${d.name}`, icon: FI.set, title: T("Als neuen Entwurf aus Arena übernehmen"), search: d.name })),
+      ...(D.decks || []).map((d) => ({ v: "arena:" + d.id, label: `${T("Arena")}${d.archived ? " (" + T("Archiv") + ")" : ""}: ${d.name}`, icon: FI.set, title: T("Als neuen Entwurf aus Arena übernehmen"), search: d.name })),
       { v: "delete", label: T("Dieses Deck löschen"), icon: FI.x }] });
     A.$("#dp-new").addEventListener("click", () => menu("new"));
     A.$("#dp-copy").addEventListener("click", (ev) => { navigator.clipboard.writeText(exportText()); ev.currentTarget.innerHTML = FI.check + " " + T("Kopiert"); });

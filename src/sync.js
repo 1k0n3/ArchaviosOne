@@ -68,10 +68,10 @@ function enqueueDecks(decks, cards) {
   if (!device()) return 0;
   const st = state(); let n = 0;
   for (const d of decks) {
-    const h = hash([d.name, d.format, d.tile, d.zones, cards ? 1 : 0]);
+    const h = hash([d.name, d.format, d.tile, d.zones, cards ? 1 : 0, d.archived ? 1 : 0]);
     if (st.deckHashes[d.id] === h) continue;
     const ids = [d.tile, ...Object.values(d.zones || {}).flatMap((z) => z.map(([g]) => g))].filter(Boolean);
-    enqueue("deck", d.id + ":" + h, { id: d.id, name: d.name, format: d.format || null, tile: d.tile || null, lastUpdated: d.lastUpdated || null, zones: d.zones, cardInfo: cards ? cardInfoOf(ids, cards) || undefined : undefined }, d.lastUpdated || undefined);
+    enqueue("deck", d.id + ":" + h, { id: d.id, name: d.name, format: d.format || null, tile: d.tile || null, lastUpdated: d.lastUpdated || null, zones: d.zones, archived: !!d.archived, archivedAt: d.archivedAt || null, cardInfo: cards ? cardInfoOf(ids, cards) || undefined : undefined }, d.lastUpdated || undefined);
     st.deckHashes[d.id] = h; n++;
   }
   saveState(st);

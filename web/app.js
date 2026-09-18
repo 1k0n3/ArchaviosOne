@@ -346,8 +346,8 @@ window.App = (function () {
     const pips = (opts.colors || deckColors(d)).map((c) => `<span class="pip p-${c}">${manaSymbol(c)}</span>`).join("");
     // Commander-/Brawl-Decks: offizielles Commander-Symbol (Scryfall-Setsymbol "cmd") auf der Box
     const cmdr = (d.zones && d.zones.CommandZone && d.zones.CommandZone.length) ? `<img class="cmdr-ico" src="https://svgs.scryfall.io/sets/cmd.svg" alt="Commander" title="Commander" loading="lazy" onerror="this.remove()">` : "";
-    return `<div class="deckbox ${opts.cls || ""}" data-id="${esc(d.id || "")}" title="${esc(d.name)}">
-      <div class="box"><div class="face top"><span class="brand">✦ ARENA</span></div><div class="face front">${artHtml}${cmdr}<div class="pips">${pips}</div>${opts.badge || ""}</div><div class="face side"></div></div>
+    return `<div class="deckbox ${opts.cls || ""}${d.archived ? " archived" : ""}" data-id="${esc(d.id || "")}" title="${esc(d.name)}">
+      <div class="box"><div class="face top"><span class="brand">✦ ARENA</span></div><div class="face front"${d.archived ? ` data-archived="${esc(tr("Archiv"))}"` : ""}>${artHtml}${cmdr}<div class="pips">${pips}</div>${opts.badge || ""}</div><div class="face side"></div></div>
       <div class="plate"><span class="n">${esc(d.name)}</span>${opts.sub ? `<span class="s">${esc(opts.sub)}</span>` : ""}</div></div>`;
   }
   function deckCell(m) {

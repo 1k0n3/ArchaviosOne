@@ -31,11 +31,11 @@ App.load().then((D) => {
     <div id="detail"></div>
     <div class="deck-grid" id="list"></div>
   `);
-  let onlyPlayed = false, current = null;
+  let onlyPlayed = false, onlyArchived = false, current = null;
   const FI = A.FI, relist = () => renderList();
   const fQ = A.searchBox(A.$("#f-q"), { placeholder: T("Deck oder Karte suchen"), onInput: A.debounce(relist, 150) });
   const fFormat = A.dropdown(A.$("#f-format"), { title: T("Format"), onChange: relist, items: [{ v: "", label: T("Alle Formate"), short: T("Format"), icon: FI.set }, ...[...new Set(D.decks.map((d) => d.format).filter(Boolean))].sort().map((f) => ({ v: f, label: f, icon: FI.set }))] });
-  A.dropdown(A.$("#f-played"), { title: T("Nutzung"), onChange: (v) => { onlyPlayed = v === "1"; renderList(); }, items: [{ v: "0", label: T("Alle Decks"), short: T("Alle"), icon: FI.all }, { v: "1", label: T("Nur gespielte"), short: T("Gespielte"), icon: FI.play }] });
+  A.dropdown(A.$("#f-played"), { title: T("Nutzung"), onChange: (v) => { onlyPlayed = v === "1"; onlyArchived = v === "2"; renderList(); }, items: [{ v: "0", label: T("Alle Decks"), short: T("Alle"), icon: FI.all }, { v: "1", label: T("Nur gespielte"), short: T("Gespielte"), icon: FI.play }, ...(D.decks.some((d) => d.archived) ? [{ v: "2", label: T("Archiv (in Arena gelöscht)"), short: T("Archiv"), icon: FI.deck }] : [])] });
 
   const matchesOf = (d) => D.matches.filter((m) => (m.myDeckId && m.myDeckId === d.id) || (!m.myDeckId && m.myDeck === d.name));
   const commanderOf = (d) => (d.zones.CommandZone || []).map(([g]) => A.cardName(g)).join(", ");
@@ -47,15 +47,16 @@ App.load().then((D) => {
     const q = fQ.value.trim().toLowerCase();
     const list = D.decks.filter((d) => {
       if (fFormat.value && d.format !== fFormat.value) return false;
+      if (onlyArchived ? !d.archived : d.archived) return false;   // Archiv nur auf Wunsch, sonst nur aktive Decks
       if (onlyPlayed && !matchesOf(d).length) return false;
       if (!q) return true;
       if (label(d).toLowerCase().includes(q)) return true;
       return Object.values(d.zones).some((z) => z.some(([g]) => A.cardName(g).toLowerCase().includes(q)));
     }).sort((a, b) => (matchesOf(b).length - matchesOf(a).length) || (b.lastUpdated || "").localeCompare(a.lastUpdated || ""));
-    A.$("#count").textContent = T("{n} von {m} Decks", { n: list.length, m: D.decks.length });
+    A.$("#count").textContent = T("{n} von {m} Decks", { n: list.length, m: D.decks.filter((d) => onlyArchived ? d.archived : !d.archived).length });
     A.$("#list").innerHTML = list.map((d) => {
       const s = A.stats(matchesOf(d));
-      return A.deckBox(d, { cls: current === d.id ? "active" : "", sub: (commanderOf(d) || d.format || "") + (s.n ? ` · ${s.w}-${s.l}` : ""), badge: s.n ? `<span class="badge ${s.rate >= .5 ? "win" : "loss"} wr">${Math.round(s.rate * 100)} %</span>` : "" });
+      return A.deckBox(d, { cls: current === d.id ? "active" : "", sub: (d.archived ? T("Archiv") + " · " : "") + (commanderOf(d) || d.format || "") + (s.n ? ` · ${s.w}-${s.l}` : ""), badge: s.n ? `<span class="badge ${s.rate >= .5 ? "win" : "loss"} wr">${Math.round(s.rate * 100)} %</span>` : "" });
     }).join("") || `<div class="empty">${T("Keine Decks")}</div>`;
     A.$$(".deckbox").forEach((el) => {
       el.addEventListener("click", () => { A.tooltip(false); current = el.dataset.id; renderList(); renderDetail(); window.scrollTo({ top: 0, behavior: "smooth" }); });
@@ -76,7 +77,7 @@ App.load().then((D) => {
     el.innerHTML = `<div class="deck-detail">
       <div class="deck-head">
         ${A.deckBox(d, { cls: "sm", sub: commanderOf(d) })}
-        <div class="info"><div class="t">${A.esc(d.name)}</div><div class="small muted">${A.esc(commanderOf(d))} · ${A.esc(d.format || "")} · ${T("{n} Karten", { n: cardCount(d) })} · ${T("zuletzt geändert {d}", { d: d.lastUpdated ? A.fmtDate(d.lastUpdated) : "?" })}${d.fromMatch ? " · " + T("Deckliste aus dem letzten Match") : ""}</div>
+        <div class="info"><div class="t">${A.esc(d.name)}</div><div class="small muted">${A.esc(commanderOf(d))} · ${A.esc(d.format || "")} · ${T("{n} Karten", { n: cardCount(d) })} · ${T("zuletzt geändert {d}", { d: d.lastUpdated ? A.fmtDate(d.lastUpdated) : "?" })}${d.archived ? ` · <b>${T("in Arena gelöscht, archiviert am {d}", { d: d.archivedAt ? A.fmtDate(d.archivedAt) : "?" })}</b>` : ""}${d.fromMatch ? " · " + T("Deckliste aus dem letzten Match") : ""}</div>
           <div class="tiles stat-rows">${tile(T("Matches"), s.n)}${tile(T("Siege"), s.w, "win")}${tile(T("Niederlagen"), s.l, "loss")}${tile(T("Winrate"), s.n ? Math.round(s.rate * 100) + " %" : "–", s.n ? (s.rate >= .5 ? "win" : "loss") : "")}${tile(T("Ø Züge"), s.n ? s.avgTurns.toFixed(1) : "–")}${tile(T("Ø Dauer"), s.n ? A.fmtDur(s.avgDur) : "–")}</div></div>
         <div class="deck-side"><div class="col export"><h3>${T("Deckliste exportieren")}</h3>
           <div class="export-actions"><button class="primary small" id="copy-exp" title="${T("Arena-Importformat in die Zwischenablage")}">${A.FI.copies} ${T("Für Arena kopieren")}</button><button class="ghost small" id="save-exp" title="${T("Als Textdatei herunterladen")}">${A.FI.download} ${T("Als .txt speichern")}</button><button class="ghost small" id="toggle-exp">▾ ${T("Anzeigen")}</button></div>

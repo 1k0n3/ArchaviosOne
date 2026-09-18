@@ -14,8 +14,8 @@ function commander_name(array $d): string {
 }
 function public_decks(int $limit, ?string $userId = null): array {
   $rows = $userId
-    ? db_all("SELECT d.*, u.handle, u.display_name FROM decks d JOIN users u ON u.id = d.user_id WHERE d.user_id = ? AND d.visibility = 'public' AND d.deleted_at IS NULL ORDER BY d.updated_at DESC LIMIT $limit", $userId)
-    : db_all("SELECT d.*, u.handle, u.display_name FROM decks d JOIN users u ON u.id = d.user_id WHERE d.visibility = 'public' AND d.deleted_at IS NULL ORDER BY d.updated_at DESC LIMIT $limit");
+    ? db_all("SELECT d.*, u.handle, u.display_name FROM decks d JOIN users u ON u.id = d.user_id WHERE d.user_id = ? AND d.visibility = 'public' AND d.deleted_at IS NULL AND d.archived_at IS NULL ORDER BY d.updated_at DESC LIMIT $limit", $userId)
+    : db_all("SELECT d.*, u.handle, u.display_name FROM decks d JOIN users u ON u.id = d.user_id WHERE d.visibility = 'public' AND d.deleted_at IS NULL AND d.archived_at IS NULL ORDER BY d.updated_at DESC LIMIT $limit");
   foreach ($rows as &$d) $d['commander'] = commander_name($d);
   return $rows;
 }
@@ -55,7 +55,7 @@ function dispatch(string $m, string $p): void {
 
   if ($p === '/' && $m === 'GET') {
     if ($user && query('site') === '') redirect('/app');   // angemeldet: direkt ins Dashboard (Startseite über /?site=1 erreichbar)
-    $stats = ['users' => db_val('SELECT COUNT(*) FROM users'), 'decks' => db_val("SELECT COUNT(*) FROM decks WHERE visibility = 'public' AND deleted_at IS NULL"), 'matches' => db_val('SELECT COUNT(*) FROM matches')];
+    $stats = ['users' => db_val('SELECT COUNT(*) FROM users'), 'decks' => db_val("SELECT COUNT(*) FROM decks WHERE visibility = 'public' AND deleted_at IS NULL AND archived_at IS NULL"), 'matches' => db_val('SELECT COUNT(*) FROM matches')];
     render('Start', page_home(public_decks(8), $stats), ['flash' => $flash, 'wide' => true, 'main' => 'home', 'plain' => true]);
   }
   if ($p === '/decks') render('Öffentliche Decks', '<h1>Öffentliche Decks</h1>' . deck_list(public_decks(60)));
@@ -170,7 +170,7 @@ function dispatch(string $m, string $p): void {
     render('Einstellungen', page_settings($u,
       db_all('SELECT * FROM devices WHERE user_id = ? AND revoked_at IS NULL ORDER BY created_at', $u['id']),
       db_all('SELECT provider FROM oauth_accounts WHERE user_id = ?', $u['id']), $code,
-      db_all('SELECT id, name, format, visibility, share_slug FROM decks WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC', $u['id'])), ['flash' => $flash, 'wide' => true, 'active' => '/settings']);
+      db_all('SELECT id, name, format, visibility, share_slug, archived_at FROM decks WHERE user_id = ? AND deleted_at IS NULL ORDER BY archived_at IS NOT NULL, updated_at DESC', $u['id'])), ['flash' => $flash, 'wide' => true, 'active' => '/settings']);
   };
   if ($p === '/settings') $settings(null);
   if ($p === '/settings/device-code' && $m === 'POST') { $u = require_user(); require_csrf(); $settings(create_device_code($u['id'])); }
@@ -286,8 +286,10 @@ function apply_event(string $userId, string $kind, $pl, string $at): void {
     foreach ($pl['zones'] as $z => $list) { if (!is_array($list)) continue; $zones[(string)$z] = array_values(array_map(fn($p) => [(int)($p[0] ?? 0), (int)($p[1] ?? 0)], array_filter($list, 'is_array'))); }
     $row = ['id' => $id, 'user_id' => $userId, 'name' => mb_substr((string)($pl['name'] ?? ''), 0, 120), 'format' => isset($pl['format']) ? mb_substr((string)$pl['format'], 0, 60) : null, 'tile' => isset($pl['tile']) ? (int)$pl['tile'] : null, 'zones' => json_out($zones), 'updated_at' => $upd, 'deleted_at' => null];
     remember_card_info($pl['cardInfo'] ?? null);
-    if ($old) db_run('UPDATE decks SET name = ?, format = ?, tile = ?, zones = ?, updated_at = ?, deleted_at = NULL WHERE id = ? AND user_id = ?', $row['name'], $row['format'], $row['tile'], $row['zones'], $upd, $id, $userId);
-    else { $row['visibility'] = 'private'; db_run('INSERT INTO decks (id, user_id, name, format, tile, zones, updated_at, visibility) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', $id, $userId, $row['name'], $row['format'], $row['tile'], $row['zones'], $upd, 'private'); }
+    // In Arena gelöschte Decks kommen als archived=true und bleiben erhalten (Zeitpunkt vom Companion, sonst jetzt)
+    $arch = !empty($pl['archived']) ? (($old['archived_at'] ?? null) ?: (is_string($pl['archivedAt'] ?? null) ? substr($pl['archivedAt'], 0, 32) : $now)) : null;
+    if ($old) db_run('UPDATE decks SET name = ?, format = ?, tile = ?, zones = ?, updated_at = ?, deleted_at = NULL, archived_at = ? WHERE id = ? AND user_id = ?', $row['name'], $row['format'], $row['tile'], $row['zones'], $upd, $arch, $id, $userId);
+    else { $row['visibility'] = 'private'; db_run('INSERT INTO decks (id, user_id, name, format, tile, zones, updated_at, visibility, archived_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', $id, $userId, $row['name'], $row['format'], $row['tile'], $row['zones'], $upd, 'private', $arch); }
   } elseif ($kind === 'deck_deleted') {
     db_run('UPDATE decks SET deleted_at = ? WHERE id = ? AND user_id = ?', $now, (string)($pl['id'] ?? ''), $userId);
   } elseif ($kind === 'match') {

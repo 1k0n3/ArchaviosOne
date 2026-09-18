@@ -10,18 +10,44 @@ function cardEntry(c) {
   return [c.Name, c.ExpansionCode, c.CollectorNumber, lib.RARITY[c.Rarity] || "", c.IsToken ? 1 : 0, c.ArtId || 0, c.Colors || "", c.Types || "", lib.frameFlags(c), c.Power || "", c.Toughness || "", c.Text || "", c.TypeLine || "", c.ManaCost || ""];
 }
 
-function readDecks(cards) {
+/** Ausgabeordner aus watch-config.json (Standard: out/) – für das Deck-Archiv */
+function defaultOutDir() {
+  const root = path.join(__dirname, "..");
+  try { const c = JSON.parse(fs.readFileSync(path.join(root, "watch-config.json"), "utf8").replace(/^﻿/, "")); if (c.outDir) return path.isAbsolute(c.outDir) ? c.outDir : path.join(root, c.outDir); } catch (e) { /* Standard */ }
+  return path.join(root, "out");
+}
+/**
+ * Decks aus dem Arena-Log plus Archiv: Decks, die in Arena gelöscht wurden, bleiben mit archived/archivedAt erhalten
+ * (Datei decks-archive.json im Ausgabeordner merkt sich jedes je gesehene Deck). Archiviert wird nur, wenn das Log
+ * einen vollständigen Deckbestand (StartHook) enthält – sonst wäre ein frisches Log ein Löschen aller Decks.
+ */
+function readDecks(cards, outDir = defaultOutDir()) {
+  let current = [], complete = false;
   try {
     const logDir = matches.defaultLogDir();
     let r = readDecksFromLog(path.join(logDir, "Player.log"));
     if (!r.foundStartHook) r = readDecksFromLog(path.join(logDir, "Player-prev.log"));
-    return [...r.decks.values()].map((d) => {
+    complete = r.foundStartHook;
+    current = [...r.decks.values()].map((d) => {
       const zones = {};
       for (const [z, entries] of Object.entries(d.zones)) zones[z] = entries.map((e) => [e.cardId, e.quantity]);
       const tile = d.tileId || ((zones.CommandZone || [])[0] || [0])[0];
       return { id: d.id, name: d.name, format: d.format, lastUpdated: d.lastUpdated, tile, zones };
     });
-  } catch (e) { return []; }
+  } catch (e) { /* kein Log: nur Archiv */ }
+  if (!outDir) return current;
+  const file = path.join(outDir, "decks-archive.json");
+  let seen = {};
+  try { seen = JSON.parse(fs.readFileSync(file, "utf8")).seen || {}; } catch (e) { /* noch kein Archiv */ }
+  const now = new Date().toISOString();
+  const curIds = new Set(current.map((d) => d.id));
+  if (current.length) {
+    for (const d of current) seen[d.id] = Object.assign({}, d, { lastSeen: now, archivedAt: null });
+    if (complete) for (const d of Object.values(seen)) if (!curIds.has(d.id) && !d.archivedAt) d.archivedAt = now;
+    try { fs.mkdirSync(outDir, { recursive: true }); fs.writeFileSync(file, JSON.stringify({ seen })); } catch (e) { /* nicht schreibbar */ }
+  }
+  const archived = Object.values(seen).filter((d) => d.archivedAt && !curIds.has(d.id)).map((d) => ({ id: d.id, name: d.name, format: d.format, lastUpdated: d.lastUpdated, tile: d.tile, zones: d.zones, archived: true, archivedAt: d.archivedAt }));
+  return current.concat(archived);
 }
 
 function collectFrameCards(m, set) {

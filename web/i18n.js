@@ -382,6 +382,10 @@ window.I18N = (function () {
     "{who} sucht {g}": ["{who} seeks {g}", "{who} cherche {g}", "{who} busca {g}", "{who} cerca {g}", "{who} procura {g}", "{who}が{g}を探す"],
     "{who} durchforscht": ["{who} surveils", "{who} surveille", "{who} vigila", "{who} sorveglia", "{who} vigia", "{who}が諜報"],
     "{who} verliert das Spiel": ["{who} loses the game", "{who} perd la partie", "{who} pierde el juego", "{who} perde la partita", "{who} perde o jogo", "{who}が敗北"],
+    // Deck-Archiv (in Arena gelöschte Decks bleiben erhalten)
+    "Archiv": ["Archive", "Archives", "Archivo", "Archivio", "Arquivo", "アーカイブ"],
+    "Archiv (in Arena gelöscht)": ["Archive (deleted in Arena)", "Archives (supprimés dans Arena)", "Archivo (eliminados en Arena)", "Archivio (eliminati in Arena)", "Arquivo (excluídos no Arena)", "アーカイブ（Arenaで削除済み）"],
+    "in Arena gelöscht, archiviert am {d}": ["deleted in Arena, archived on {d}", "supprimé dans Arena, archivé le {d}", "eliminado en Arena, archivado el {d}", "eliminato in Arena, archiviato il {d}", "excluído no Arena, arquivado em {d}", "Arenaで削除、{d}にアーカイブ"],
     // Deckbau: Deckwahl
     "Meine Decks": ["My decks", "Mes decks", "Mis mazos", "I miei mazzi", "Meus decks", "マイデッキ"],
     "Deckname": ["Deck name", "Nom du deck", "Nombre del mazo", "Nome del mazzo", "Nome do deck", "デッキ名"],

@@ -2,7 +2,7 @@
 // Daten für das gemeinsame Frontend (web/) aus der Datenbank – dasselbe Format wie data.js des Companions.
 declare(strict_types=1);
 
-function deck_out(array $r): array { return ['id' => $r['id'], 'name' => $r['name'], 'format' => $r['format'], 'lastUpdated' => $r['updated_at'], 'tile' => $r['tile'] !== null ? (int)$r['tile'] : null, 'zones' => json_decode($r['zones'], true) ?: new stdClass(), 'visibility' => $r['visibility'], 'shareSlug' => $r['share_slug']]; }
+function deck_out(array $r): array { return ['id' => $r['id'], 'name' => $r['name'], 'format' => $r['format'], 'lastUpdated' => $r['updated_at'], 'archived' => $r['archived_at'] !== null, 'archivedAt' => $r['archived_at'], 'tile' => $r['tile'] !== null ? (int)$r['tile'] : null, 'zones' => json_decode($r['zones'], true) ?: new stdClass(), 'visibility' => $r['visibility'], 'shareSlug' => $r['share_slug']]; }
 function decks_of(string $userId, bool $onlyVisible): array {
   $rows = db_all('SELECT * FROM decks WHERE user_id = ? AND deleted_at IS NULL ' . ($onlyVisible ? "AND visibility != 'private' " : '') . 'ORDER BY updated_at DESC', $userId);
   return array_map('deck_out', $rows);
