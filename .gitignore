@@ -15,3 +15,8 @@ server/data/
 server/node_modules/
 server/.env
 # Companion: Cloud-Sync-Warteschlange und Gerätetoken liegen in out/ (bereits ausgeschlossen)
+
+# Website (PHP) auf Shared Hosting: Konfiguration und Daten
+hosting/config.php
+hosting/data/
+dist/

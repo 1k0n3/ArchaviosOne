@@ -4,7 +4,7 @@ const { z } = require("zod");
 const db = require("../db");
 const auth = require("../auth");
 
-const Deck = z.object({ id: z.string().min(1).max(80), name: z.string().max(120), format: z.string().max(60).optional().nullable(), tile: z.number().int().optional().nullable(), lastUpdated: z.string().optional().nullable(), zones: z.record(z.array(z.tuple([z.number().int(), z.number().int()]))) });
+const Deck = z.object({ id: z.string().min(1).max(80), name: z.string().max(120), format: z.string().max(60).optional().nullable(), tile: z.number().int().optional().nullable(), lastUpdated: z.string().optional().nullable(), zones: z.record(z.array(z.tuple([z.number().int(), z.number().int()]))), cardInfo: z.any().optional() });
 const Event = z.object({
   id: z.string().min(8).max(80),
   kind: z.enum(["match", "deck", "deck_deleted", "collection"]),
@@ -54,6 +54,14 @@ module.exports = async function apiRoutes(app) {
     return { accepted, skipped, failed };
   });
 
+  /** Karteninfos des Companions als Fallback merken (nur IDs, die Scryfall nicht kennt) */
+  function rememberCardInfo(info) {
+    for (const [g, t] of Object.entries(info || {})) {
+      if (!t || !t.name || db.get("SELECT 1 FROM cards WHERE arena_id = ?", +g)) continue;
+      db.run("INSERT INTO tokens (arena_id, name, set_code, collector, type_line, colors, power, toughness, oracle_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(arena_id) DO NOTHING",
+        +g, String(t.name), String(t.set || "").toLowerCase(), String(t.nr || ""), t.typeLine || "", t.colors || "", t.power || "", t.toughness || "", t.text || "");
+    }
+  }
   function applyEvent(userId, ev) {
     const now = db.now();
     if (ev.kind === "deck") {
@@ -64,6 +72,7 @@ module.exports = async function apiRoutes(app) {
       db.run(`INSERT INTO decks (id, user_id, name, format, tile, zones, updated_at, visibility) VALUES (?, ?, ?, ?, ?, ?, ?, 'private')
               ON CONFLICT(id) DO UPDATE SET name = excluded.name, format = excluded.format, tile = excluded.tile, zones = excluded.zones, updated_at = excluded.updated_at, deleted_at = NULL`,
         d.id, userId, d.name, d.format || null, d.tile || null, JSON.stringify(d.zones), upd);
+      rememberCardInfo(d.cardInfo);
     } else if (ev.kind === "deck_deleted") {
       db.run("UPDATE decks SET deleted_at = ? WHERE id = ? AND user_id = ?", now, String(ev.payload.id), userId);
     } else if (ev.kind === "match") {
@@ -71,6 +80,7 @@ module.exports = async function apiRoutes(app) {
       db.run(`INSERT INTO matches (id, user_id, start_at, result, deck_id, summary, replay, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
               ON CONFLICT(id) DO UPDATE SET summary = excluded.summary, replay = COALESCE(excluded.replay, matches.replay)`,
         m.summary.matchId, userId, new Date(m.summary.start).toISOString(), m.summary.result || null, m.summary.myDeckId || null, JSON.stringify(m.summary), m.replay ? JSON.stringify(m.replay) : null, now);
+      rememberCardInfo(m.replay && m.replay.cardInfo);
       // Token-Karten merken (Arena-GrpId -> Name/Set/Nummer); Bilder werden später über Scryfall aufgelöst
       for (const [g, t] of Object.entries((m.replay && m.replay.tokens) || {})) {
         if (!t || !t.name) continue;

@@ -1,0 +1,27 @@
+# MTGA Stats Website: alle Anfragen über index.php; Code und Daten nicht direkt erreichbar
+Options -Indexes
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Authorization-Header an PHP durchreichen (Gerätetoken des Companions)
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+  # app/, data/, web/, assets/, static/ nie direkt ausliefern (Frontend-Dateien kommen über index.php)
+  RewriteRule ^(app|data|web|assets|static)(/|$) index.php [L]
+  RewriteRule ^(config\.php|config\.example\.php)$ index.php [L]
+  # alles andere, was keine Datei ist, an den Front-Controller
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^ index.php [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+</IfModule>
+
+# Große Sync-Pakete des Companions (falls der Hoster das hier erlaubt)
+<IfModule mod_php.c>
+  php_value post_max_size 64M
+  php_value upload_max_filesize 64M
+  php_value memory_limit 256M
+</IfModule>

@@ -35,8 +35,25 @@ function enqueue(kind, key, payload, at) {
   return true;
 }
 /** Match inklusive Replay (Rahmen); die Karten-Wörterbücher rechnet der Server selbst */
-function enqueueMatch(m, summary, tokens) {
-  enqueue("match", summary.matchId + ":" + hash([summary.myDeckId, summary.myDeck, summary.result, summary.turns, tokens ? Object.keys(tokens).length : 0]), { summary, replay: { match: Object.assign({}, m, { frames: undefined }), frames: m.frames, tokens: tokens || undefined } }, new Date(m.start).toISOString());
+function enqueueMatch(m, summary, tokens, cardInfo) {
+  enqueue("match", summary.matchId + ":" + hash([summary.myDeckId, summary.myDeck, summary.result, summary.turns, tokens ? Object.keys(tokens).length : 0, cardInfo ? 1 : 0]), { summary, replay: { match: Object.assign({}, m, { frames: undefined }), frames: m.frames, tokens: tokens || undefined, cardInfo: cardInfo || undefined } }, new Date(m.start).toISOString());
+}
+/** Kompakte Karteninfos (Name, Set, Nr, Typ, Farben …) für eine ID-Liste; Fallback der Website, wenn Scryfall die Arena-ID nicht kennt */
+function cardInfoOf(ids, cards) {
+  const out = {};
+  for (const g of new Set(ids)) {
+    const c = cards.get(g); if (!c) continue;
+    out[g] = { name: c.Name, set: String(c.ExpansionCode || ""), nr: String(c.CollectorNumber || ""), types: String(c.Types || ""), colors: String(c.Colors || ""), power: c.Power || "", toughness: c.Toughness || "", text: c.Text || "", typeLine: c.TypeLine || "", cost: c.ManaCost || "", rarity: c.Rarity || 0, token: c.IsToken ? 1 : 0, rebalanced: c.IsRebalanced ? 1 : 0 };
+  }
+  return Object.keys(out).length ? out : null;
+}
+/** Alle Karten-IDs eines Matches (Spielfeld, Ereignisse, Decklisten, Gegnerkarten) */
+function matchCardIds(m) {
+  const ids = new Set();
+  for (const f of m.frames || []) { for (const o of [...(f.bf || []), ...(f.st || []), ...(f.cmd || [])]) ids.add(o[1]); for (const side of [...(f.h || []), ...(f.gy || []), ...(f.ex || [])]) for (const g of side) ids.add(g); for (const e of f.ev || []) { if (e.g) ids.add(e.g); if (typeof e.t === "number") ids.add(e.t); } }
+  for (const c of [...((m.myDeck && m.myDeck.cards) || []), ...((m.myDeck && m.myDeck.commander) || []), ...(m.opponentCards || [])]) ids.add(c.grpId);
+  ids.delete(0); ids.delete(undefined); ids.delete(null);
+  return [...ids];
 }
 /** Token-Karten eines Matches (GrpId -> Name, Set, Nummer), damit die Website sie über das Scryfall-Token-Set auflösen kann */
 function tokensOf(m, cards) {
@@ -47,13 +64,14 @@ function tokensOf(m, cards) {
   return Object.keys(out).length ? out : null;
 }
 /** Decks nur, wenn sich ihr Inhalt seit dem letzten Senden geändert hat */
-function enqueueDecks(decks) {
+function enqueueDecks(decks, cards) {
   if (!device()) return 0;
   const st = state(); let n = 0;
   for (const d of decks) {
-    const h = hash([d.name, d.format, d.tile, d.zones]);
+    const h = hash([d.name, d.format, d.tile, d.zones, cards ? 1 : 0]);
     if (st.deckHashes[d.id] === h) continue;
-    enqueue("deck", d.id + ":" + h, { id: d.id, name: d.name, format: d.format || null, tile: d.tile || null, lastUpdated: d.lastUpdated || null, zones: d.zones }, d.lastUpdated || undefined);
+    const ids = [d.tile, ...Object.values(d.zones || {}).flatMap((z) => z.map(([g]) => g))].filter(Boolean);
+    enqueue("deck", d.id + ":" + h, { id: d.id, name: d.name, format: d.format || null, tile: d.tile || null, lastUpdated: d.lastUpdated || null, zones: d.zones, cardInfo: cards ? cardInfoOf(ids, cards) || undefined : undefined }, d.lastUpdated || undefined);
     st.deckHashes[d.id] = h; n++;
   }
   saveState(st);
@@ -76,15 +94,19 @@ async function flush(log = () => {}) {
     const q = path.join(syncDir(), "queue");
     const files = fs.readdirSync(q).filter((f) => f.endsWith(".json")).sort();
     let sent = 0;
-    for (let i = 0; i < files.length; i += 40) {
-      const batch = files.slice(i, i + 40);
+    // Paketgröße: Standard 40 Ereignisse; bei "413 Payload Too Large" (kleine Upload-Grenze bei Shared Hosting) halbieren und merken
+    let size = Math.max(1, Math.min(40, st.batchSize || 40));
+    for (let i = 0; i < files.length;) {
+      const batch = files.slice(i, i + size);
       const events = batch.map((f) => readJson(path.join(q, f), null)).filter(Boolean);
       const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 60000);
       let r;
       try { r = await fetch(url + "/api/v1/sync", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + dev.token }, body: JSON.stringify({ device: { name: dev.name }, events }), signal: ctl.signal }); }
       finally { clearTimeout(t); }
       if (r.status === 401) { st.lastError = "Gerätetoken abgelehnt (auf der Website getrennt?)"; saveState(st); return { sent, left: files.length - sent, error: st.lastError }; }
+      if (r.status === 413 && size > 1) { size = Math.ceil(size / 2); st.batchSize = size; saveState(st); log("Sync: Paket zu groß, sende jetzt " + size + " Ereignisse pro Paket"); continue; }
       if (!r.ok) throw new Error("HTTP " + r.status);
+      i += batch.length;
       const j = await r.json();
       const done = new Set([...(j.accepted || []), ...(j.skipped || [])]);
       for (const f of batch) { const id = f.slice(0, -5); if (done.has(id)) { fs.unlinkSync(path.join(q, f)); sent++; } }
@@ -119,7 +141,7 @@ function status() {
   return { connected: !!dev, url: dev ? dev.url : baseUrl(), user: dev ? dev.user : null, queued: left, lastFlushAt: st.lastFlushAt, lastError: st.lastError, sent: st.sent || 0 };
 }
 
-module.exports = { enqueueMatch, enqueueDecks, enqueueCollection, tokensOf, flush, connect, disconnect, status, device };
+module.exports = { enqueueMatch, enqueueDecks, enqueueCollection, tokensOf, cardInfoOf, matchCardIds, flush, connect, disconnect, status, device };
 
 if (require.main === module) {
   const [cmd, ...rest] = process.argv.slice(2);

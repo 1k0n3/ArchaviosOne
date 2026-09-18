@@ -194,7 +194,7 @@ function buildWeb() {
     log(`Dashboard aktualisiert: ${r.matches} Matches, ${r.decks} Decks -> ${path.relative(cfg.outDir, r.index)}`);
     prefetchCardImages();
     // Decks in die Cloud-Warteschlange (nur geänderte), danach senden
-    try { const n = sync.enqueueDecks(webgen.readDecks(cards)); if (n) log(`Sync: ${n} Decks eingereiht`); } catch (e) { log("Sync: Decks nicht eingereiht: " + e.message); }
+    try { const n = sync.enqueueDecks(webgen.readDecks(cards), cards); if (n) log(`Sync: ${n} Decks eingereiht`); } catch (e) { log("Sync: Decks nicht eingereiht: " + e.message); }
     syncFlush();
   } catch (e) {
     log("Dashboard nicht aktualisiert: " + e.message);
@@ -210,7 +210,7 @@ function onMatch(m) {
   if (!r.isNew) return;
   const s = matches.matchSummary(m, cards);
   matches.writeIndexCsv(cfg.outDir, cards);
-  try { sync.enqueueMatch(m, s, sync.tokensOf(m, cards)); } catch (e) { log("Sync: Match nicht eingereiht: " + e.message); }
+  try { sync.enqueueMatch(m, s, sync.tokensOf(m, cards), sync.cardInfoOf(sync.matchCardIds(m), cards)); } catch (e) { log("Sync: Match nicht eingereiht: " + e.message); }
   log(`Match: ${s.result} gegen ${s.opponent} mit ${s.myDeck}${s.commander ? " (" + s.commander + ")" : ""}, ${s.turns} Züge, ${s.opponentCards.length} Gegnerkarten gesehen`);
   buildWeb();
 }
