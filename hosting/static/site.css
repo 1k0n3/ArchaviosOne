@@ -37,3 +37,19 @@ body.site { display: block; }
 .deck-card .body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 2px; }
 .device-code { font: 800 30px/1 ui-monospace, Consolas, monospace; letter-spacing: 4px; color: var(--gold-2); text-align: center; padding: 14px; border: 1px dashed var(--gold); border-radius: 12px; margin: 10px 0 12px; }
 @media (max-width: 800px) { .hero-site { grid-template-columns: 1fr; } .site-head { padding: 10px 14px; flex-wrap: wrap; } .site-head nav { margin-left: 0; flex-wrap: wrap; } }
+
+/* Angemeldet: Seiten im App-Layout (Seitenleiste wie im Dashboard) */
+body.site.app { display: block; }
+body.site.app .content { padding: 22px 26px 40px; }
+.side-nav form.inline { display: block; }
+.side-nav button.nav { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; background: transparent; border: 0; cursor: pointer; font: inherit; font-weight: 600; color: var(--ink-2); text-align: left; }
+.side-nav button.nav svg { width: 18px; height: 18px; flex: none; opacity: .85; }
+.side-nav button.nav:hover { background: var(--panel-2); color: var(--ink); }
+.side-nav .player .s { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.settings-grid .panel.wide { grid-column: 1 / -1; }
+.settings-grid h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--ink-3); }
+.settings-grid .fld input { width: 100%; }
+.settings-grid form.inline { display: inline; }
+.settings-grid p.small { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card-form form.resend { margin-bottom: 14px; }

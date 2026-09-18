@@ -103,7 +103,7 @@ function dispatch(string $m, string $p): void {
     $u = get_user_by_email(post('email')); $next = post('next');
     $ok = $u && verify_password(post('password'), $u['password_hash']);
     if (!$ok) { if (!$u) verify_password('x', hash_password('gleiche-zeit')); render('Anmelden', page_login($next), ['flash' => ['kind' => 'error', 'text' => 'E-Mail oder Passwort stimmen nicht.']]); }
-    if (!$u['email_verified'] && cfg('verify_email', true)) render('Anmelden', page_login(), ['flash' => ['kind' => 'error', 'text' => 'Bitte zuerst die E-Mail-Adresse bestätigen (Link in der Mail).']]);
+    if (!$u['email_verified'] && cfg('verify_email', true)) render('Anmelden', page_login($next, $u['email']), ['flash' => ['kind' => 'error', 'text' => 'Bitte zuerst die E-Mail-Adresse bestätigen – Link in der Mail, oder unten eine neue anfordern.']]);
     set_session_cookie(create_session($u['id'])); redirect(safe_next($next));
   }
   if ($p === '/logout' && $m === 'POST') { require_csrf(); destroy_session(cookie(SESSION_COOKIE)); cookie_clear(SESSION_COOKIE); redirect('/'); }
@@ -152,7 +152,7 @@ function dispatch(string $m, string $p): void {
     render('Einstellungen', page_settings($u,
       db_all('SELECT * FROM devices WHERE user_id = ? AND revoked_at IS NULL ORDER BY created_at', $u['id']),
       db_all('SELECT provider FROM oauth_accounts WHERE user_id = ?', $u['id']), $code,
-      db_all('SELECT id, name, format, visibility, share_slug FROM decks WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC', $u['id'])), ['flash' => $flash, 'wide' => true]);
+      db_all('SELECT id, name, format, visibility, share_slug FROM decks WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC', $u['id'])), ['flash' => $flash, 'wide' => true, 'active' => '/settings']);
   };
   if ($p === '/settings') $settings(null);
   if ($p === '/settings/device-code' && $m === 'POST') { $u = require_user(); require_csrf(); $settings(create_device_code($u['id'])); }
@@ -171,6 +171,25 @@ function dispatch(string $m, string $p): void {
     if ($e = password_problem(post('password'))) { flash_set('error', $e); redirect('/settings'); }
     db_run('UPDATE users SET password_hash = ? WHERE id = ?', hash_password(post('password')), $u['id']);
     flash_set('ok', 'Passwort geändert.'); redirect('/settings');
+  }
+  if ($p === '/settings/email' && $m === 'POST') {
+    $u = require_user(); require_csrf();
+    $email = norm_email(post('email'));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 200) { flash_set('error', 'Bitte eine gültige E-Mail-Adresse angeben.'); redirect('/settings'); }
+    if ($u['password_hash'] && !verify_password(post('current'), $u['password_hash'])) { flash_set('error', 'Das Passwort stimmt nicht.'); redirect('/settings'); }
+    if ($email === $u['email']) { flash_set('ok', 'Das ist bereits deine Adresse.'); redirect('/settings'); }
+    if (db_get('SELECT 1 FROM users WHERE email = ? AND id != ?', $email, $u['id'])) { flash_set('error', 'Diese Adresse wird schon verwendet.'); redirect('/settings'); }
+    $verify = cfg('verify_email', true);
+    db_run('UPDATE users SET email = ?, email_verified = ? WHERE id = ?', $email, $verify ? 0 : 1, $u['id']);
+    if ($verify) { $token = create_email_token($u['id'], 'verify', 24); $link = cfg('base_url') . "/verify/$token"; $sent = mail_verify($email, $link); app_log("Bestätigungslink für $email" . ($sent ? '' : ' (Mail nicht gesendet)') . ": $link"); flash_set('ok', 'E-Mail geändert. Bitte die neue Adresse über den zugeschickten Link bestätigen.'); }
+    else flash_set('ok', 'E-Mail geändert.');
+    redirect('/settings');
+  }
+  if ($p === '/verify/resend-email' && $m === 'POST') {   // von der Anmeldeseite, ohne Sitzung (keine Auskunft, ob die Adresse existiert)
+    rate_limit('resend', 5, 900); require_csrf();
+    $u = get_user_by_email(post('email'));
+    if ($u && !$u['email_verified']) { $token = create_email_token($u['id'], 'verify', 24); $link = cfg('base_url') . "/verify/$token"; $sent = mail_verify($u['email'], $link); app_log("Bestätigungslink für {$u['email']}" . ($sent ? '' : ' (Mail nicht gesendet)') . ": $link"); }
+    render('Bestätigung', page_message('Mail unterwegs', 'Wenn zu dieser Adresse ein unbestätigtes Konto existiert, ist ein neuer Bestätigungslink unterwegs (24 Stunden gültig).', ['href' => '/login', 'text' => 'Zur Anmeldung']));
   }
   if ($p === '/settings/logout-all' && $m === 'POST') { $u = require_user(); require_csrf(); destroy_all_sessions($u['id']); cookie_clear(SESSION_COOKIE); redirect('/login'); }
   if (preg_match('#^/decks/([^/]+)/visibility$#', $p, $x) && $m === 'POST') {
