@@ -218,10 +218,12 @@ async function fetchJson(url) {
 const imageUris = (j) => j && (j.image_uris || (j.card_faces && j.card_faces[0].image_uris)) || null;
 function cardInfo(grpId) {
   const d = openDb();
-  const c = d.prepare("select ExpansionCode, CollectorNumber, DigitalReleaseSet, TitleId from Cards where GrpId=?").get(grpId);
+  const c = d.prepare("select ExpansionCode, CollectorNumber, DigitalReleaseSet, TitleId, IsToken from Cards where GrpId=?").get(grpId);
   if (!c) return null;
   const name = clean((d.prepare("select Loc from Localizations_enUS where LocId=? and Formatted=1").get(c.TitleId) || {}).Loc);
-  return { set: String(c.ExpansionCode || "").toLowerCase(), digitalSet: String(c.DigitalReleaseSet || "").toLowerCase(), nr: String(c.CollectorNumber || "").trim(), name };
+  // Token liegen bei Scryfall im Token-Set des jeweiligen Sets (z. B. tsnc), mit denselben Sammlernummern
+  const set = String(c.ExpansionCode || "").toLowerCase();
+  return { set: c.IsToken ? "t" + set : set, digitalSet: c.IsToken ? "" : String(c.DigitalReleaseSet || "").toLowerCase(), nr: String(c.CollectorNumber || "").trim(), name, token: !!c.IsToken };
 }
 /** Antwort von /cards/collection oder null bei Netz-/Sperrfehler (dann nichts als fehlend merken) */
 async function postCollection(identifiers) {
@@ -278,11 +280,19 @@ function resolveBatch() {
     };
     const bySetNr = (g, inf) => inf.set && inf.nr ? { set: inf.set, collector_number: inf.nr } : null;
     const byDigital = (g, inf) => inf.digitalSet && inf.nr && inf.digitalSet !== inf.set ? { set: inf.digitalSet, collector_number: inf.nr } : null;
-    const byName = (g, inf) => inf.name ? { name: inf.name } : null;
+    const byName = (g, inf) => inf.name ? (inf.token ? { name: inf.name, set: inf.set } : { name: inf.name }) : null;
     try {
       await tryIds(bySetNr, ids);
       await tryIds(byDigital, ids.filter((g) => !results.has(g)));
       await tryIds(byName, ids.filter((g) => !results.has(g)));
+      // Token, die noch fehlen: Scryfall-Suche nach Token mit exaktem Namen (andere Nummerierung als in Arena)
+      for (const g of ids.filter((x) => !results.has(x) && infos.get(x) && infos.get(x).token)) {
+        const inf = infos.get(g);
+        const j = await fetchJson(`https://api.scryfall.com/cards/search?q=${encodeURIComponent(`!"${inf.name}" t:token`)}&unique=prints&order=released`);
+        const hit = j && j.data && (j.data.find((x) => x.set === inf.set) || j.data[0]);
+        const uris = imageUris(hit);
+        if (uris) results.set(g, uris);
+      }
     } catch (e) { netFail = true; }
     for (const [g, resolvers] of entries) {
       const uris = results.get(g) || null;

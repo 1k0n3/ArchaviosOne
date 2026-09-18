@@ -17,7 +17,7 @@ $url = "http://localhost:$Port/"
 function Test-Server { try { $c = New-Object Net.Sockets.TcpClient; $c.Connect("127.0.0.1", $Port); $c.Close(); return $true } catch { return $false } }
 if (-not (Test-Server)) {
   $tray = Join-Path $root "scripts\tray.ps1"
-  Start-Process powershell -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$tray`""
+  Start-Process wscript.exe -ArgumentList "`"$(Join-Path $root 'scripts\hidden.vbs')`" `"$tray`""
   $deadline = (Get-Date).AddSeconds(40)
   while (-not (Test-Server) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
 }

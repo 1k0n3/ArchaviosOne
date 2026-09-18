@@ -11,12 +11,13 @@
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="replay.css">
 <script src="data.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </head>
 <body>
 <script>
 App.load().then((D) => {
-  const A = App;
+  const A = App, T = A.t;
   const id = A.param("id");
   const I = {
     play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
@@ -41,7 +42,7 @@ App.load().then((D) => {
   A.shell("matches.html", `<div id="rp"></div>`);
   document.querySelector(".content").classList.add("replay-content");
   const rp = A.$("#rp");
-  if (!id) { rp.innerHTML = `<h1>Replay</h1><div class="empty">Kein Match angegeben.</div>`; return; }
+  if (!id) { rp.innerHTML = `<h1>${T("Replay")}</h1><div class="empty">${T("Kein Match angegeben.")}</div>`; return; }
   rp.innerHTML = `<div class="rp-head"><div><div class="vs">${A.skeleton.text("260px", 22)}</div><div class="meta">${A.skeleton.text("380px", 12)}</div></div></div>
     <div class="stage"><div class="board sk-board"><div class="top"><div class="sk sk-medal"></div><div></div></div>
       <div class="sk-field"><div class="sk-row-cards">${'<div class="sk sk-card sm"></div>'.repeat(5)}</div><div class="sk-row-cards big">${'<div class="sk sk-card"></div>'.repeat(4)}</div><div class="divider"></div><div class="sk-row-cards big">${'<div class="sk sk-card"></div>'.repeat(3)}</div><div class="sk-row-cards">${'<div class="sk sk-card sm"></div>'.repeat(6)}</div></div>
@@ -51,15 +52,15 @@ App.load().then((D) => {
   const s = document.createElement("script");
   s.src = "matches/" + id + ".js?v=" + (D.format || 0);
   s.onload = () => { A.busy(false); init(); };
-  s.onerror = () => { A.busy(false); rp.innerHTML = `<h1>Replay</h1><div class="empty">Match-Daten nicht gefunden (matches/${A.esc(id)}.js).</div>`; };
+  s.onerror = () => { A.busy(false); rp.innerHTML = `<h1>${T("Replay")}</h1><div class="empty">${T("Match-Daten nicht gefunden ({f}).", { f: "matches/" + A.esc(id) + ".js" })}</div>`; };
   document.head.appendChild(s);
 
   function init() {
     const M = window.MTGA_MATCH, match = M.match, frames = M.frames, dict = M.cards;
     const me = match.mySeat, opp = me === 1 ? 2 : 1;
-    const pl = (seat) => match.players.find((p) => p.seat === seat) || { name: "Spieler " + seat };
+    const pl = (seat) => match.players.find((p) => p.seat === seat) || { name: T("Spieler") + " " + seat };
     const name = (g) => A.cardName(g, dict);
-    const who = (seat) => seat === me ? `<span class="who me">${A.esc(pl(me).name || "Ich")}</span>` : seat === opp ? `<span class="who opp">${A.esc(pl(opp).name || "Gegner")}</span>` : "";
+    const who = (seat) => seat === me ? `<span class="who me">${A.esc(pl(me).name || T("Ich"))}</span>` : seat === opp ? `<span class="who opp">${A.esc(pl(opp).name || T("Gegner"))}</span>` : "";
     const cmd = (match.myDeck.commander || []).map((c) => name(c.grpId)).join(", ");
     let imgs = true;
     try { imgs = localStorage.getItem("mtga-replay-imgs") !== "0"; } catch (e) {}
@@ -67,34 +68,34 @@ App.load().then((D) => {
     rp.innerHTML = `
       <div class="rp-head">
         <div><div class="vs"><span class="me">${A.esc(pl(me).name)}</span> <span class="muted">vs</span> <span class="opp">${A.esc(pl(opp).name)}</span> ${A.resultBadge(match.result)} <span class="muted small">${A.esc(match.reason)}</span></div>
-          <div class="meta">${A.fmtDate(match.start)} ${A.fmtTime(match.start)} · ${A.esc(A.eventLabel(match.eventId))} · ${A.esc(match.myDeck.name)}${cmd ? " · " + A.esc(cmd) : ""} · ${frames.length} Schritte</div></div>
-        <div class="right"><button class="ghost" id="b-deck">Mein Deck</button><button class="ghost" id="b-oppdeck">Gegnerkarten</button><a class="ghost" href="matches.html" style="padding:8px 12px">← Matches</a></div>
+          <div class="meta">${A.fmtDate(match.start)} ${A.fmtTime(match.start)} · ${A.esc(A.eventLabel(match.eventId))} · ${A.esc(match.myDeck.name)}${cmd ? " · " + A.esc(cmd) : ""} · ${T("{n} Schritte", { n: frames.length })}</div></div>
+        <div class="right"><button class="ghost" id="b-deck">${T("Mein Deck")}</button><button class="ghost" id="b-oppdeck">${T("Gegnerkarten")}</button><a class="ghost" href="matches.html" style="padding:8px 12px">${T("← Matches")}</a></div>
       </div>
       <div class="stage" id="stage">
         <div class="board" id="board"></div>
         <div class="playerbar">
           <div class="timeline" id="timeline"><div class="segs" id="segs"></div><div class="played" id="played"></div><div class="knob" id="knob"></div></div>
           <div class="pb-row">
-            <button class="icon ghost" id="b-first" title="Anfang (Pos1)">${I.first}</button>
-            <button class="icon ghost" id="b-tprev" title="Voriger Zug (⇧T)">${I.tprev}</button>
-            <button class="icon ghost" id="b-prev" title="Schritt zurück (←)">${I.prev}</button>
-            <button class="icon primary play" id="b-play" title="Abspielen / Pause (Leertaste)">${I.play}</button>
-            <button class="icon ghost" id="b-next" title="Schritt weiter (→)">${I.next}</button>
-            <button class="icon ghost" id="b-tnext" title="Nächster Zug (T)">${I.tnext}</button>
-            <button class="icon ghost" id="b-last" title="Ende (Ende)">${I.last}</button>
+            <button class="icon ghost" id="b-first" title="${T("Anfang (Pos1)")}">${I.first}</button>
+            <button class="icon ghost" id="b-tprev" title="${T("Voriger Zug (⇧T)")}">${I.tprev}</button>
+            <button class="icon ghost" id="b-prev" title="${T("Schritt zurück (←)")}">${I.prev}</button>
+            <button class="icon primary play" id="b-play" title="${T("Abspielen / Pause (Leertaste)")}">${I.play}</button>
+            <button class="icon ghost" id="b-next" title="${T("Schritt weiter (→)")}">${I.next}</button>
+            <button class="icon ghost" id="b-tnext" title="${T("Nächster Zug (T)")}">${I.tnext}</button>
+            <button class="icon ghost" id="b-last" title="${T("Ende (Ende)")}">${I.last}</button>
             <div class="pos" id="pos"></div>
             <div class="right">
               <div class="seg" id="speed"><button data-v="2000">0.5×</button><button data-v="1000" class="on">1×</button><button data-v="500">2×</button><button data-v="200">5×</button></div>
-              <button class="ghost" id="b-imgs">${imgs ? "Bilder aus" : "Bilder an"}</button>
-              <button class="icon ghost" id="b-log" title="Protokoll (L)">${I.log}</button>
-              <button class="icon ghost" id="b-full" title="Vollbild (F)">${I.full}</button>
+              <button class="ghost" id="b-imgs">${imgs ? T("Bilder aus") : T("Bilder an")}</button>
+              <button class="icon ghost" id="b-log" title="${T("Protokoll (L)")}">${I.log}</button>
+              <button class="icon ghost" id="b-full" title="${T("Vollbild (F)")}">${I.full}</button>
             </div>
           </div>
         </div>
-        <div class="logpanel" id="logpanel"><div class="lh">Ereignisse ${A.xButton("b-log-x")}</div><div class="log" id="log"></div></div>
+        <div class="logpanel" id="logpanel"><div class="lh">${T("Ereignisse")} ${A.xButton("b-log-x")}</div><div class="log" id="log"></div></div>
         <div id="popup" class="popup hidden"></div>
       </div>
-      <p class="muted small" style="margin-top:10px">Tasten: <kbd>←</kbd> <kbd>→</kbd> Schritt · <kbd>Leertaste</kbd> Abspielen · <kbd>T</kbd> / <kbd>⇧T</kbd> Zug vor/zurück · <kbd>L</kbd> Protokoll · <kbd>F</kbd> Vollbild · <kbd>Pos1</kbd>/<kbd>Ende</kbd>. Klick auf Friedhof oder Exil öffnet die Karten, Klick auf eine Karte die Details. Gegnerhand bleibt verdeckt.</p>`;
+      <p class="muted small" style="margin-top:10px">${T("Tasten: {keys}. Klick auf Friedhof oder Exil öffnet die Karten, Klick auf eine Karte die Details. Gegnerhand bleibt verdeckt.", { keys: `<kbd>←</kbd> <kbd>→</kbd> ${T("Schritt")} · <kbd>${T("Leertaste")}</kbd> ${T("Abspielen")} · <kbd>T</kbd> / <kbd>⇧T</kbd> ${T("Zug vor/zurück")} · <kbd>L</kbd> ${T("Protokoll")} · <kbd>F</kbd> ${T("Vollbild")} · <kbd>Pos1</kbd>/<kbd>Ende</kbd>` })}</p>`;
 
     let i = 0, timer = null, speed = 1000, prevLife = [null, null];
     const boardEl = A.$("#board"), popup = A.$("#popup"), logPanel = A.$("#logpanel");
@@ -105,7 +106,7 @@ App.load().then((D) => {
     A.$("#segs").innerHTML = turnStarts.map((st, k) => {
       const end = k + 1 < turnStarts.length ? turnStarts[k + 1] : frames.length;
       const f = frames[st];
-      return `<div class="seg ${f.act === me ? "me" : f.act === opp ? "opp" : ""}" style="flex:${end - st}" data-t="${f.turn ? "Z" + f.turn : ""}" title="Zug ${f.turn} · ${f.act === me ? "ich" : "Gegner"}"></div>`;
+      return `<div class="seg ${f.act === me ? "me" : f.act === opp ? "opp" : ""}" style="flex:${end - st}" data-t="${f.turn ? "Z" + f.turn : ""}" title="${T("Zug")} ${f.turn} · ${f.act === me ? T("ich") : T("Gegner")}"></div>`;
     }).join("");
     const tl = A.$("#timeline");
     tl.insertAdjacentHTML("beforeend", frames.map((f, k) => f.ev.some((e) => e.k === "dmg" || e.k === "dies" || e.k === "lose") ? `<div class="evmark" style="left:${(k / Math.max(1, frames.length - 1)) * 100}%"></div>` : "").join(""));
@@ -120,29 +121,29 @@ App.load().then((D) => {
       const g = e.g ? `<span class="g">${A.esc(name(e.g))}</span>` : "";
       const tgt = e.t ? (typeof e.t === "string" ? who(+e.t.slice(1)) : `<span class="g">${A.esc(name(e.t))}</span>`) : "";
       switch (e.k) {
-        case "turn": return `Zug ${e.v} · ${who(e.s)}`;
-        case "land": return `${who(e.s)} spielt ${g}`;
-        case "cast": return `${who(e.s)} wirkt ${g}`;
-        case "resolve": return `${g} wird verrechnet`;
-        case "draw": return `${who(e.s)} zieht ${e.g ? g : "eine Karte"}`;
-        case "dmg": return `${g || who(e.s)} verursacht <b>${e.v}</b> Schaden an ${tgt}`;
-        case "life": return `${who(e.s)} Leben ${e.v > 0 ? "+" : ""}${e.v}${e.l != null ? ` → <b>${e.l}</b>` : ""}${e.g ? " durch " + g : ""}`;
-        case "dies": return `${g} stirbt`;
-        case "destroy": return `${g} wird zerstört`;
-        case "sacrifice": return `${who(e.s)} opfert ${g}`;
-        case "exile": return `${g} wird ins Exil geschickt`;
-        case "discard": return `${who(e.s)} wirft ${g || "eine Karte"} ab`;
-        case "mill": return `${who(e.s)} mühlt ${g || "eine Karte"}`;
-        case "put": return `${g || "Karte"} kommt ${e.z === "bf" ? "ins Spiel" : e.z === "gy" ? "auf den Friedhof" : e.z === "hand" ? "auf die Hand" : e.z === "lib" ? "in die Bibliothek" : e.z === "ex" ? "ins Exil" : ""}`;
-        case "return": return `${g} kehrt zurück`;
-        case "token": return `${who(e.s)} erzeugt ${g}`;
-        case "cmdzone": return `${g} geht in die Kommandozone`;
-        case "legend": return `${g} (Legendenregel)`;
-        case "reveal": return `${who(e.s)} zeigt ${g}`;
-        case "scry": return `${who(e.s)} hellsieht`;
-        case "seek": return `${who(e.s)} sucht ${g || "eine Karte"}`;
-        case "surveil": return `${who(e.s)} durchforscht`;
-        case "lose": return `${who(e.s)} verliert das Spiel`;
+        case "turn": return T("Zug {v} · {who}", { v: e.v, who: who(e.s) });
+        case "land": return T("{who} spielt {g}", { who: who(e.s), g });
+        case "cast": return T("{who} wirkt {g}", { who: who(e.s), g });
+        case "resolve": return T("{g} wird verrechnet", { g });
+        case "draw": return T("{who} zieht {g}", { who: who(e.s), g: e.g ? g : T("eine Karte") });
+        case "dmg": return T("{src} verursacht {v} Schaden an {tgt}", { src: g || who(e.s), v: `<b>${e.v}</b>`, tgt });
+        case "life": return T("{who} Leben {v}", { who: who(e.s), v: `${e.v > 0 ? "+" : ""}${e.v}` }) + (e.l != null ? ` → <b>${e.l}</b>` : "") + (e.g ? " " + T("durch {g}", { g }) : "");
+        case "dies": return T("{g} stirbt", { g });
+        case "destroy": return T("{g} wird zerstört", { g });
+        case "sacrifice": return T("{who} opfert {g}", { who: who(e.s), g });
+        case "exile": return T("{g} wird ins Exil geschickt", { g });
+        case "discard": return T("{who} wirft {g} ab", { who: who(e.s), g: g || T("eine Karte") });
+        case "mill": return T("{who} mühlt {g}", { who: who(e.s), g: g || T("eine Karte") });
+        case "put": return T("{g} kommt {z}", { g: g || T("Karte"), z: e.z === "bf" ? T("ins Spiel") : e.z === "gy" ? T("auf den Friedhof") : e.z === "hand" ? T("auf die Hand") : e.z === "lib" ? T("in die Bibliothek") : e.z === "ex" ? T("ins Exil") : "" });
+        case "return": return T("{g} kehrt zurück", { g });
+        case "token": return T("{who} erzeugt {g}", { who: who(e.s), g });
+        case "cmdzone": return T("{g} geht in die Kommandozone", { g });
+        case "legend": return T("{g} (Legendenregel)", { g });
+        case "reveal": return T("{who} zeigt {g}", { who: who(e.s), g });
+        case "scry": return T("{who} hellsieht", { who: who(e.s) });
+        case "seek": return T("{who} sucht {g}", { who: who(e.s), g: g || T("eine Karte") });
+        case "surveil": return T("{who} durchforscht", { who: who(e.s) });
+        case "lose": return T("{who} verliert das Spiel", { who: who(e.s) });
         default: return e.k;
       }
     }
@@ -165,7 +166,7 @@ App.load().then((D) => {
     const textCard = (g) => { const c = A.card(g, dict); const [k, ic] = TYPE_EMBLEM(c); return `<div class="tcard f-${c.frame}"><div class="th"><span class="cp">${c.colors.map((x) => A.manaSymbol(x)).join("")}</span><span class="n">${A.esc(c.name)}</span><span class="m">${A.manaHtml(c.cost)}</span></div><div class="tt"><span class="emb t-${k}">${ic}</span><span class="tl">${A.esc(c.typeLine || c.typeText)}</span></div><div class="tx">${c.text ? c.text.split("\n").map((l) => `<p>${A.ruleHtml(l)}</p>`).join("") : ""}</div></div>`; };
     const cardImg = (g, v = "small") => { if (!imgs) return textCard(g); const c = A.card(g, dict); const src = `card-img/${g}?v=${v}`; return `<img class="cimg" src="${src}" alt="${A.esc(c.name)}" loading="eager" decoding="${A.loadedImgs.has(src) ? "sync" : "async"}"${A.loadedImgs.has(src) ? " data-known" : ""} data-art="${c.art || 0}" data-w="256"><div class="fallback"><div class="fart"></div><div class="fname">${A.esc(c.name)}</div></div>`; };
     const isLand = (o) => o[6] == null && o[7] == null && o[12] == null;
-    const info = (o) => { const [, , , , tapped, atk, p, t, , kind, , sick] = o; return [p != null ? `${p}/${t}` : "", tapped ? "getappt" : "", atk === 1 ? "greift an" : atk === 2 ? "blockt" : "", sick ? "einsatzverzögert" : "", kind === 1 ? "Token" : ""].filter(Boolean).join(" · "); };
+    const info = (o) => { const [, , , , tapped, atk, p, t, , kind, , sick] = o; return [p != null ? `${p}/${t}` : "", tapped ? T("getappt") : "", atk === 1 ? T("greift an") : atk === 2 ? T("blockt") : "", sick ? T("einsatzverzögert") : "", kind === 1 ? T("Token") : ""].filter(Boolean).join(" · "); };
     function tileParts(o, size, count) {
       const [iid, g, ctrl, owner, tapped, atk, p, t, dmg, kind, parent, sick, loy] = o;
       const cls = ["cc", size || "", tapped ? "tapped" : "", atk === 1 ? "attacking" : atk === 2 ? "blocking" : "", sick ? "sick" : "", count > 1 ? "stacked" : ""].filter(Boolean).join(" ");
@@ -263,21 +264,21 @@ App.load().then((D) => {
       const life = f.life[seat - 1];
       const changed = prevLife[seat - 1] != null && prevLife[seat - 1] !== life;
       const active = f.act === seat;
-      const zi = (kind, label, n, click) => `<${click ? "button type=\"button\"" : "span"} class="zi ${kind}" ${click ? `data-kind="${kind}" data-seat="${seat}"` : ""} title="${label}${click ? " öffnen" : ""}">${ZI[kind]}<b>${n}</b></${click ? "button" : "span"}>`;
+      const zi = (kind, label, n, click) => `<${click ? "button type=\"button\"" : "span"} class="zi ${kind}" ${click ? `data-kind="${kind}" data-seat="${seat}"` : ""} title="${label}${click ? T(" öffnen") : ""}">${ZI[kind]}<b>${n}</b></${click ? "button" : "span"}>`;
       return `<div class="medal ${isMe ? "me" : "opp"} ${active ? "active" : ""}">
         <div class="ring"><div class="av">${A.esc((p.name || "?").slice(0, 1).toUpperCase())}</div><div class="life ${life != null && life <= 5 ? "low" : ""} ${changed ? "delta" : ""}">${life ?? "?"}</div></div>
-        <div class="pinfo"><div class="pname">${A.esc(p.name)}</div><span class="tag">${isMe ? "Ich" : A.esc(p.platform || "Gegner")}${f.pri === seat ? " · Priorität" : ""}</span></div>
-        <div class="zones">${zi("hand", "Hand", f.hc[seat - 1])}${zi("lib", "Bibliothek", f.lib[seat - 1])}${zi("gy", "Friedhof", f.gy[seat - 1].length, true)}${zi("ex", "Exil", f.ex[seat - 1].length, true)}</div>
+        <div class="pinfo"><div class="pname">${A.esc(p.name)}</div><span class="tag">${isMe ? T("Ich") : A.esc(p.platform || T("Gegner"))}${f.pri === seat ? " · " + T("Priorität") : ""}</span></div>
+        <div class="zones">${zi("hand", T("Hand"), f.hc[seat - 1])}${zi("lib", T("Bibliothek"), f.lib[seat - 1])}${zi("gy", T("Friedhof"), f.gy[seat - 1].length, true)}${zi("ex", T("Exil"), f.ex[seat - 1].length, true)}</div>
       </div>`;
     }
     /** Phasenleiste links: Zug, aktiver Spieler, die fünf Phasen, Schritt */
     function phaseBar(f) {
       return `<div class="phasebar ${f.act === me ? "me" : f.act === opp ? "opp" : ""}">
-        <div class="turn"><span class="t">Zug</span><span class="n">${f.turn || "–"}</span></div>
-        <div class="who">${f.act === me ? "Ich" : f.act === opp ? "Gegner" : "–"}</div>
-        <div class="ph">${PHASES.map(([ph, ic]) => `<span class="phi ${f.ph === ph ? "on" : ""}" title="${ph}">${ic}</span>`).join("")}</div>
-        ${f.stp ? `<div class="step" title="${A.esc(f.stp)}">${A.esc(f.stp)}</div>` : ""}
-        ${f.g > 1 ? `<div class="game">Spiel ${f.g}</div>` : ""}
+        <div class="turn"><span class="t">${T("Zug")}</span><span class="n">${f.turn || "–"}</span></div>
+        <div class="who">${f.act === me ? T("Ich") : f.act === opp ? T("Gegner") : "–"}</div>
+        <div class="ph">${PHASES.map(([ph, ic]) => `<span class="phi ${f.ph === ph ? "on" : ""}" title="${T(ph)}">${ic}</span>`).join("")}</div>
+        ${f.stp ? `<div class="step" title="${A.esc(T(f.stp))}">${A.esc(T(f.stp))}</div>` : ""}
+        ${f.g > 1 ? `<div class="game">${T("Spiel")} ${f.g}</div>` : ""}
       </div>`;
     }
     /** Stapel: nur die Karte (Fähigkeiten zeigen ihre Quellkarte), Details erst per Klick */
@@ -287,7 +288,7 @@ App.load().then((D) => {
       const src = isAbility ? (f.bf.find((o) => o[0] === parent) || f.st.find((o) => o[0] === parent) || f.cmd.find((o) => o[0] === parent)) : null;
       const cardG = isAbility ? (src ? src[1] : (srcGrp || 0)) : g;
       const tileHtml = cardG ? grpTile(cardG, "stackc") : `<div class="cc stackc back"><img src="card-back" alt="" onerror="this.remove()"></div>`;
-      return `<div class="sitem ${isAbility ? "ability" : ""} ${k === 0 ? "top" : ""}" style="--k:${k}" title="${isAbility ? "Fähigkeit" : "Zauberspruch"} · ${ctrl === me ? "ich" : "Gegner"} · Klick für Details">${tileHtml}<div class="st">${isAbility ? "Fähigkeit" : "Zauber"} · ${ctrl === me ? "ich" : "Gegner"}</div></div>`;
+      return `<div class="sitem ${isAbility ? "ability" : ""} ${k === 0 ? "top" : ""}" style="--k:${k}" title="${isAbility ? T("Fähigkeit") : T("Zauberspruch")} · ${ctrl === me ? T("ich") : T("Gegner")} · ${T("Klick für Details")}">${tileHtml}<div class="st">${isAbility ? T("Fähigkeit") : T("Zauber")} · ${ctrl === me ? T("ich") : T("Gegner")}</div></div>`;
     }
 
     let built = false;
@@ -310,7 +311,7 @@ App.load().then((D) => {
         ...f.cmd.filter((o) => o[3] === seat).map((o) => tileItem("C" + o[0], o, "", 1)),
         ...permGroups(f.bf.filter((o) => o[2] === seat && !isLand(o))).map((gr) => tileItem(gr.n > 1 ? `T${gr.o[1]}|${gr.o[4]}|${gr.o[5]}|${gr.o[6]}|${gr.o[7]}|${gr.o[8]}|${gr.o[11]}` : "P" + gr.o[0], gr.o, "", gr.n))
       ];
-      const none = '<span class="zl center">keine bleibenden Karten</span>';
+      const none = `<span class="zl center">${T("keine bleibenden Karten")}</span>`;
       syncRow(q(".lands.opp"), landItems(opp));
       syncRow(q(".perms.opp"), permItems(opp), none);
       syncRow(q(".perms.me"), permItems(me), none);
@@ -327,8 +328,8 @@ App.load().then((D) => {
       if (setHtml(q(".slot.m-opp"), medal(opp, f, false))) bindZones(q(".slot.m-opp"));
       if (setHtml(q(".slot.m-me"), medal(me, f, true))) bindZones(q(".slot.m-me"));
       setHtml(q(".slot.ph"), phaseBar(f));
-      const stackHtml = f.st.length ? `<div class="stack" style="--n:${f.st.length}"><div class="stitle">Stapel · ${f.st.length}${f.st.length > 1 ? " · oben wird zuerst verrechnet" : ""}</div><div class="sitems">${[...f.st].reverse().map((x, k) => stackItem(x, f, k)).join("")}</div></div>`
-        : `<div class="turninfo"><div class="big">${f.act === me ? "Dein Zug" : f.act === opp ? "Zug des Gegners" : "–"}</div><div class="phase">${A.esc(f.ph || "")}${f.stp ? " · " + A.esc(f.stp) : ""}</div><div class="muted small">Zug ${f.turn}${f.g > 1 ? " · Spiel " + f.g : ""}</div></div>`;
+      const stackHtml = f.st.length ? `<div class="stack" style="--n:${f.st.length}"><div class="stitle">${T("Stapel · {n}", { n: f.st.length })}${f.st.length > 1 ? " · " + T("oben wird zuerst verrechnet") : ""}</div><div class="sitems">${[...f.st].reverse().map((x, k) => stackItem(x, f, k)).join("")}</div></div>`
+        : `<div class="turninfo"><div class="big">${f.act === me ? T("Dein Zug") : f.act === opp ? T("Zug des Gegners") : "–"}</div><div class="phase">${A.esc(T(f.ph || ""))}${f.stp ? " · " + A.esc(T(f.stp)) : ""}</div><div class="muted small">${T("Zug")} ${f.turn}${f.g > 1 ? " · " + T("Spiel") + " " + f.g : ""}</div></div>`;
       setHtml(q(".slot.st"), stackHtml);
       setHtml(q(".slot.tk"), f.ev.length ? `<div class="ticker">${f.ev.map(evText).join(" · ")}</div>` : "");
       prevLife = [...f.life];
@@ -338,7 +339,7 @@ App.load().then((D) => {
       A.bindCardImages(boardEl);
       A.hoverPreview(boardEl, dict);
       A.cardLinks(boardEl, dict);
-      A.$("#pos").innerHTML = `<b>Schritt ${i + 1}</b> / ${frames.length} · Zug <b>${f.turn}</b> · ${f.act === me ? "ich" : f.act === opp ? "Gegner" : "–"} am Zug${f.g > 1 ? ` · Spiel ${f.g}` : ""}`;
+      A.$("#pos").innerHTML = T("Schritt {i} / {n} · Zug {t} · {who} am Zug", { i: `<b>${i + 1}</b>`, n: frames.length, t: `<b>${f.turn}</b>`, who: f.act === me ? T("ich") : f.act === opp ? T("Gegner") : "–" }) + (f.g > 1 ? ` · ${T("Spiel")} ${f.g}` : "");
       const pct = (i / Math.max(1, frames.length - 1)) * 100;
       A.$("#knob").style.left = pct + "%";
       A.$("#played").style.width = pct + "%";
@@ -349,7 +350,7 @@ App.load().then((D) => {
 
     function showPopup(title, list, kind) {
       popup.dataset.kind = kind;
-      popup.innerHTML = `<div class="ph">${title} <span class="muted small">(${list.length})</span>${A.xButton("p-close")}</div><div class="cards">${list.map(([g, q]) => A.cardTile(g, { qty: q, dict, compact: true })).join("") || '<span class="muted">leer</span>'}</div>`;
+      popup.innerHTML = `<div class="ph">${title} <span class="muted small">(${list.length})</span>${A.xButton("p-close")}</div><div class="cards">${list.map(([g, q]) => A.cardTile(g, { qty: q, dict, compact: true })).join("") || `<span class="muted">${T("leer")}</span>`}</div>`;
       popup.classList.remove("hidden");
       A.Art.bind(popup);
       A.hoverPreview(popup, dict);
@@ -361,11 +362,11 @@ App.load().then((D) => {
       const f = frames[i];
       const list = (kind === "gy" ? f.gy[seat - 1] : f.ex[seat - 1]).map((g) => [g, 1]);
       popup.dataset.seat = seat;
-      showPopup((kind === "gy" ? "Friedhof" : "Exil") + " · " + A.esc(pl(seat).name), list, kind);
+      showPopup((kind === "gy" ? T("Friedhof") : T("Exil")) + " · " + A.esc(pl(seat).name), list, kind);
     }
     function closePopup() { popup.classList.add("hidden"); delete popup.dataset.kind; }
-    A.$("#b-deck").onclick = () => showPopup("Mein Deck · " + A.esc(match.myDeck.name), [...(match.myDeck.commander || []), ...(match.myDeck.cards || [])].map((c) => [c.grpId, c.qty]), "deck");
-    A.$("#b-oppdeck").onclick = () => showPopup("Gesehene Karten · " + A.esc(pl(opp).name), (match.opponentCards || []).filter((c) => !A.card(c.grpId, dict).token).map((c) => [c.grpId, c.count]), "deck");
+    A.$("#b-deck").onclick = () => showPopup(T("Mein Deck") + " · " + A.esc(match.myDeck.name), [...(match.myDeck.commander || []), ...(match.myDeck.cards || [])].map((c) => [c.grpId, c.qty]), "deck");
+    A.$("#b-oppdeck").onclick = () => showPopup(T("Gesehene Karten") + " · " + A.esc(pl(opp).name), (match.opponentCards || []).filter((c) => !A.card(c.grpId, dict).token).map((c) => [c.grpId, c.count]), "deck");
 
     function go(n) { i = Math.max(0, Math.min(frames.length - 1, n)); render(); }
     function setPlaying(on) {
@@ -383,7 +384,7 @@ App.load().then((D) => {
     A.$("#b-tprev").onclick = prevTurn;
     A.$("#b-play").onclick = () => setPlaying(!timer);
     A.$$("#speed button").forEach((b) => b.addEventListener("click", () => { speed = +b.dataset.v; A.$$("#speed button").forEach((x) => x.classList.toggle("on", x === b)); if (timer) setPlaying(true); }));
-    A.$("#b-imgs").onclick = () => { imgs = !imgs; try { localStorage.setItem("mtga-replay-imgs", imgs ? "1" : "0"); } catch (e) {} A.$("#b-imgs").textContent = imgs ? "Bilder aus" : "Bilder an"; built = false; render(); };
+    A.$("#b-imgs").onclick = () => { imgs = !imgs; try { localStorage.setItem("mtga-replay-imgs", imgs ? "1" : "0"); } catch (e) {} A.$("#b-imgs").textContent = imgs ? T("Bilder aus") : T("Bilder an"); built = false; render(); };
     A.$("#b-log").onclick = () => setLog(!logOpen);
     A.$(".b-log-x").onclick = () => setLog(false);
     A.$("#b-full").onclick = () => { const st = A.$("#stage"); if (document.fullscreenElement) document.exitFullscreen(); else st.requestFullscreen && st.requestFullscreen(); };

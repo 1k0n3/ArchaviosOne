@@ -35,8 +35,16 @@ function enqueue(kind, key, payload, at) {
   return true;
 }
 /** Match inklusive Replay (Rahmen); die Karten-Wörterbücher rechnet der Server selbst */
-function enqueueMatch(m, summary) {
-  enqueue("match", summary.matchId + ":" + hash([summary.myDeckId, summary.myDeck, summary.result, summary.turns]), { summary, replay: { match: Object.assign({}, m, { frames: undefined }), frames: m.frames } }, new Date(m.start).toISOString());
+function enqueueMatch(m, summary, tokens) {
+  enqueue("match", summary.matchId + ":" + hash([summary.myDeckId, summary.myDeck, summary.result, summary.turns, tokens ? Object.keys(tokens).length : 0]), { summary, replay: { match: Object.assign({}, m, { frames: undefined }), frames: m.frames, tokens: tokens || undefined } }, new Date(m.start).toISOString());
+}
+/** Token-Karten eines Matches (GrpId -> Name, Set, Nummer), damit die Website sie über das Scryfall-Token-Set auflösen kann */
+function tokensOf(m, cards) {
+  const ids = new Set();
+  for (const f of m.frames || []) { for (const o of [...(f.bf || []), ...(f.st || []), ...(f.cmd || [])]) ids.add(o[1]); for (const e of f.ev || []) if (e.g) ids.add(e.g); }
+  const out = {};
+  for (const g of ids) { const c = cards.get(g); if (c && c.IsToken) out[g] = { name: c.Name, set: String(c.ExpansionCode || ""), nr: String(c.CollectorNumber || ""), types: String(c.Types || ""), colors: String(c.Colors || ""), power: c.Power || "", toughness: c.Toughness || "", text: c.Text || "", typeLine: c.TypeLine || "" }; }
+  return Object.keys(out).length ? out : null;
 }
 /** Decks nur, wenn sich ihr Inhalt seit dem letzten Senden geändert hat */
 function enqueueDecks(decks) {
@@ -111,7 +119,7 @@ function status() {
   return { connected: !!dev, url: dev ? dev.url : baseUrl(), user: dev ? dev.user : null, queued: left, lastFlushAt: st.lastFlushAt, lastError: st.lastError, sent: st.sent || 0 };
 }
 
-module.exports = { enqueueMatch, enqueueDecks, enqueueCollection, flush, connect, disconnect, status, device };
+module.exports = { enqueueMatch, enqueueDecks, enqueueCollection, tokensOf, flush, connect, disconnect, status, device };
 
 if (require.main === module) {
   const [cmd, ...rest] = process.argv.slice(2);

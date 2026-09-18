@@ -30,7 +30,8 @@ if ($Remove) {
 $icon = Join-Path $root "assets\mtga-stats.ico"
 if (-not (Test-Path $icon)) { & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root "scripts\make-icon.ps1") -Out $icon | Out-Null }
 
-$ps = (Get-Command powershell.exe).Source
+$ps = (Get-Command wscript.exe).Source
+$hidden = Join-Path $root "scripts\hidden.vbs"
 $tray = Join-Path $root "scripts\tray.ps1"
 $targets = @($startMenu)
 if ($Desktop) { $targets += $desktopLnk }
@@ -38,7 +39,7 @@ $shell = New-Object -ComObject WScript.Shell
 foreach ($p in $targets) {
   $lnk = $shell.CreateShortcut($p)
   $lnk.TargetPath = $ps
-  $lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$tray`""
+  $lnk.Arguments = "`"$hidden`" `"$tray`""
   $lnk.WorkingDirectory = $root
   $lnk.IconLocation = "$icon,0"
   $lnk.WindowStyle = 7
@@ -53,7 +54,7 @@ if ($Desktop) { $appTargets += $appDesktop }
 foreach ($p in $appTargets) {
   $lnk = $shell.CreateShortcut($p)
   $lnk.TargetPath = $ps
-  $lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$openApp`""
+  $lnk.Arguments = "`"$hidden`" `"$openApp`""
   $lnk.WorkingDirectory = $root
   $lnk.IconLocation = "$icon,0"
   $lnk.WindowStyle = 7

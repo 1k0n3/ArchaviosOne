@@ -80,9 +80,9 @@ if (-not $NoAutostart) {
 # ---- 4. Starten ----------------------------------------------------------------------------------
 Write-Step "4/4  Starten"
 if ($NoStart) { Write-Host "    übersprungen (-NoStart)" } else {
-Start-Process powershell -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $root 'scripts\tray.ps1')`""
+Start-Process wscript.exe -ArgumentList "`"$(Join-Path $root 'scripts\hidden.vbs')`" `"$(Join-Path $root 'scripts\tray.ps1')`""
 Write-Ok "Tray-Icon und Watcher gestartet (Symbol unten rechts im Infobereich)"
-Start-Process powershell -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $root 'scripts\open-app.ps1')`""
+Start-Process wscript.exe -ArgumentList "`"$(Join-Path $root 'scripts\hidden.vbs')`" `"$(Join-Path $root 'scripts\open-app.ps1')`""
 Write-Ok "Dashboard-Fenster wird geöffnet"
 }
 Write-Host ""

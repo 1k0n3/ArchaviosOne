@@ -71,6 +71,12 @@ module.exports = async function apiRoutes(app) {
       db.run(`INSERT INTO matches (id, user_id, start_at, result, deck_id, summary, replay, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
               ON CONFLICT(id) DO UPDATE SET summary = excluded.summary, replay = COALESCE(excluded.replay, matches.replay)`,
         m.summary.matchId, userId, new Date(m.summary.start).toISOString(), m.summary.result || null, m.summary.myDeckId || null, JSON.stringify(m.summary), m.replay ? JSON.stringify(m.replay) : null, now);
+      // Token-Karten merken (Arena-GrpId -> Name/Set/Nummer); Bilder werden später über Scryfall aufgelöst
+      for (const [g, t] of Object.entries((m.replay && m.replay.tokens) || {})) {
+        if (!t || !t.name) continue;
+        db.run("INSERT INTO tokens (arena_id, name, set_code, collector, type_line, colors, power, toughness, oracle_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(arena_id) DO NOTHING",
+          +g, String(t.name), String(t.set || "").toLowerCase(), String(t.nr || ""), t.typeLine || "", t.colors || "", t.power || "", t.toughness || "", t.text || "");
+      }
     } else if (ev.kind === "collection") {
       const c = z.object({ takenAt: z.string(), snapshot: z.array(z.tuple([z.number().int(), z.number().int()])) }).parse(ev.payload);
       db.run("INSERT OR REPLACE INTO collections (user_id, taken_at, snapshot) VALUES (?, ?, ?)", userId, c.takenAt, JSON.stringify(c.snapshot));

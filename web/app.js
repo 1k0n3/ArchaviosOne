@@ -7,6 +7,8 @@ window.App = (function () {
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const pad = (n) => String(n).padStart(2, "0");
   let DATA = window.MTGA_DATA || null;
+  // Übersetzung (web/i18n.js); ohne Modul bleiben die deutschen Texte, Platzhalter werden trotzdem ersetzt
+  const tr = window.I18N ? window.I18N.t : (k, vars) => { let s = k; if (vars) for (const x of Object.keys(vars)) s = s.split("{" + x + "}").join(vars[x]); return s; };
   for (const href of ["https://cards.scryfall.io", "https://backs.scryfall.io", "https://svgs.scryfall.io"]) { const l = document.createElement("link"); l.rel = "preconnect"; l.href = href; l.crossOrigin = ""; document.head.appendChild(l); }
   // Set-Namen (Code -> Name) vom Server, einmal je Seite; ohne Server bleiben die Codes
   let SETS = null, setsPromise = null;
@@ -97,7 +99,7 @@ window.App = (function () {
   const RARITY_KEY = { Common: "c", Uncommon: "u", Rare: "r", Mythic: "m", Standardland: "c", Token: "t" };
   function card(g, dict) {
     const d = (dict && dict[g]) || (DATA && DATA.cards[g]);
-    if (!d) return { name: "Karte " + g, set: "", nr: "", rarity: "", token: false, art: 0, colors: [], types: [], frame: "c", isLand: false, creature: false, flags: "", style: "std", pt: "", typeText: "", typeLine: "", text: "", cost: "", rar: "c", legendary: false };
+    if (!d) return { name: tr("Karte") + " " + g, set: "", nr: "", rarity: "", token: false, art: 0, colors: [], types: [], frame: "c", isLand: false, creature: false, flags: "", style: "std", pt: "", typeText: "", typeLine: "", text: "", cost: "", rar: "c", legendary: false };
     const colors = String(d[6] || "").split(",").filter(Boolean).map((x) => COLOR_NAMES[x]).filter(Boolean);
     const types = String(d[7] || "").split(",").filter(Boolean).map(Number);
     const isLand = types.includes(5), isArtifact = types.includes(1);
@@ -106,7 +108,7 @@ window.App = (function () {
     // Druck-Design: Retro (vor 8. Edition), Vollbild (Showcase/Standardland), Nyx-Verzauberung, Mystical Archive, Standard
     const style = flags.includes("R") ? "retro" : flags.includes("M") ? "archive" : flags.includes("F") ? "fullart" : flags.includes("N") ? "nyx" : "std";
     const pt = d[9] !== undefined && d[9] !== "" && d[10] !== "" ? `${d[9]}/${d[10]}` : "";
-    const typeText = types.map((t) => TYPE_NAMES[t] || "").filter(Boolean).join(" ");
+    const typeText = types.map((x) => TYPE_NAMES[x] ? tr(TYPE_NAMES[x]) : "").filter(Boolean).join(" ");
     return { name: d[0], set: d[1], nr: d[2], rarity: d[3], token: !!d[4], art: d[5] || 0, colors, types, frame, isLand, creature: types.includes(2), flags, style, legendary: flags.includes("L"), pt, typeText, typeLine: d[12] || typeText, text: d[11] || "", cost: d[13] || "", rar: RARITY_KEY[d[3]] || "c" };
   }
   const cardName = (g, dict) => card(g, dict).name;
@@ -226,7 +228,7 @@ window.App = (function () {
       const it = find(value);
       const isDefault = String(value) === String(opts.defaultValue != null ? opts.defaultValue : items[0].v);
       el.innerHTML = `<button type="button" class="dd-btn ${isDefault ? "" : "on"}">${it.icon || opts.icon || ""}<span class="lbl">${esc(it.short != null ? it.short : it.label)}</span>${FI.chevron}</button>
-        <div class="dd-menu">${opts.searchable ? '<input type="search" class="dd-q" placeholder="Filtern …">' : ""}<div class="dd-list">${items.map((x) => `<button type="button" data-v="${esc(x.v)}" class="${String(x.v) === String(value) ? "on" : ""}"${x.title ? ` title="${esc(x.title)}"` : ""}${x.search ? ` data-q="${esc(x.search)}"` : ""}>${x.icon || ""}<span>${esc(x.label)}</span></button>`).join("")}</div></div>`;
+        <div class="dd-menu">${opts.searchable ? `<input type="search" class="dd-q" placeholder="${tr("Filtern …")}">` : ""}<div class="dd-list">${items.map((x) => `<button type="button" data-v="${esc(x.v)}" class="${String(x.v) === String(value) ? "on" : ""}"${x.title ? ` title="${esc(x.title)}"` : ""}${x.search ? ` data-q="${esc(x.search)}"` : ""}>${x.icon || ""}<span>${esc(x.label)}</span></button>`).join("")}</div></div>`;
       $(".dd-btn", el).addEventListener("click", () => {
         const open = !el.classList.contains("open");
         if (ddOpen && ddOpen !== el) ddOpen.classList.remove("open");
@@ -246,7 +248,7 @@ window.App = (function () {
     try { v = +localStorage.getItem(key) || v; } catch (e) { /* ohne Speicher */ }
     v = Math.max(min, Math.min(max, v));
     el.classList.add("sizer");
-    el.innerHTML = `<span class="sm" title="Kleiner">${FI.copies}</span><input type="range" min="${min}" max="${max}" step="2" value="${v}" title="Kartengröße"><span class="lg" title="Größer">${FI.copies}</span>`;
+    el.innerHTML = `<span class="sm" title="${tr("Kleiner")}">${FI.copies}</span><input type="range" min="${min}" max="${max}" step="2" value="${v}" title="${tr("Kartengröße")}"><span class="lg" title="${tr("Größer")}">${FI.copies}</span>`;
     const apply = (x) => { grid.style.setProperty("--tile-w", x + "px"); };
     apply(v);
     $("input", el).addEventListener("input", (ev) => { const x = +ev.target.value; apply(x); try { localStorage.setItem(key, String(x)); } catch (e) { /* ignorieren */ } });
@@ -275,23 +277,23 @@ window.App = (function () {
   /** Deck-Fakten: Kartenzähler als Kacheln (gleiche Optik wie die Match-Statistik), Manakurve, Farbanteile */
   function deckStatsHtml(st) {
     const max = Math.max(1, ...st.curve);
-    const curve = st.curve.map((n, i) => `<div class="cb" title="${n} Karten mit Manawert ${i === 7 ? "7+" : i}"><div class="bar" style="height:${Math.round(100 * n / max)}%"></div><span class="v">${n || ""}</span><span class="l">${i === 7 ? "7+" : i}</span></div>`).join("");
+    const curve = st.curve.map((n, i) => `<div class="cb" title="${tr("{n} Karten mit Manawert {v}", { n, v: i === 7 ? "7+" : i })}"><div class="bar" style="height:${Math.round(100 * n / max)}%"></div><span class="v">${n || ""}</span><span class="l">${i === 7 ? "7+" : i}</span></div>`).join("");
     const total = Object.values(st.colors).reduce((x, y) => x + y, 0) || 1;
-    const seg = Object.entries(st.colors).filter(([, n]) => n).map(([k, n]) => `<div class="seg c-${k}" style="flex:${n}" title="${n} ${k.toUpperCase()}-Symbole (${Math.round(100 * n / total)} %)"></div>`).join("");
+    const seg = Object.entries(st.colors).filter(([, n]) => n).map(([k, n]) => `<div class="seg c-${k}" style="flex:${n}" title="${tr("{n} {c}-Symbole ({p} %)", { n, c: k.toUpperCase(), p: Math.round(100 * n / total) })}"></div>`).join("");
     const pips = Object.entries(st.colors).filter(([, n]) => n).map(([k, n]) => `<span class="pip">${manaSymbol(k)}<b>${n}</b></span>`).join("");
     const tile = (l, v, icon) => `<div class="tile"><div class="label">${icon || ""}${l}</div><div class="value">${v}</div></div>`;
     return `<div class="deck-facts">
       <div class="df-left">
-        <div class="ds-block colors"><div class="ds-t">Farben</div><div class="cbar">${seg || '<div class="seg c-c" style="flex:1"></div>'}</div><div class="pips">${pips || '<span class="muted small">farblos</span>'}</div></div>
-        <div class="tiles stat-rows fact-tiles">${tile("Kreaturen", st.creatures, FI.creature)}${tile("Zauber", st.spells, FI.instant)}${tile("Andere", st.others, FI.artifact)}${tile("Länder", st.lands, FI.land)}${tile("Nichtländer", st.nonLand, FI.copies)}${tile("Ø Manawert", st.avgCmc.toFixed(1), FI.mana)}</div>
+        <div class="ds-block colors"><div class="ds-t">${tr("Farben")}</div><div class="cbar">${seg || '<div class="seg c-c" style="flex:1"></div>'}</div><div class="pips">${pips || `<span class="muted small">${tr("farblos")}</span>`}</div></div>
+        <div class="tiles stat-rows fact-tiles">${tile(tr("Kreaturen"), st.creatures, FI.creature)}${tile(tr("Zauber"), st.spells, FI.instant)}${tile(tr("Andere"), st.others, FI.artifact)}${tile(tr("Länder"), st.lands, FI.land)}${tile(tr("Nichtländer"), st.nonLand, FI.copies)}${tile(tr("Ø Manawert"), st.avgCmc.toFixed(1), FI.mana)}</div>
       </div>
-      <div class="ds-block curve"><div class="ds-t">Manakurve</div><div class="curve">${curve}</div></div>
+      <div class="ds-block curve"><div class="ds-t">${tr("Manakurve")}</div><div class="curve">${curve}</div></div>
     </div>`;
   }
   /** Ausklappbare Suche: Lupe, bei Klick öffnet sich das Feld; bleibt offen, solange etwas eingetippt ist */
   function searchBox(el, opts = {}) {
     el.classList.add("sbox");
-    el.innerHTML = `<button type="button" class="dd-btn sb-btn" title="${esc(opts.title || "Suchen")}">${FI.search}</button><input type="search" placeholder="${esc(opts.placeholder || "Suchen …")}" value="${esc(opts.value || "")}">`;
+    el.innerHTML = `<button type="button" class="dd-btn sb-btn" title="${esc(opts.title || tr("Suchen"))}">${FI.search}</button><input type="search" placeholder="${esc(opts.placeholder || tr("Suchen …"))}" value="${esc(opts.value || "")}">`;
     const input = $("input", el), btn = $(".sb-btn", el);
     el.classList.add("open"); // Suche bleibt immer sichtbar
     const sync = () => { btn.classList.toggle("on", !!input.value); };
@@ -324,16 +326,16 @@ window.App = (function () {
   // ---- Formatierung ---------------------------------------------------------------------
   function fmtDate(ts) { const d = new Date(ts); return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`; }
   function fmtTime(ts) { const d = new Date(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
-  function fmtDur(sec) { return sec >= 3600 ? `${Math.floor(sec / 3600)} h ${pad(Math.floor(sec % 3600 / 60))} min` : `${Math.round(sec / 60)} min`; }
+  function fmtDur(sec) { return sec >= 3600 ? `${Math.floor(sec / 3600)} ${tr("h")} ${pad(Math.floor(sec % 3600 / 60))} ${tr("min")}` : `${Math.round(sec / 60)} ${tr("min")}`; }
   function relDate(ts) {
     const d = Math.floor((Date.now() - ts) / 86400000);
-    return d === 0 ? "heute" : d === 1 ? "gestern" : d < 7 ? `vor ${d} Tagen` : fmtDate(ts);
+    return d === 0 ? tr("heute") : d === 1 ? tr("gestern") : d < 7 ? tr("vor {n} Tagen", { n: d }) : fmtDate(ts);
   }
   function deckLabel(m) { return m.commander ? `${m.myDeck} · ${m.commander}` : (m.myDeck || "?"); }
   function eventLabel(e) { return (e || "").replace(/^Play_/, "").replace(/_/g, " "); }
   function resultBadge(r) {
     const cls = r === "Sieg" ? "win" : r === "Niederlage" ? "loss" : "unk";
-    return `<span class="badge ${cls}">${esc(r || "?")}</span>`;
+    return `<span class="badge ${cls}">${esc(tr(r || "?"))}</span>`;
   }
 
   // ---- Logo + Seitenleiste ----------------------------------------------------------------------
@@ -360,26 +362,30 @@ window.App = (function () {
   function shell(active, contentHtml) {
     // Auf der Website: freigegebene Decks zeigen nur die Deckseite, das eigene Dashboard bekommt Konto-Links
     const site = DATA && DATA.site;
-    let pages = [["index.html", "Übersicht", "dash"], ["matches.html", "Matches", "matches"], ["decks.html", "Decks", "decks"], ["library.html", "Bibliothek", "lib"]];
-    if (site && site.shared) pages = [["decks.html", "Geteiltes Deck", "decks"]];
-    const siteLinks = site ? (site.shared ? `<a class="nav" href="/">${ICONS.dash}<span>Zur Website</span></a><a class="nav" href="/p/${esc(site.handle)}">${ICONS.lib}<span>Profil von ${esc(site.handle)}</span></a>` : `<a class="nav" href="/settings">${ICONS.decks}<span>Konto &amp; Geräte</span></a><a class="nav" href="/">${ICONS.dash}<span>Website</span></a>`) : "";
-    const player = (DATA && DATA.player) || "Spieler";
+    let pages = [["index.html", tr("Übersicht"), "dash"], ["matches.html", tr("Matches"), "matches"], ["decks.html", tr("Decks"), "decks"], ["library.html", tr("Bibliothek"), "lib"]];
+    if (site && site.shared) pages = [["decks.html", tr("Geteiltes Deck"), "decks"]];
+    const siteLinks = site ? (site.shared ? `<a class="nav" href="/">${ICONS.dash}<span>${tr("Zur Website")}</span></a><a class="nav" href="/p/${esc(site.handle)}">${ICONS.lib}<span>${tr("Profil von {h}", { h: esc(site.handle) })}</span></a>` : `<a class="nav" href="/settings">${ICONS.decks}<span>${tr("Konto & Geräte")}</span></a><a class="nav" href="/">${ICONS.dash}<span>${tr("Website")}</span></a>`) : "";
+    const player = (DATA && DATA.player) || tr("Spieler");
+    const cur = pages.find((p) => p[0] === active); if (cur) document.title = "MTGA Stats · " + cur[1];
+    const langSel = window.I18N ? `<label class="lang" title="${tr("Sprache")}"><select>${Object.entries(I18N.LANGS).map(([k, v]) => `<option value="${k}" ${k === I18N.lang ? "selected" : ""}>${v}</option>`).join("")}</select></label>` : "";
     const st = stats(DATA ? DATA.matches : []);
     const nav = `<aside class="side-nav">
-      <div class="brand">${logoSvg()}<div><div class="t1">MTGA Stats</div><div class="t2">Lokales Dashboard</div></div></div>
+      <div class="brand">${logoSvg()}<div><div class="t1">MTGA Stats</div><div class="t2">${tr("Lokales Dashboard")}</div></div></div>
       ${pages.map(([h, t, ic]) => `<a class="nav ${active === h ? "active" : ""}" href="${h}">${ICONS[ic]}<span>${t}</span></a>`).join("")}
       ${siteLinks ? `<div class="nav-sep"></div>${siteLinks}` : ""}
       <div class="spacer"></div>
-      <div class="player"><div class="av">${esc(player.slice(0, 1).toUpperCase())}</div><div><div class="n">${esc(player)}</div><div class="s">${st.n} Matches · ${Math.round(st.rate * 100)} % Winrate</div></div></div>
-      <div class="foot">Stand ${DATA && DATA.generatedAt ? fmtDate(DATA.generatedAt) + " " + fmtTime(DATA.generatedAt) : "?"}${Art.supported ? "" : " · Bilder: WebGL S3TC nicht verfügbar"}</div>
+      <div class="player"><div class="av">${esc(player.slice(0, 1).toUpperCase())}</div><div><div class="n">${esc(player)}</div><div class="s">${tr("{n} Matches", { n: st.n })} · ${Math.round(st.rate * 100)} % ${tr("Winrate")}</div></div></div>
+      ${langSel}
+      <div class="foot">${tr("Stand")} ${DATA && DATA.generatedAt ? fmtDate(DATA.generatedAt) + " " + fmtTime(DATA.generatedAt) : "?"}${Art.supported ? "" : " · " + tr("Bilder: WebGL S3TC nicht verfügbar")}</div>
     </aside>`;
     document.body.innerHTML = `<div class="shell">${nav}<main class="content">${contentHtml}</main></div>`;
+    const ls = $(".side-nav .lang select"); if (ls) ls.addEventListener("change", () => I18N.set(ls.value));
     // Filterleiste: auf schmalen Bildschirmen hinter einem Knopf, aktive Filter als Zähler
     const filters = $(".topbar .right.filters");
     if (filters) {
       const btn = document.createElement("button");
       btn.className = "ghost f-toggle";
-      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M6 12h12M10 19h4"/></svg> Filter';
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M6 12h12M10 19h4"/></svg> ' + tr("Filter");
       btn.addEventListener("click", () => filters.classList.toggle("open"));
       filters.parentElement.insertBefore(btn, filters);
     }
@@ -449,9 +455,9 @@ window.App = (function () {
       s += `<rect class="hit" data-i="${i}" x="${padL + i * step}" y="${padT}" width="${step}" height="${ih}"/>`;
     });
     s += "</svg>";
-    el.innerHTML = `<div class="legend"><span style="--c:var(--win)">Sieg</span><span style="--c:var(--loss)">Niederlage</span></div>` + s;
+    el.innerHTML = `<div class="legend"><span style="--c:var(--win)">${tr("Sieg")}</span><span style="--c:var(--loss)">${tr("Niederlage")}</span></div>` + s;
     $$("rect.hit", el).forEach((h) => {
-      h.addEventListener("mousemove", (ev) => { const r = rows[+h.dataset.i]; tooltip(true, r.html || `<b>${esc(r.title || r.label)}</b><br>${r.w} Siege, ${r.l} Niederlagen`, ev); h.classList.add("on"); });
+      h.addEventListener("mousemove", (ev) => { const r = rows[+h.dataset.i]; tooltip(true, r.html || `<b>${esc(r.title || r.label)}</b><br>${tr("{w} Siege, {l} Niederlagen", { w: r.w, l: r.l })}`, ev); h.classList.add("on"); });
       h.addEventListener("mouseleave", () => { tooltip(false); h.classList.remove("on"); });
     });
   }
@@ -497,10 +503,10 @@ window.App = (function () {
       const label = opts.link ? `<a href="${opts.link(r)}">${esc(r.label)}</a>` : esc(r.label);
       const art = r.tile != null ? `<div class="art">${artCanvas(artOf(r.tile))}</div>` : "";
       return `<div class="bar-row" data-tip="${esc(r.tipHtml || "")}"><div class="lbl">${art}<span class="t">${label}</span> <span class="muted small">(${n})</span></div><div class="bar-track"><div class="w" style="width:${wp}%"></div><div class="l" style="width:${lp}%"></div></div><div><b>${pct} %</b></div></div>`;
-    }).join("") || `<div class="empty">Keine Daten</div>`;
+    }).join("") || `<div class="empty">${tr("Keine Daten")}</div>`;
     $$(".bar-row", el).forEach((row, i) => {
       const r = rows[i];
-      row.addEventListener("mousemove", (ev) => tooltip(true, r.tipHtml || `<b>${esc(r.label)}</b><br>${r.w} Siege, ${r.l} Niederlagen`, ev));
+      row.addEventListener("mousemove", (ev) => tooltip(true, r.tipHtml || `<b>${esc(r.label)}</b><br>${tr("{w} Siege, {l} Niederlagen", { w: r.w, l: r.l })}`, ev));
       row.addEventListener("mouseleave", () => tooltip(false));
     });
     Art.bind(el);
@@ -580,7 +586,7 @@ window.App = (function () {
     return h;
   };
   const X_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
-  const xButton = (cls) => `<button class="x-btn ${cls || ""}" type="button" title="Schließen (Esc)" aria-label="Schließen">${X_ICON}</button>`;
+  const xButton = (cls) => `<button class="x-btn ${cls || ""}" type="button" title="${tr("Schließen (Esc)")}" aria-label="${tr("Schließen")}">${X_ICON}</button>`;
   let modal;
   function closeModal() { if (modal) modal.classList.add("hidden"); if (pv) pv.style.display = "none"; }
   /** Statistik zu einer Karte aus den lokalen Daten: Decks, gespielte Matches, beim Gegner gesehen */
@@ -609,36 +615,36 @@ window.App = (function () {
     const matchRow = (m, extra) => `<a class="m-match" href="replay.html?id=${m.matchId}"><span class="${m.result === "Sieg" ? "dotw" : "dotl"}"></span><span class="d">${relDate(m.start)}</span><span class="o">vs ${esc(m.opponent)}</span><span class="muted small">${esc(extra || m.myDeck || "")}</span></a>`;
     const pct = (x) => x.w + x.l ? Math.round(100 * x.w / (x.w + x.l)) + " %" : "–";
     const statsHtml = `<div class="m-stats">
-        <div class="m-tile"><div class="k">In Decks</div><div class="v">${st.decks.length}</div></div>
-        <div class="m-tile"><div class="k">Gespielt</div><div class="v">${st.played.length}</div><div class="s">${st.casts}× gewirkt</div></div>
-        <div class="m-tile ${st.sp.n ? (st.sp.rate >= .5 ? "win" : "loss") : ""}"><div class="k">Winrate</div><div class="v">${pct(st.sp)}</div><div class="s">${st.sp.w} S · ${st.sp.l} N</div></div>
-        <div class="m-tile"><div class="k">Beim Gegner</div><div class="v">${st.seen.length}</div><div class="s">${st.ss.n ? "dagegen " + pct(st.ss) : "nie gesehen"}</div></div>
+        <div class="m-tile"><div class="k">${tr("In Decks")}</div><div class="v">${st.decks.length}</div></div>
+        <div class="m-tile"><div class="k">${tr("Gespielt")}</div><div class="v">${st.played.length}</div><div class="s">${tr("{n}× gewirkt", { n: st.casts })}</div></div>
+        <div class="m-tile ${st.sp.n ? (st.sp.rate >= .5 ? "win" : "loss") : ""}"><div class="k">${tr("Winrate")}</div><div class="v">${pct(st.sp)}</div><div class="s">${tr("{w} S · {l} N", { w: st.sp.w, l: st.sp.l })}</div></div>
+        <div class="m-tile"><div class="k">${tr("Beim Gegner")}</div><div class="v">${st.seen.length}</div><div class="s">${st.ss.n ? tr("dagegen {p}", { p: pct(st.ss) }) : tr("nie gesehen")}</div></div>
       </div>
-      ${st.decks.length ? `<div class="m-sec">Decks</div><div class="m-chips">${st.decks.slice(0, 8).map((d) => `<a class="chip" href="decks.html?deck=${encodeURIComponent(d.name)}">${esc(d.name)}</a>`).join("")}${st.decks.length > 8 ? `<span class="chip muted">+${st.decks.length - 8}</span>` : ""}</div>` : ""}
-      ${st.played.length ? `<div class="m-sec">Zuletzt gespielt</div><div class="m-matches">${st.played.slice(0, 4).map((m) => matchRow(m)).join("")}</div>` : ""}
-      ${st.seen.length ? `<div class="m-sec">Beim Gegner gesehen</div><div class="m-matches">${st.seen.slice(0, 3).map((m) => matchRow(m, m.opponent && m.myDeck ? "mit " + m.myDeck : "")).join("")}</div>` : ""}`;
+      ${st.decks.length ? `<div class="m-sec">${tr("Decks")}</div><div class="m-chips">${st.decks.slice(0, 8).map((d) => `<a class="chip" href="decks.html?deck=${encodeURIComponent(d.name)}">${esc(d.name)}</a>`).join("")}${st.decks.length > 8 ? `<span class="chip muted">+${st.decks.length - 8}</span>` : ""}</div>` : ""}
+      ${st.played.length ? `<div class="m-sec">${tr("Zuletzt gespielt")}</div><div class="m-matches">${st.played.slice(0, 4).map((m) => matchRow(m)).join("")}</div>` : ""}
+      ${st.seen.length ? `<div class="m-sec">${tr("Beim Gegner gesehen")}</div><div class="m-matches">${st.seen.slice(0, 3).map((m) => matchRow(m, m.opponent && m.myDeck ? tr("mit {d}", { d: m.myDeck }) : "")).join("")}</div>` : ""}`;
     const render = (d) => {
       const cc = Object.assign({}, c, { grpId });
       const text = d ? (d.text || []).join("\n") : c.text;
       const typeLine = d ? d.typeLine || c.typeLine : c.typeLine;
       const cost = d ? d.cost || c.cost : c.cost;
       const ptv = d ? (d.power !== "" && d.power != null ? d.power + "/" + d.toughness : "") : c.pt;
-      const owned = d ? (d.owned ? `<span class="badge win">${d.owned}× im Besitz</span>` : `<span class="badge unk">nicht im Besitz</span>`) : skeleton.text("90px", 20);
-      const prints = d && d.printings.length > 1 ? `<button class="ghost small" id="m-prints-toggle">Drucke (${d.printings.length}) ▾</button><div class="m-prints hidden">${d.printings.map((p) => `<button class="ghost small ${p[0] === d.grpId ? "on" : ""}" data-g="${p[0]}">${esc(p[1])} ${esc(p[2])}${p[4] ? ` · ${p[4]}×` : ""}</button>`).join("")}</div>` : "";
-      const rules = text ? text.split("\n").filter((l) => l.trim()).map((l) => `<p class="ab">${ruleHtml(l)}</p>`).join("") : (d ? '<p class="muted small">Kein Regeltext.</p>' : `<p>${skeleton.text("95%")}</p><p>${skeleton.text("70%")}</p>`);
+      const owned = d ? (d.owned ? `<span class="badge win">${tr("{n}× im Besitz", { n: d.owned })}</span>` : `<span class="badge unk">${tr("nicht im Besitz")}</span>`) : skeleton.text("90px", 20);
+      const prints = d && d.printings.length > 1 ? `<button class="ghost small" id="m-prints-toggle">${tr("Drucke ({n})", { n: d.printings.length })} ▾</button><div class="m-prints hidden">${d.printings.map((p) => `<button class="ghost small ${p[0] === d.grpId ? "on" : ""}" data-g="${p[0]}">${esc(p[1])} ${esc(p[2])}${p[4] ? ` · ${p[4]}×` : ""}</button>`).join("")}</div>` : "";
+      const rules = text ? text.split("\n").filter((l) => l.trim()).map((l) => `<p class="ab">${ruleHtml(l)}</p>`).join("") : (d ? `<p class="muted small">${tr("Kein Regeltext.")}</p>` : `<p>${skeleton.text("95%")}</p><p>${skeleton.text("70%")}</p>`);
       modal.innerHTML = `<div class="m-box wide">${xButton("m-close")}
         <div class="m-card">${bigCard(cc)}</div>
         <div class="m-info">
           <div class="m-title"><h2>${esc(c.name)}</h2><span class="m-cost">${manaHtml(cost)}</span></div>
           <div class="m-type">${esc(typeLine || c.typeText)}${ptv ? ` <b class="m-pt">${esc(ptv)}</b>` : ""}</div>
           <div class="m-rules">${rules}${d && d.flavor ? `<p class="flavor">${esc(d.flavor)}</p>` : ""}</div>
-          <div class="m-meta"><span class="badge unk set" title="${esc(setName(c.set))}">${setIcon(c.set)}${esc(setName(c.set))} · ${esc(c.set)} ${esc(c.nr)}</span><span class="badge unk">${esc(c.rarity)}</span>${owned}${d && d.isRebalanced ? '<span class="badge loss">Rebalanced</span>' : ""}${d && d.artist ? `<span class="muted small">Illustration: ${esc(d.artist)}</span>` : ""}</div>
+          <div class="m-meta"><span class="badge unk set" title="${esc(setName(c.set))}">${setIcon(c.set)}${esc(setName(c.set))} · ${esc(c.set)} ${esc(c.nr)}</span><span class="badge unk">${esc(tr(c.rarity))}</span>${owned}${d && d.isRebalanced ? `<span class="badge loss">${tr("Rebalanced")}</span>` : ""}${d && d.artist ? `<span class="muted small">${tr("Illustration")}: ${esc(d.artist)}</span>` : ""}</div>
           ${statsHtml}
-          <div class="m-links">${prints}<a href="library.html?q=${encodeURIComponent(c.name)}">Bibliothek</a><a href="https://scryfall.com/search?q=${encodeURIComponent('!"' + c.name + '"')}" target="_blank" rel="noopener">Scryfall ↗</a><a href="https://gatherer.wizards.com/Pages/Search/Default.aspx?name=${encodeURIComponent(c.name)}" target="_blank" rel="noopener">Gatherer ↗</a></div>
+          <div class="m-links">${prints}<a href="library.html?q=${encodeURIComponent(c.name)}">${tr("Bibliothek")}</a><a href="https://scryfall.com/search?q=${encodeURIComponent('!"' + c.name + '"')}" target="_blank" rel="noopener">Scryfall ↗</a><a href="https://gatherer.wizards.com/Pages/Search/Default.aspx?name=${encodeURIComponent(c.name)}" target="_blank" rel="noopener">Gatherer ↗</a></div>
         </div></div>`;
       Art.bind(modal);
       const t = $("#m-prints-toggle", modal);
-      if (t) t.addEventListener("click", () => { const p = $(".m-prints", modal); p.classList.toggle("hidden"); t.textContent = `Drucke (${d.printings.length}) ${p.classList.contains("hidden") ? "▾" : "▴"}`; });
+      if (t) t.addEventListener("click", () => { const p = $(".m-prints", modal); p.classList.toggle("hidden"); t.textContent = `${tr("Drucke ({n})", { n: d.printings.length })} ${p.classList.contains("hidden") ? "▾" : "▴"}`; });
       $$(".m-prints button", modal).forEach((b) => b.addEventListener("click", () => showCard(+b.dataset.g, dict)));
     };
     render(null);
@@ -672,7 +678,7 @@ window.App = (function () {
         if (tag && t !== tag && !notified) {
           notified = true;
           const el = document.createElement("div"); el.className = "toast";
-          el.innerHTML = '<span>Neue Daten vom Watcher</span><button type="button" class="primary small">Jetzt aktualisieren</button>';
+          el.innerHTML = `<span>${tr("Neue Daten vom Watcher")}</span><button type="button" class="primary small">${tr("Jetzt aktualisieren")}</button>`;
           $("button", el).addEventListener("click", () => location.reload());
           document.body.appendChild(el);
           const tryReload = () => { const busyUi = (modal && !modal.classList.contains("hidden")) || Date.now() - lastInput < 20000 || document.hidden; if (busyUi) setTimeout(tryReload, 5000); else location.reload(); };
@@ -685,5 +691,5 @@ window.App = (function () {
     setInterval(check, 20000);
   })();
 
-  return { load, get DATA() { return DATA; }, $, $$, esc, card, cardName, artOf, artCanvas, cardTile, cardHtml, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, cmcOf, loadedImgs, get LOGO() { return logoSvg(); } };
+  return { load, get DATA() { return DATA; }, $, $$, esc, card, cardName, artOf, artCanvas, cardTile, cardHtml, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, cmcOf, loadedImgs, t: tr, get LOGO() { return logoSvg(); } };
 })();

@@ -210,7 +210,7 @@ function onMatch(m) {
   if (!r.isNew) return;
   const s = matches.matchSummary(m, cards);
   matches.writeIndexCsv(cfg.outDir, cards);
-  try { sync.enqueueMatch(m, s); } catch (e) { log("Sync: Match nicht eingereiht: " + e.message); }
+  try { sync.enqueueMatch(m, s, sync.tokensOf(m, cards)); } catch (e) { log("Sync: Match nicht eingereiht: " + e.message); }
   log(`Match: ${s.result} gegen ${s.opponent} mit ${s.myDeck}${s.commander ? " (" + s.commander + ")" : ""}, ${s.turns} Züge, ${s.opponentCards.length} Gegnerkarten gesehen`);
   buildWeb();
 }

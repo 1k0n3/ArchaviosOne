@@ -10,14 +10,15 @@
 <meta name="theme-color" content="#0b0e18">
 <link rel="stylesheet" href="app.css">
 <script src="data.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </head>
 <body>
 <script>
 App.load().then((D) => {
-  const A = App;
+  const A = App, T = A.t;
   A.shell("index.html", `
-    <div class="topbar"><div><h1>Übersicht</h1><div class="sub">Siege, Decks und Form auf einen Blick</div></div>
+    <div class="topbar"><div><h1>${T("Übersicht")}</h1><div class="sub">${T("Siege, Decks und Form auf einen Blick")}</div></div>
       <div class="right filters">
         <div id="f-range"></div>
         <div id="f-format"></div>
@@ -26,27 +27,27 @@ App.load().then((D) => {
     <div class="hero" id="hero"></div>
     <div class="tiles" id="tiles" style="margin-top:14px"></div>
     <div class="grid c2" style="margin-top:14px">
-      <div class="panel"><h3>Winrate-Verlauf <span class="muted small" style="text-transform:none;letter-spacing:0">gleitend über 10 Matches</span></h3><div id="chart-trend"></div></div>
-      <div class="panel"><h3>Matches pro Tag</h3><div id="chart-days"></div></div>
-      <div class="panel"><h3>Spiellänge in Zügen</h3><div id="chart-turns"></div></div>
-      <div class="panel"><h3>Spielbeginn</h3><div class="stat-split" id="playdraw"></div><div id="rate-time" style="margin-top:12px"></div></div>
-      <div class="panel"><h3>Winrate pro Deck</h3><div id="rate-decks"></div></div>
-      <div class="panel"><h3>Winrate nach Format &amp; Gegner-Plattform</h3><div id="rate-format"></div><div id="rate-platform" style="margin-top:10px"></div></div>
+      <div class="panel"><h3>${T("Winrate-Verlauf")} <span class="muted small" style="text-transform:none;letter-spacing:0">${T("gleitend über 10 Matches")}</span></h3><div id="chart-trend"></div></div>
+      <div class="panel"><h3>${T("Matches pro Tag")}</h3><div id="chart-days"></div></div>
+      <div class="panel"><h3>${T("Spiellänge in Zügen")}</h3><div id="chart-turns"></div></div>
+      <div class="panel"><h3>${T("Spielbeginn")}</h3><div class="stat-split" id="playdraw"></div><div id="rate-time" style="margin-top:12px"></div></div>
+      <div class="panel"><h3>${T("Winrate pro Deck")}</h3><div id="rate-decks"></div></div>
+      <div class="panel"><h3>${T("Winrate nach Format & Gegner-Plattform")}</h3><div id="rate-format"></div><div id="rate-platform" style="margin-top:10px"></div></div>
     </div>
-    <h2>Letzte Matches <a href="matches.html">alle anzeigen →</a></h2>
-    <div class="panel" style="padding:6px 8px"><table id="recent"><thead><tr><th>Wann</th><th>Ergebnis</th><th>Deck</th><th>Gegner</th><th>Event</th><th>Züge</th><th>Dauer</th><th></th></tr></thead><tbody></tbody></table></div>
+    <h2>${T("Letzte Matches")} <a href="matches.html">${T("alle anzeigen →")}</a></h2>
+    <div class="panel" style="padding:6px 8px"><table id="recent"><thead><tr><th>${T("Wann")}</th><th>${T("Ergebnis")}</th><th>${T("Deck")}</th><th>${T("Gegner")}</th><th>${T("Event")}</th><th>${T("Züge")}</th><th>${T("Dauer")}</th><th></th></tr></thead><tbody></tbody></table></div>
   `);
   let range = 30;
   const FI = A.FI, rerender = () => render();
-  const fRange = A.dropdown(A.$("#f-range"), { title: "Zeitraum", value: "30", defaultValue: "30", onChange: (v) => { range = +v; render(); }, items: [
-    { v: "7", label: "Letzte 7 Tage", short: "7 Tage", icon: FI.calendar }, { v: "30", label: "Letzte 30 Tage", short: "30 Tage", icon: FI.calendar }, { v: "90", label: "Letzte 90 Tage", short: "90 Tage", icon: FI.calendar }, { v: "0", label: "Alle Matches", short: "Alle", icon: FI.all }] });
-  const fFormat = A.dropdown(A.$("#f-format"), { title: "Format", onChange: rerender, items: [{ v: "", label: "Alle Formate", short: "Format", icon: FI.set }, ...[...new Set(D.matches.map((m) => m.format).filter(Boolean))].sort().map((f) => ({ v: f, label: f, icon: FI.set }))] });
-  const fDeck = A.dropdown(A.$("#f-deck"), { title: "Deck", searchable: true, onChange: rerender, items: [{ v: "", label: "Alle Decks", short: "Deck", icon: FI.deck }, ...[...new Set(D.matches.map(A.deckLabel))].sort().map((d) => ({ v: d, label: d, icon: FI.deck }))] });
+  const fRange = A.dropdown(A.$("#f-range"), { title: T("Zeitraum"), value: "30", defaultValue: "30", onChange: (v) => { range = +v; render(); }, items: [
+    { v: "7", label: T("Letzte 7 Tage"), short: T("7 Tage"), icon: FI.calendar }, { v: "30", label: T("Letzte 30 Tage"), short: T("30 Tage"), icon: FI.calendar }, { v: "90", label: T("Letzte 90 Tage"), short: T("90 Tage"), icon: FI.calendar }, { v: "0", label: T("Alle Matches"), short: T("Alle"), icon: FI.all }] });
+  const fFormat = A.dropdown(A.$("#f-format"), { title: T("Format"), onChange: rerender, items: [{ v: "", label: T("Alle Formate"), short: T("Format"), icon: FI.set }, ...[...new Set(D.matches.map((m) => m.format).filter(Boolean))].sort().map((f) => ({ v: f, label: f, icon: FI.set }))] });
+  const fDeck = A.dropdown(A.$("#f-deck"), { title: T("Deck"), searchable: true, onChange: rerender, items: [{ v: "", label: T("Alle Decks"), short: T("Deck"), icon: FI.deck }, ...[...new Set(D.matches.map(A.deckLabel))].sort().map((d) => ({ v: d, label: d, icon: FI.deck }))] });
 
   const isW = (m) => m.result === "Sieg", isL = (m) => m.result === "Niederlage";
-  const matchLine = (m) => `<div class="row"><span class="${isW(m) ? "dotw" : "dotl"}"></span>${A.fmtTime(m.start)} ${A.esc(m.result)} vs <b>${A.esc(m.opponent)}</b> <span class="muted">(${A.esc(m.myDeck)}, ${m.turns} Züge)</span></div>`;
+  const matchLine = (m) => `<div class="row"><span class="${isW(m) ? "dotw" : "dotl"}"></span>${A.fmtTime(m.start)} ${A.esc(T(m.result))} vs <b>${A.esc(m.opponent)}</b> <span class="muted">(${A.esc(m.myDeck)}, ${m.turns} ${T("Züge")})</span></div>`;
   const rateOf = (map, tileFn) => [...map.entries()].map(([label, ms]) => ({ label, tile: tileFn ? tileFn(ms[0]) : undefined, w: ms.filter(isW).length, l: ms.filter(isL).length,
-    tipHtml: `<b>${A.esc(label)}</b><br>${ms.filter(isW).length} Siege, ${ms.filter(isL).length} Niederlagen · Ø ${(ms.reduce((s, m) => s + m.turns, 0) / ms.length).toFixed(1)} Züge<br><span class="muted">zuletzt ${A.relDate(Math.max(...ms.map((m) => m.start)))}</span>` }))
+    tipHtml: `<b>${A.esc(label)}</b><br>${T("{w} Siege, {l} Niederlagen", { w: ms.filter(isW).length, l: ms.filter(isL).length })} · Ø ${(ms.reduce((s, m) => s + m.turns, 0) / ms.length).toFixed(1)} ${T("Züge")}<br><span class="muted">${T("zuletzt {d}", { d: A.relDate(Math.max(...ms.map((m) => m.start))) })}</span>` }))
     .sort((a, b) => (b.w + b.l) - (a.w + a.l));
 
   function filtered() {
@@ -57,17 +58,17 @@ App.load().then((D) => {
     const list = filtered().sort((a, b) => b.start - a.start);
     const chrono = [...list].reverse();
     const s = A.stats(list);
-    const streak = (() => { let n = 0, t = list[0] && list[0].result; for (const m of list) { if (m.result === t) n++; else break; } return t ? `${n}× ${t} in Folge` : ""; })();
-    A.$("#hero").innerHTML = `${A.ring(s.rate)}<div><div class="title">${s.w} Siege · ${s.l} Niederlagen</div><div class="desc">${s.n} Matches ${range ? "in den letzten " + range + " Tagen" : "insgesamt"}${streak ? " · " + streak : ""}</div>
-      <div class="form">${list.slice(0, 15).reverse().map((m) => `<div class="d ${isW(m) ? "w" : isL(m) ? "l" : ""}" data-tip="${A.esc(`${A.fmtDate(m.start)} ${A.esc(m.result)} vs ${m.opponent} (${m.myDeck}, ${m.turns} Züge)`)}"></div>`).join("")}<span class="lbl">letzte ${Math.min(15, list.length)} Matches</span></div></div>`;
+    const streak = (() => { let n = 0, t = list[0] && list[0].result; for (const m of list) { if (m.result === t) n++; else break; } return t ? T("{n}× {r} in Folge", { n, r: T(t) }) : ""; })();
+    A.$("#hero").innerHTML = `${A.ring(s.rate)}<div><div class="title">${T("{w} Siege · {l} Niederlagen", { w: s.w, l: s.l })}</div><div class="desc">${T("{n} Matches", { n: s.n })} ${range ? T("in den letzten {n} Tagen", { n: range }) : T("insgesamt")}${streak ? " · " + streak : ""}</div>
+      <div class="form">${list.slice(0, 15).reverse().map((m) => `<div class="d ${isW(m) ? "w" : isL(m) ? "l" : ""}" data-tip="${A.esc(`${A.fmtDate(m.start)} ${A.esc(T(m.result))} vs ${m.opponent} (${m.myDeck}, ${m.turns} ${T("Züge")})`)}"></div>`).join("")}<span class="lbl">${T("letzte {n} Matches", { n: Math.min(15, list.length) })}</span></div></div>`;
     A.$$("#hero .form .d").forEach((d) => { d.addEventListener("mousemove", (ev) => A.tooltip(true, d.dataset.tip, ev)); d.addEventListener("mouseleave", () => A.tooltip(false)); });
 
     const onPlay = list.filter((m) => m.onPlay === true), onDraw = list.filter((m) => m.onPlay === false);
     const sp = A.stats(onPlay), sd = A.stats(onDraw);
     A.$("#tiles").innerHTML = [
-      ["Matches", s.n, "", ""], ["Siege", s.w, "", "win"], ["Niederlagen", s.l, "", "loss"],
-      ["Winrate", Math.round(s.rate * 100) + " %", s.w + s.l ? `${s.w} von ${s.w + s.l}` : "", ""],
-      ["Ø Züge", s.avgTurns.toFixed(1), "", ""], ["Ø Dauer", s.n ? A.fmtDur(s.avgDur) : "–", "", ""]
+      [T("Matches"), s.n, "", ""], [T("Siege"), s.w, "", "win"], [T("Niederlagen"), s.l, "", "loss"],
+      [T("Winrate"), Math.round(s.rate * 100) + " %", s.w + s.l ? T("{n} von {m}", { n: s.w, m: s.w + s.l }) : "", ""],
+      [T("Ø Züge"), s.avgTurns.toFixed(1), "", ""], [T("Ø Dauer"), s.n ? A.fmtDur(s.avgDur) : "–", "", ""]
     ].map(([l, v, sub, cls]) => `<div class="tile ${cls}"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${sub}</div></div>`).join("");
 
     // Verlauf: gleitende Winrate über 10 Matches
@@ -76,29 +77,29 @@ App.load().then((D) => {
       const slice = chrono.slice(Math.max(0, i - win + 1), i + 1);
       const w = slice.filter(isW).length, l = slice.filter(isL).length;
       return { y: w + l ? w / (w + l) : 0.5, mark: isW(m) ? "win" : isL(m) ? "loss" : "", label: A.fmtDate(m.start).slice(0, 5),
-        html: `<b>${A.fmtDate(m.start)} ${A.fmtTime(m.start)}</b> · ${A.esc(m.result)} vs ${A.esc(m.opponent)}<br>${A.esc(A.deckLabel(m))}<br>Winrate der letzten ${slice.length}: <b>${Math.round(100 * w / Math.max(1, w + l))} %</b> (${w}-${l})` };
+        html: `<b>${A.fmtDate(m.start)} ${A.fmtTime(m.start)}</b> · ${A.esc(T(m.result))} vs ${A.esc(m.opponent)}<br>${A.esc(A.deckLabel(m))}<br>${T("Winrate der letzten {n}", { n: slice.length })}: <b>${Math.round(100 * w / Math.max(1, w + l))} %</b> (${w}-${l})` };
     });
-    A.lineChart(A.$("#chart-trend"), pts, { label: "Winrate-Verlauf" });
+    A.lineChart(A.$("#chart-trend"), pts, { label: T("Winrate-Verlauf") });
 
     // pro Tag
     const byDay = A.groupBy(list, (m) => A.fmtDate(m.start));
     const days = [...byDay.entries()].sort((a, b) => a[1][0].start - b[1][0].start).map(([d, ms]) => ({
       label: d.slice(0, 5), title: d, w: ms.filter(isW).length, l: ms.filter(isL).length,
-      html: `<b>${d}</b> · ${ms.length} Matches, ${ms.filter(isW).length}-${ms.filter(isL).length}<br>${[...ms].sort((a, b) => a.start - b.start).map(matchLine).join("")}`
+      html: `<b>${d}</b> · ${T("{n} Matches", { n: ms.length })}, ${ms.filter(isW).length}-${ms.filter(isL).length}<br>${[...ms].sort((a, b) => a.start - b.start).map(matchLine).join("")}`
     }));
-    A.stackedBars(A.$("#chart-days"), days.slice(-31), { label: "Matches pro Tag" });
+    A.stackedBars(A.$("#chart-days"), days.slice(-31), { label: T("Matches pro Tag") });
 
     // Spiellänge
     const buckets = [["1–5", 1, 5], ["6–8", 6, 8], ["9–11", 9, 11], ["12–15", 12, 15], ["16+", 16, 999]];
     A.stackedBars(A.$("#chart-turns"), buckets.map(([label, lo, hi]) => { const ms = list.filter((m) => m.turns >= lo && m.turns <= hi); return {
-      label, title: label + " Züge", w: ms.filter(isW).length, l: ms.filter(isL).length,
-      html: `<b>${label} Züge</b> · ${ms.length} Matches${ms.length ? `, Winrate ${Math.round(100 * ms.filter(isW).length / Math.max(1, ms.filter(isW).length + ms.filter(isL).length))} %` : ""}<br>${[...ms].sort((a, b) => b.start - a.start).slice(0, 6).map(matchLine).join("")}${ms.length > 6 ? `<div class="muted">… und ${ms.length - 6} weitere</div>` : ""}` }; }), { label: "Spiellänge", height: 190 });
+      label, title: label + " " + T("Züge"), w: ms.filter(isW).length, l: ms.filter(isL).length,
+      html: `<b>${label} ${T("Züge")}</b> · ${T("{n} Matches", { n: ms.length })}${ms.length ? `, ${T("Winrate")} ${Math.round(100 * ms.filter(isW).length / Math.max(1, ms.filter(isW).length + ms.filter(isL).length))} %` : ""}<br>${[...ms].sort((a, b) => b.start - a.start).slice(0, 6).map(matchLine).join("")}${ms.length > 6 ? `<div class="muted">+${ms.length - 6}</div>` : ""}` }; }), { label: T("Spiellänge"), height: 190 });
 
     // Spielbeginn
-    A.$("#playdraw").innerHTML = [["Ich beginne", sp], ["Gegner beginnt", sd]].map(([k, x]) => `<div class="box"><div class="k">${k}</div><div class="v">${x.n ? Math.round(x.rate * 100) + " %" : "–"}</div><div class="s">${x.w} Siege · ${x.l} Niederlagen</div></div>`).join("");
+    A.$("#playdraw").innerHTML = [[T("Ich beginne"), sp], [T("Gegner beginnt"), sd]].map(([k, x]) => `<div class="box"><div class="k">${k}</div><div class="v">${x.n ? Math.round(x.rate * 100) + " %" : "–"}</div><div class="s">${T("{w} Siege · {l} Niederlagen", { w: x.w, l: x.l })}</div></div>`).join("");
     const hourOf = (m) => new Date(m.start).getHours();
-    const slots = [["Morgen (6–12)", 6, 12], ["Nachmittag (12–18)", 12, 18], ["Abend (18–24)", 18, 24], ["Nacht (0–6)", 0, 6]];
-    A.rateRows(A.$("#rate-time"), slots.map(([label, lo, hi]) => { const ms = list.filter((m) => hourOf(m) >= lo && hourOf(m) < hi); return { label, w: ms.filter(isW).length, l: ms.filter(isL).length, tipHtml: `<b>${label}</b><br>${ms.length} Matches` }; }).filter((r) => r.w + r.l));
+    const slots = [[T("Morgen (6–12)"), 6, 12], [T("Nachmittag (12–18)"), 12, 18], [T("Abend (18–24)"), 18, 24], [T("Nacht (0–6)"), 0, 6]];
+    A.rateRows(A.$("#rate-time"), slots.map(([label, lo, hi]) => { const ms = list.filter((m) => hourOf(m) >= lo && hourOf(m) < hi); return { label, w: ms.filter(isW).length, l: ms.filter(isL).length, tipHtml: `<b>${label}</b><br>${T("{n} Matches", { n: ms.length })}` }; }).filter((r) => r.w + r.l));
 
     A.rateRows(A.$("#rate-decks"), rateOf(A.groupBy(list, A.deckLabel), (m) => m.tile), { link: (r) => "decks.html?deck=" + encodeURIComponent(r.label) });
     A.rateRows(A.$("#rate-format"), rateOf(A.groupBy(list, (m) => m.format || A.eventLabel(m.eventId) || "?")));
@@ -106,8 +107,8 @@ App.load().then((D) => {
     A.$("#recent tbody").innerHTML = list.slice(0, 10).map((m) => `<tr class="clickable" onclick="location.href='replay.html?id=${m.matchId}'">
       <td>${A.relDate(m.start)}<div class="muted small">${A.fmtTime(m.start)}</div></td><td>${A.resultBadge(m.result)}<div class="muted small">${A.esc(m.reason)}</div></td>
       <td>${A.deckCell(m)}</td><td><b>${A.esc(m.opponent)}</b><div class="muted small">${A.esc(m.opponentPlatform)}</div></td>
-      <td>${A.esc(A.eventLabel(m.eventId))}</td><td>${m.turns}</td><td>${A.fmtDur(m.durationSec)}</td><td><a href="replay.html?id=${m.matchId}">Replay ▶</a></td></tr>`).join("") ||
-      `<tr><td colspan="8" class="empty">Keine Matches im Zeitraum</td></tr>`;
+      <td>${A.esc(A.eventLabel(m.eventId))}</td><td>${m.turns}</td><td>${A.fmtDur(m.durationSec)}</td><td><a href="replay.html?id=${m.matchId}">${T("Replay ▶")}</a></td></tr>`).join("") ||
+      `<tr><td colspan="8" class="empty">${T("Keine Matches im Zeitraum")}</td></tr>`;
     A.Art.bind(document.body);
   }
   render();

@@ -10,24 +10,25 @@
 <meta name="theme-color" content="#0b0e18">
 <link rel="stylesheet" href="app.css">
 <script src="data.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </head>
 <body>
 <script>
 App.load().then(async (D) => {
-  const A = App, FI = A.FI;
+  const A = App, FI = A.FI, T = A.t;
   A.shell("library.html", `
-    <div class="topbar"><div><h1>Kartenbibliothek</h1><div class="sub" id="sub">Alle Karten des Spiels mit Besitzstand</div></div>
+    <div class="topbar"><div><h1>${T("Kartenbibliothek")}</h1><div class="sub" id="sub">${T("Alle Karten des Spiels mit Besitzstand")}</div></div>
       <div class="right filters">
         <div id="f-set"></div>
         <div id="f-rar"></div>
         <div id="f-type"></div>
-        <div class="seg colors" id="f-colors" title="Farbe">${[["1", "w", "Weiß"], ["2", "u", "Blau"], ["3", "b", "Schwarz"], ["4", "r", "Rot"], ["5", "g", "Grün"], ["0", "c", "Farblos"]].map(([v, k, t]) => `<button data-v="${v}" title="${t}">${A.manaSymbol(k)}</button>`).join("")}</div>
+        <div class="seg colors" id="f-colors" title="${T("Farbe")}">${[["1", "w", "Weiß"], ["2", "u", "Blau"], ["3", "b", "Schwarz"], ["4", "r", "Rot"], ["5", "g", "Grün"], ["0", "c", "Farblos"]].map(([v, k, t]) => `<button data-v="${v}" title="${T(t)}">${A.manaSymbol(k)}</button>`).join("")}</div>
         <div id="f-own"></div>
         <div id="f-sort"></div>
-        <button type="button" class="reset" id="f-reset" title="Filter und Sortierung zurücksetzen">${A.FI.reset}</button>
+        <button type="button" class="reset" id="f-reset" title="${T("Filter und Sortierung zurücksetzen")}">${A.FI.reset}</button>
       </div></div>
-    <div class="lib-bar"><div id="f-q"></div><span class="count" id="count">lade …</span><div id="f-size"></div></div>
+    <div class="lib-bar"><div id="f-q"></div><span class="count" id="count">${T("lade …")}</span><div id="f-size"></div></div>
     <div class="cards lib" id="grid">${Array.from({ length: 36 }, () => '<div class="c sk"></div>').join("")}</div>
     <div class="empty" id="more"></div>
   `);
@@ -37,7 +38,7 @@ App.load().then(async (D) => {
     all = cards.cards;
   } catch (e) {
     A.$("#grid").innerHTML = "";
-    A.$("#count").textContent = "Bibliothek nicht verfügbar. Läuft der Watcher (Server)?";
+    A.$("#count").textContent = T("Bibliothek nicht verfügbar. Läuft der Watcher (Server)?");
     return;
   }
   // [grpId, name, set, nr, rarity, colors, types, artId, cmc, owned, cost, isToken, isRebalanced, isPrimary, frameFlags, power, toughness, text, typeLine]
@@ -59,22 +60,22 @@ App.load().then(async (D) => {
   // Filter: Suche, Set, Seltenheit, Typ, Farben, Besitz, Sortierung
   const params = new URLSearchParams(location.search);
   const rerender = () => render();
-  const fQ = A.searchBox(A.$("#f-q"), { placeholder: "Name suchen", value: params.get("q") || "", onInput: A.debounce(rerender, 160) });
-  const fSet = A.dropdown(A.$("#f-set"), { icon: FI.set, title: "Set", searchable: true, onChange: rerender, items: [{ v: "", label: "Alle Sets", short: "Set", icon: FI.set }, ...sets.map((s) => ({ v: s, label: s, short: s, title: A.setName(s), search: A.setName(s), icon: A.setIcon(s) }))] });
+  const fQ = A.searchBox(A.$("#f-q"), { placeholder: T("Name suchen"), value: params.get("q") || "", onInput: A.debounce(rerender, 160) });
+  const fSet = A.dropdown(A.$("#f-set"), { icon: FI.set, title: T("Set"), searchable: true, onChange: rerender, items: [{ v: "", label: T("Alle Sets"), short: T("Set"), icon: FI.set }, ...sets.map((s) => ({ v: s, label: s, short: s, title: A.setName(s), search: A.setName(s), icon: A.setIcon(s) }))] });
   A.$("#f-set").classList.add("sets");
   const gem = (c) => FI.gem(c);
-  const fRar = A.dropdown(A.$("#f-rar"), { title: "Seltenheit", onChange: rerender, items: [
-    { v: "", label: "Alle Seltenheiten", short: "Seltenheit", icon: gem("#8d95a8") }, { v: "2", label: "Common", icon: gem("#1f242e") }, { v: "3", label: "Uncommon", icon: gem("#b9c4cc") },
-    { v: "4", label: "Rare", icon: gem("#e0b654") }, { v: "5", label: "Mythic", icon: gem("#e8632a") }, { v: "1", label: "Standardland", icon: gem("#6e5a3c") }] });
-  const fType = A.dropdown(A.$("#f-type"), { title: "Kartentyp", onChange: rerender, items: [
-    { v: "", label: "Alle Typen", short: "Typ", icon: FI.all }, { v: "2", label: "Kreatur", icon: FI.creature }, { v: "4", label: "Spontanzauber", icon: FI.instant }, { v: "10", label: "Hexerei", icon: FI.sorcery },
-    { v: "3", label: "Verzauberung", icon: FI.enchantment }, { v: "1", label: "Artefakt", icon: FI.artifact }, { v: "8", label: "Planeswalker", icon: FI.planeswalker }, { v: "5", label: "Land", icon: FI.land }, { v: "14", label: "Schlacht", icon: FI.battle }] });
-  const fOwn = A.dropdown(A.$("#f-own"), { title: "Besitz", value: params.get("own") || "1", defaultValue: "1", onChange: rerender, items: [
-    { v: "1", label: "Im Besitz", icon: FI.check }, { v: "", label: "Alle Karten", short: "Alle", icon: FI.all }, { v: "0", label: "Fehlende", icon: FI.x }] });
-  const fSort = A.dropdown(A.$("#f-sort"), { title: "Sortierung", value: params.get("sort") || "name", onChange: rerender, items: [
-    { v: "name", label: "Name A–Z", short: "Name", icon: FI.az }, { v: "wins", label: "Meiste Siege", short: "Siege", icon: FI.trophy }, { v: "played", label: "Meist gespielt", short: "Gespielt", icon: FI.play },
-    { v: "decks", label: "Meist in Decks", short: "Decks", icon: FI.deck }, { v: "owned", label: "Meiste Exemplare", short: "Exemplare", icon: FI.copies }, { v: "cmc", label: "Manawert", short: "Mana", icon: FI.mana },
-    { v: "rarity", label: "Seltenheit", icon: gem("#e0b654") }, { v: "set", label: "Set und Nummer", short: "Set", icon: FI.set }] });
+  const fRar = A.dropdown(A.$("#f-rar"), { title: T("Seltenheit"), onChange: rerender, items: [
+    { v: "", label: T("Alle Seltenheiten"), short: T("Seltenheit"), icon: gem("#8d95a8") }, { v: "2", label: "Common", icon: gem("#1f242e") }, { v: "3", label: "Uncommon", icon: gem("#b9c4cc") },
+    { v: "4", label: "Rare", icon: gem("#e0b654") }, { v: "5", label: "Mythic", icon: gem("#e8632a") }, { v: "1", label: T("Standardland"), icon: gem("#6e5a3c") }] });
+  const fType = A.dropdown(A.$("#f-type"), { title: T("Kartentyp"), onChange: rerender, items: [
+    { v: "", label: T("Alle Typen"), short: T("Typ"), icon: FI.all }, { v: "2", label: T("Kreatur"), icon: FI.creature }, { v: "4", label: T("Spontanzauber"), icon: FI.instant }, { v: "10", label: T("Hexerei"), icon: FI.sorcery },
+    { v: "3", label: T("Verzauberung"), icon: FI.enchantment }, { v: "1", label: T("Artefakt"), icon: FI.artifact }, { v: "8", label: T("Planeswalker"), icon: FI.planeswalker }, { v: "5", label: T("Land"), icon: FI.land }, { v: "14", label: T("Schlacht"), icon: FI.battle }] });
+  const fOwn = A.dropdown(A.$("#f-own"), { title: T("Besitz"), value: params.get("own") || "1", defaultValue: "1", onChange: rerender, items: [
+    { v: "1", label: T("Im Besitz"), icon: FI.check }, { v: "", label: T("Alle Karten"), short: T("Alle"), icon: FI.all }, { v: "0", label: T("Fehlende"), icon: FI.x }] });
+  const fSort = A.dropdown(A.$("#f-sort"), { title: T("Sortierung"), value: params.get("sort") || "name", onChange: rerender, items: [
+    { v: "name", label: T("Name A–Z"), short: T("Name"), icon: FI.az }, { v: "wins", label: T("Meiste Siege"), short: T("Siege"), icon: FI.trophy }, { v: "played", label: T("Meist gespielt"), short: T("Gespielt"), icon: FI.play },
+    { v: "decks", label: T("Meist in Decks"), short: T("Decks"), icon: FI.deck }, { v: "owned", label: T("Meiste Exemplare"), short: T("Exemplare"), icon: FI.copies }, { v: "cmc", label: T("Manawert"), short: T("Mana"), icon: FI.mana },
+    { v: "rarity", label: T("Seltenheit"), icon: gem("#e0b654") }, { v: "set", label: T("Set und Nummer"), short: T("Set"), icon: FI.set }] });
   A.sizeSlider(A.$("#f-size"), A.$("#grid"));
   let colors = new Set(), page = 0;
   const PAGE = 120;
@@ -128,7 +129,7 @@ App.load().then(async (D) => {
     current = filtered(); page = 0;
     A.$("#f-reset").classList.toggle("show", !!(fQ.value || fSet.value || fRar.value || fType.value || colors.size || fOwn.value !== "1" || fSort.value !== "name"));
     const owned = current.filter((c) => c[9]).length, copies = current.reduce((s, c) => s + c[9], 0);
-    A.$("#count").textContent = `${current.length} Karten · ${owned} im Besitz (${copies} Exemplare) · ${sets.length} Sets`;
+    A.$("#count").textContent = T("{n} Karten · {o} im Besitz ({c} Exemplare) · {s} Sets", { n: current.length, o: owned, c: copies, s: sets.length });
     A.$("#grid").innerHTML = "";
     const p = new URLSearchParams();
     if (fQ.value) p.set("q", fQ.value); if (fOwn.value !== "1") p.set("own", fOwn.value); if (fSort.value !== "name") p.set("sort", fSort.value);
@@ -139,12 +140,12 @@ App.load().then(async (D) => {
     const slice = current.slice(page * PAGE, (page + 1) * PAGE);
     page++;
     const s = fSort.value;
-    const sx = (c) => { const x = useOf(c); if (s === "wins") return x.played ? `<span class="sx" title="${x.w} Siege in ${x.played} Matches">${FI.trophy}${x.w}</span>` : ""; if (s === "played") return x.played ? `<span class="sx" title="${x.played} Matches, ${x.casts}× gewirkt">${FI.play}${x.played}</span>` : ""; if (s === "decks") return x.decks ? `<span class="sx" title="in ${x.decks} Decks">${FI.deck}${x.decks}</span>` : ""; return ""; };
+    const sx = (c) => { const x = useOf(c); if (s === "wins") return x.played ? `<span class="sx" title="${T("{w} Siege in {n} Matches", { w: x.w, n: x.played })}">${FI.trophy}${x.w}</span>` : ""; if (s === "played") return x.played ? `<span class="sx" title="${T("{n} Matches, {c}× gewirkt", { n: x.played, c: x.casts })}">${FI.play}${x.played}</span>` : ""; if (s === "decks") return x.decks ? `<span class="sx" title="${T("in {n} Decks", { n: x.decks })}">${FI.deck}${x.decks}</span>` : ""; return ""; };
     A.$("#grid").insertAdjacentHTML("beforeend", slice.map((c) => A.cardTile(c[0], { dict, qty: 0, extra: `<span class="own ${c[9] ? "has" : ""}">${c[9] ? c[9] + "×" : "–"}</span><span class="cost">${A.esc(c[10])}</span>${sx(c)}`, cls: c[9] ? "" : "missing" })).join(""));
     A.Art.bind(A.$("#grid"));
     A.hoverPreview(A.$("#grid"), dict);
     A.cardLinks(A.$("#grid"), dict);
-    A.$("#more").innerHTML = page * PAGE < current.length ? `<button id="b-more">Weitere ${Math.min(PAGE, current.length - page * PAGE)} Karten laden (${current.length - page * PAGE} übrig)</button>` : (current.length ? "" : "Keine Karten gefunden");
+    A.$("#more").innerHTML = page * PAGE < current.length ? `<button id="b-more">${T("Weitere {n} Karten laden ({r} übrig)", { n: Math.min(PAGE, current.length - page * PAGE), r: current.length - page * PAGE })}</button>` : (current.length ? "" : T("Keine Karten gefunden"));
     const b = A.$("#b-more"); if (b) b.addEventListener("click", more);
   }
   // automatisch nachladen beim Scrollen

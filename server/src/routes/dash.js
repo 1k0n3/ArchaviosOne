@@ -32,7 +32,7 @@ module.exports = async function dashRoutes(app) {
       sendFile(reply, f);
     });
     app.get(`${prefix}/card-img/:grpId`, async (req, reply) => {
-      const url = cards.cardImageUrl(+req.params.grpId, req.query.v === "small" ? "small" : req.query.v === "large" ? "large" : "normal");
+      const url = await cards.cardImageUrl(+req.params.grpId, req.query.v === "small" ? "small" : req.query.v === "large" ? "large" : "normal");
       if (!url) return reply.code(404).send("");
       reply.header("Cache-Control", "public, max-age=86400").redirect(url);
     });
@@ -51,7 +51,7 @@ module.exports = async function dashRoutes(app) {
 
   // Kartenbilder auch ohne Präfix (Startseite, Profil, Deck-Listen)
   app.get("/card-img/:grpId", async (req, reply) => {
-    const url = cards.cardImageUrl(+req.params.grpId, req.query.v === "small" ? "small" : req.query.v === "large" ? "large" : "normal");
+    const url = await cards.cardImageUrl(+req.params.grpId, req.query.v === "small" ? "small" : req.query.v === "large" ? "large" : "normal");
     if (!url) return reply.code(404).send("");
     reply.header("Cache-Control", "public, max-age=86400").redirect(url);
   });

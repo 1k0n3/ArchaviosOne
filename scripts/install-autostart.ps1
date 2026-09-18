@@ -45,9 +45,10 @@ if ($Elevated -and -not $isAdmin) {
   exit 0
 }
 
-$psExe = (Get-Command powershell.exe).Source
+# Start über wscript + hidden.vbs: kein sichtbares Konsolenfenster beim Anmelden
+$psExe = (Get-Command wscript.exe).Source
 $tray = Join-Path $root "scripts\tray.ps1"
-$arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$tray`""
+$arguments = "`"$(Join-Path $root 'scripts\hidden.vbs')`" `"$tray`""
 
 $action = New-ScheduledTaskAction -Execute $psExe -Argument $arguments -WorkingDirectory $dir
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME

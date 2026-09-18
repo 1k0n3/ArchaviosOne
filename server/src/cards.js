@@ -95,19 +95,54 @@ function libraryRow(row, owned) {
   return [row.arena_id, row.name, row.set_code.toUpperCase(), row.collector, isBasic(row) ? 1 : (RARITY_IDS[row.rarity] || 0), colorIds(row.colors).join(","), typeIds(row.type_line).join(","), 0, cmcOf(row.mana_cost), owned || 0, row.mana_cost || "", token, 0, 1, /Legendary/.test(row.type_line || "") ? "L" : "", row.power || "", row.toughness || "", row.oracle_text || "", row.type_line || ""];
 }
 const cardRow = (arenaId) => db.get("SELECT * FROM cards WHERE arena_id = ?", arenaId) || null;
+const tokenRow = (arenaId) => db.get("SELECT * FROM tokens WHERE arena_id = ?", arenaId) || null;
+/** Wörterbuch-Eintrag für einen Token (Farben/Typen kommen als Arena-Zahlen vom Companion) */
+const tokenEntry = (t) => [t.name, t.set_code.toUpperCase(), t.collector, "Token", 1, 0, t.colors || "", t.type_line ? "" : "", /Legendary/.test(t.type_line || "") ? "L" : "", t.power || "", t.toughness || "", t.oracle_text || "", t.type_line || "", ""];
 function cardsDict(ids) {
   const out = {};
-  for (const g of new Set(ids)) { const r = cardRow(g); if (r) out[g] = dictEntry(r); }
+  for (const g of new Set(ids)) { const r = cardRow(g); if (r) { out[g] = dictEntry(r); continue; } const t = tokenRow(g); if (t) out[g] = tokenEntry(t); }
   return out;
+}
+/** Token-Bild über das Scryfall-Token-Set auflösen (t<set>/<nr>, Name prüfen; sonst Name im Token-Set); Ergebnis wird gemerkt */
+const tokenInflight = new Map();
+async function resolveToken(t) {
+  if (t.image_uris) return JSON.parse(t.image_uris);
+  if (t.failed_at && Date.now() - Date.parse(t.failed_at) < 7 * 86400000) return null;
+  if (tokenInflight.has(t.arena_id)) return tokenInflight.get(t.arena_id);
+  const job = (async () => {
+    const tset = "t" + t.set_code;
+    let card = null;
+    const q = encodeURIComponent(`!"${t.name}" t:token`);
+    for (const url of [`https://api.scryfall.com/cards/${tset}/${encodeURIComponent(t.collector)}`, `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(t.name)}&set=${tset}`, `https://api.scryfall.com/cards/search?q=${q}+set%3A${tset}&unique=prints`, `https://api.scryfall.com/cards/search?q=${q}&unique=prints&order=released`]) {
+      try {
+        const r = await sfFetch(url);
+        if (!r.ok) continue;
+        let j = await r.json();
+        if (j.object === "list") j = (j.data || [])[0];                      // Suchergebnis: bestes Ergebnis nehmen
+        if (!j) continue;
+        const sameName = (j.name || "").toLowerCase() === t.name.toLowerCase();
+        if (!sameName) continue;                                            // andere Nummerierung oder andere Karte
+        if (!/Token|Emblem|Card/.test(j.type_line || "")) continue;          // normale Karte gleichen Namens
+        card = j; break;
+      } catch (e) { /* nächster Versuch */ }
+    }
+    const uris = card && (card.image_uris || (card.card_faces && card.card_faces[0].image_uris)) || null;
+    if (uris) db.run("UPDATE tokens SET scryfall_id = ?, image_uris = ?, resolved_at = ? WHERE arena_id = ?", card.id, JSON.stringify({ small: uris.small, normal: uris.normal, large: uris.large }), db.now(), t.arena_id);
+    else db.run("UPDATE tokens SET failed_at = ? WHERE arena_id = ?", db.now(), t.arena_id);
+    return uris ? { small: uris.small, normal: uris.normal, large: uris.large } : null;
+  })().finally(() => tokenInflight.delete(t.arena_id));
+  tokenInflight.set(t.arena_id, job);
+  return job;
 }
 const setNames = () => Object.fromEntries(db.all("SELECT code, name FROM card_sets").map((r) => [r.code, r.name]));
 
 // ---- Bilder: nichts wird gespeichert, nur der Scryfall-Link aus der Kartentabelle (302-Weiterleitung) -----
 const CARD_BACK = "https://backs.scryfall.io/normal/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg";
-function cardImageUrl(arenaId, version = "normal") {
+async function cardImageUrl(arenaId, version = "normal") {
   const row = cardRow(arenaId);
-  if (!row || !row.image_uris) return null;
-  const uris = JSON.parse(row.image_uris);
+  let uris = row && row.image_uris ? JSON.parse(row.image_uris) : null;
+  if (!uris) { const t = tokenRow(arenaId); if (t) uris = await resolveToken(t); }
+  if (!uris) return null;
   return uris[version] || uris.normal || null;
 }
 const cardBackUrl = () => CARD_BACK;

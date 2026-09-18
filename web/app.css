@@ -40,6 +40,9 @@ h2 a { font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: 60
 .side-nav .player .n { font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .side-nav .player .s { font-size: 11px; color: var(--ink-3); }
 .side-nav .foot { font-size: 11px; color: var(--ink-3); padding: 8px 12px 0; }
+.side-nav .lang { display: block; padding: 6px 12px 0; }
+.side-nav .lang select { width: 100%; font: inherit; font-size: 12px; color: var(--ink-2); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; cursor: pointer; }
+.side-nav .lang select:hover { color: var(--ink); border-color: var(--ink-3); }
 .content { min-width: 0; padding: 22px 28px 60px; max-width: 1500px; }
 .topbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
 .topbar .sub { color: var(--ink-3); font-size: 13px; }

@@ -10,48 +10,49 @@
 <meta name="theme-color" content="#0b0e18">
 <link rel="stylesheet" href="app.css">
 <script src="data.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </head>
 <body>
 <script>
 App.load().then((D) => {
-  const A = App;
+  const A = App, T = A.t;
   A.shell("matches.html", `
-    <div class="topbar"><div><h1>Matches</h1><div class="sub" id="count"></div></div>
+    <div class="topbar"><div><h1>${T("Matches")}</h1><div class="sub" id="count"></div></div>
       <div class="right filters">
         <div id="f-opp"></div>
         <div id="f-result"></div>
         <div id="f-deck"></div>
       </div></div>
-    <div class="panel" style="padding:6px 8px"><table id="tbl"><thead><tr><th>Wann</th><th>Ergebnis</th><th>Deck</th><th>Gegner</th><th>Event</th><th>Züge</th><th>Dauer</th><th>Beginn</th><th>Gegnerkarten</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="panel" style="padding:6px 8px"><table id="tbl"><thead><tr><th>${T("Wann")}</th><th>${T("Ergebnis")}</th><th>${T("Deck")}</th><th>${T("Gegner")}</th><th>${T("Event")}</th><th>${T("Züge")}</th><th>${T("Dauer")}</th><th>${T("Beginn")}</th><th>${T("Gegnerkarten")}</th><th></th></tr></thead><tbody></tbody></table></div>
   `);
   let result = "";
   const FI = A.FI, rerender = () => render();
-  const fOpp = A.searchBox(A.$("#f-opp"), { placeholder: "Gegner suchen", onInput: A.debounce(rerender, 150) });
-  A.dropdown(A.$("#f-result"), { title: "Ergebnis", onChange: (v) => { result = v; render(); }, items: [{ v: "", label: "Alle Ergebnisse", short: "Alle", icon: FI.swords }, { v: "Sieg", label: "Nur Siege", short: "Siege", icon: FI.trophy }, { v: "Niederlage", label: "Nur Niederlagen", short: "Niederlagen", icon: FI.x }] });
-  const fDeck = A.dropdown(A.$("#f-deck"), { title: "Deck", searchable: true, value: A.param("deck") || "", onChange: rerender, items: [{ v: "", label: "Alle Decks", short: "Deck", icon: FI.deck }, ...[...new Set(D.matches.map(A.deckLabel))].sort().map((d) => ({ v: d, label: d, icon: FI.deck }))] });
+  const fOpp = A.searchBox(A.$("#f-opp"), { placeholder: T("Gegner suchen"), onInput: A.debounce(rerender, 150) });
+  A.dropdown(A.$("#f-result"), { title: T("Ergebnis"), onChange: (v) => { result = v; render(); }, items: [{ v: "", label: T("Alle Ergebnisse"), short: T("Alle"), icon: FI.swords }, { v: "Sieg", label: T("Nur Siege"), short: T("Siege"), icon: FI.trophy }, { v: "Niederlage", label: T("Nur Niederlagen"), short: T("Niederlagen"), icon: FI.x }] });
+  const fDeck = A.dropdown(A.$("#f-deck"), { title: T("Deck"), searchable: true, value: A.param("deck") || "", onChange: rerender, items: [{ v: "", label: T("Alle Decks"), short: T("Deck"), icon: FI.deck }, ...[...new Set(D.matches.map(A.deckLabel))].sort().map((d) => ({ v: d, label: d, icon: FI.deck }))] });
 
   function oppCards(m) {
     const cards = (m.opponentCards || []).map((c) => ({ c, k: A.card(c.grpId) })).filter((x) => !x.k.token).sort((a, b) => a.k.name.localeCompare(b.k.name));
-    if (!cards.length) return `<span class="muted">keine</span>`;
+    if (!cards.length) return `<span class="muted">${T("keine")}</span>`;
     const text = cards.map((x) => `${x.c.count} ${x.k.name} (${x.k.set}) ${x.k.nr}`).join("\n");
-    return `<details><summary>${cards.length} Karten</summary><div class="opp-cards">${cards.map((x) => `<div><span style="color:var(--gold);font-weight:700">${x.c.count}</span> ${A.esc(x.k.name)} <span class="muted small">${A.esc(x.k.set)}</span></div>`).join("")}</div>
-      <button class="ghost small" style="margin-top:6px" onclick="navigator.clipboard.writeText(${JSON.stringify(text).replace(/"/g, "&quot;")});this.textContent='Kopiert ✓'">Als Text kopieren</button></details>`;
+    return `<details><summary>${T("{n} Karten", { n: cards.length })}</summary><div class="opp-cards">${cards.map((x) => `<div><span style="color:var(--gold);font-weight:700">${x.c.count}</span> ${A.esc(x.k.name)} <span class="muted small">${A.esc(x.k.set)}</span></div>`).join("")}</div>
+      <button class="ghost small" style="margin-top:6px" onclick="navigator.clipboard.writeText(${JSON.stringify(text).replace(/"/g, "&quot;")});this.textContent='${T("Kopiert ✓")}'">${T("Als Text kopieren")}</button></details>`;
   }
   function render() {
     const q = fOpp.value.trim().toLowerCase();
     const list = D.matches.filter((m) => (!result || m.result === result) && (!fDeck.value || A.deckLabel(m) === fDeck.value) && (!q || (m.opponent || "").toLowerCase().includes(q))).sort((a, b) => b.start - a.start);
     const s = A.stats(list);
-    A.$("#count").textContent = `${s.n} Matches · ${s.w} Siege · ${s.l} Niederlagen · ${Math.round(s.rate * 100)} % Winrate`;
+    A.$("#count").textContent = `${T("{n} Matches", { n: s.n })} · ${T("{w} Siege · {l} Niederlagen", { w: s.w, l: s.l })} · ${Math.round(s.rate * 100)} % ${T("Winrate")}`;
     A.$("#tbl tbody").innerHTML = list.map((m) => `<tr>
       <td>${A.fmtDate(m.start)}<div class="muted small">${A.fmtTime(m.start)}</div></td>
       <td>${A.resultBadge(m.result)}<div class="muted small">${A.esc(m.reason)}</div></td>
       <td>${A.deckCell(m)}</td>
       <td><b>${A.esc(m.opponent)}</b><div class="muted small">${A.esc(m.opponentPlatform)}</div></td>
       <td>${A.esc(A.eventLabel(m.eventId))}<div class="muted small">${A.esc(m.format)}</div></td>
-      <td>${m.turns}</td><td>${A.fmtDur(m.durationSec)}</td><td>${m.onPlay === null ? "" : (m.onPlay ? "ich" : "Gegner")}</td>
+      <td>${m.turns}</td><td>${A.fmtDur(m.durationSec)}</td><td>${m.onPlay === null ? "" : (m.onPlay ? T("ich") : T("Gegner"))}</td>
       <td>${oppCards(m)}</td>
-      <td><a href="replay.html?id=${m.matchId}">Replay ▶</a></td></tr>`).join("") || `<tr><td colspan="10" class="empty">Keine Matches</td></tr>`;
+      <td><a href="replay.html?id=${m.matchId}">${T("Replay ▶")}</a></td></tr>`).join("") || `<tr><td colspan="10" class="empty">${T("Keine Matches")}</td></tr>`;
     A.Art.bind(A.$("#tbl"));
   }
   render();

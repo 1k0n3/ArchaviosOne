@@ -91,7 +91,7 @@ function Open-Dashboard {
   if (-not (Test-WatcherRunning)) { Start-Watcher; Start-Sleep -Milliseconds 1500 }
   # Als eigenständiges App-Fenster (Chrome/Edge im App-Modus), sonst im Standardbrowser
   $app = Join-Path $script:dir "scriptsopen-app.ps1"
-  if (Test-Path $app) { Start-Process powershell -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$app`" -Port $(Get-ConfigValue "webPort" 8765)" }
+  if (Test-Path $app) { Start-Process wscript.exe -ArgumentList "`"$(Join-Path $script:dir 'scripts\hidden.vbs')`" `"$app`" -Port $(Get-ConfigValue "webPort" 8765)" }
   else { Start-Process (Get-DashboardUrl) }
 }
 
@@ -247,6 +247,17 @@ $script:miOpenLog = Add-Item "Protokoll öffnen" {
   if (Test-Path $l) { Start-Process notepad.exe $l } else { Show-Balloon "Noch kein Protokoll vorhanden." }
 }
 $script:miOpenCfg = Add-Item "Alle Einstellungen bearbeiten (JSON)" { Start-Process notepad.exe $script:configPath }
+# node ohne Konsolenfenster ausführen und die Ausgabe zurückgeben
+function Invoke-NodeHidden([string[]]$nodeArgs) {
+  $nodeExe = Get-NodePath
+  if (-not $nodeExe) { return "node.exe nicht gefunden" }
+  $tmp = [System.IO.Path]::GetTempFileName()
+  try {
+    $p = Start-Process -FilePath $nodeExe -ArgumentList $nodeArgs -WorkingDirectory $script:dir -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput $tmp -RedirectStandardError ($tmp + ".err")
+    $out = (Get-Content $tmp -Raw -ErrorAction SilentlyContinue) + (Get-Content ($tmp + ".err") -Raw -ErrorAction SilentlyContinue)
+    return [string]$out
+  } finally { Remove-Item $tmp, ($tmp + ".err") -Force -ErrorAction SilentlyContinue }
+}
 Add-Separator
 Add-Header "CLOUD-SYNC"
 $script:miConnect = Add-Item "Mit Website verbinden…" {
@@ -259,16 +270,16 @@ $script:miConnect = Add-Item "Mit Website verbinden…" {
   }
   $code = [Microsoft.VisualBasic.Interaction]::InputBox("Verbindungscode aus den Website-Einstellungen (Companion verbinden):", "MTGA Stats – Gerät verbinden", "")
   if (-not $code) { return }
-  $out = & node (Join-Path $script:dir "src\sync.js") connect $code.Trim() --url (Get-ConfigValue "syncUrl" "") 2>&1
-  Show-Balloon ([string]$out)
+  $out = Invoke-NodeHidden @("src\sync.js", "connect", $code.Trim(), "--url", (Get-ConfigValue "syncUrl" ""))
+  Show-Balloon ($out.Trim())
 }
 $script:miSyncNow = Add-Item "Jetzt synchronisieren" {
-  $out = & node (Join-Path $script:dir "src\sync.js") flush 2>&1
-  $st = & node (Join-Path $script:dir "src\sync.js") status 2>&1 | ConvertFrom-Json
+  Invoke-NodeHidden @("src\sync.js", "flush") | Out-Null
+  $st = (Invoke-NodeHidden @("src\sync.js", "status")) | ConvertFrom-Json
   if ($st.connected) { Show-Balloon ("Verbunden als " + $st.user.displayName + " · " + $st.queued + " wartend" + $(if ($st.lastError) { " · Fehler: " + $st.lastError } else { "" })) } else { Show-Balloon "Nicht mit einer Website verbunden." }
 }
 $script:miDisconnect = Add-Item "Verbindung trennen" {
-  & node (Join-Path $script:dir "src\sync.js") disconnect 2>&1 | Out-Null
+  Invoke-NodeHidden @("src\sync.js", "disconnect") | Out-Null
   Show-Balloon "Cloud-Sync getrennt."
 }
 Add-Separator

@@ -10,15 +10,16 @@
 <meta name="theme-color" content="#0b0e18">
 <link rel="stylesheet" href="app.css">
 <script src="data.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </head>
 <body>
 <script>
 App.load().then((D) => {
-  const A = App;
-  const ZONES = [["CommandZone", "Commander"], ["Companions", "Companion"], ["MainDeck", "Deck"], ["Sideboard", "Sideboard"]];
+  const A = App, T = A.t;
+  const ZONES = [["CommandZone", T("Commander")], ["Companions", T("Companion")], ["MainDeck", T("Deck")], ["Sideboard", T("Sideboard")]];
   A.shell("decks.html", `
-    <div class="topbar"><div><h1>Decks</h1><div class="sub" id="count"></div></div>
+    <div class="topbar"><div><h1>${T("Decks")}</h1><div class="sub" id="count"></div></div>
       <div class="right filters">
         <div id="f-q"></div>
         <div id="f-format"></div>
@@ -29,9 +30,9 @@ App.load().then((D) => {
   `);
   let onlyPlayed = false, current = null;
   const FI = A.FI, relist = () => renderList();
-  const fQ = A.searchBox(A.$("#f-q"), { placeholder: "Deck oder Karte suchen", onInput: A.debounce(relist, 150) });
-  const fFormat = A.dropdown(A.$("#f-format"), { title: "Format", onChange: relist, items: [{ v: "", label: "Alle Formate", short: "Format", icon: FI.set }, ...[...new Set(D.decks.map((d) => d.format).filter(Boolean))].sort().map((f) => ({ v: f, label: f, icon: FI.set }))] });
-  A.dropdown(A.$("#f-played"), { title: "Nutzung", onChange: (v) => { onlyPlayed = v === "1"; renderList(); }, items: [{ v: "0", label: "Alle Decks", short: "Alle", icon: FI.all }, { v: "1", label: "Nur gespielte", short: "Gespielte", icon: FI.play }] });
+  const fQ = A.searchBox(A.$("#f-q"), { placeholder: T("Deck oder Karte suchen"), onInput: A.debounce(relist, 150) });
+  const fFormat = A.dropdown(A.$("#f-format"), { title: T("Format"), onChange: relist, items: [{ v: "", label: T("Alle Formate"), short: T("Format"), icon: FI.set }, ...[...new Set(D.decks.map((d) => d.format).filter(Boolean))].sort().map((f) => ({ v: f, label: f, icon: FI.set }))] });
+  A.dropdown(A.$("#f-played"), { title: T("Nutzung"), onChange: (v) => { onlyPlayed = v === "1"; renderList(); }, items: [{ v: "0", label: T("Alle Decks"), short: T("Alle"), icon: FI.all }, { v: "1", label: T("Nur gespielte"), short: T("Gespielte"), icon: FI.play }] });
 
   const matchesOf = (d) => D.matches.filter((m) => (m.myDeckId && m.myDeckId === d.id) || (!m.myDeckId && m.myDeck === d.name));
   const commanderOf = (d) => (d.zones.CommandZone || []).map(([g]) => A.cardName(g)).join(", ");
@@ -48,15 +49,15 @@ App.load().then((D) => {
       if (label(d).toLowerCase().includes(q)) return true;
       return Object.values(d.zones).some((z) => z.some(([g]) => A.cardName(g).toLowerCase().includes(q)));
     }).sort((a, b) => (matchesOf(b).length - matchesOf(a).length) || (b.lastUpdated || "").localeCompare(a.lastUpdated || ""));
-    A.$("#count").textContent = `${list.length} von ${D.decks.length} Decks`;
+    A.$("#count").textContent = T("{n} von {m} Decks", { n: list.length, m: D.decks.length });
     A.$("#list").innerHTML = list.map((d) => {
       const s = A.stats(matchesOf(d));
       return A.deckBox(d, { cls: current === d.id ? "active" : "", sub: (commanderOf(d) || d.format || "") + (s.n ? ` · ${s.w}-${s.l}` : ""), badge: s.n ? `<span class="badge ${s.rate >= .5 ? "win" : "loss"} wr">${Math.round(s.rate * 100)} %</span>` : "" });
-    }).join("") || `<div class="empty">Keine Decks</div>`;
+    }).join("") || `<div class="empty">${T("Keine Decks")}</div>`;
     A.$$(".deckbox").forEach((el) => {
       el.addEventListener("click", () => { A.tooltip(false); current = el.dataset.id; renderList(); renderDetail(); window.scrollTo({ top: 0, behavior: "smooth" }); });
       const d = D.decks.find((x) => x.id === el.dataset.id);
-      el.addEventListener("mousemove", (ev) => { const s = A.stats(matchesOf(d)); A.tooltip(true, `<b>${A.esc(d.name)}</b><br>${A.esc(commanderOf(d) || "")}<br>${A.esc(d.format || "")} · ${cardCount(d)} Karten${s.n ? `<br>${s.w} Siege, ${s.l} Niederlagen (${Math.round(s.rate * 100)} %)` : "<br><span class='muted'>noch nicht gespielt</span>"}<br><span class="muted">geändert ${d.lastUpdated ? A.fmtDate(d.lastUpdated) : "?"}</span>`, ev); });
+      el.addEventListener("mousemove", (ev) => { const s = A.stats(matchesOf(d)); A.tooltip(true, `<b>${A.esc(d.name)}</b><br>${A.esc(commanderOf(d) || "")}<br>${A.esc(d.format || "")} · ${T("{n} Karten", { n: cardCount(d) })}${s.n ? `<br>${T("{w} Siege, {l} Niederlagen", { w: s.w, l: s.l })} (${Math.round(s.rate * 100)} %)` : `<br><span class='muted'>${T("noch nicht gespielt")}</span>`}<br><span class="muted">${T("geändert {d}", { d: d.lastUpdated ? A.fmtDate(d.lastUpdated) : "?" })}</span>`, ev); });
       el.addEventListener("mouseleave", () => A.tooltip(false));
     });
     A.Art.bind(A.$("#list"));
@@ -72,26 +73,26 @@ App.load().then((D) => {
     el.innerHTML = `<div class="deck-detail">
       <div class="deck-head">
         ${A.deckBox(d, { cls: "sm", sub: commanderOf(d) })}
-        <div class="info"><div class="t">${A.esc(d.name)}</div><div class="small muted">${A.esc(commanderOf(d))} · ${A.esc(d.format || "")} · ${cardCount(d)} Karten · zuletzt geändert ${d.lastUpdated ? A.fmtDate(d.lastUpdated) : "?"}${d.fromMatch ? " · Deckliste aus dem letzten Match" : ""}</div>
-          <div class="tiles stat-rows">${tile("Matches", s.n)}${tile("Siege", s.w, "win")}${tile("Niederlagen", s.l, "loss")}${tile("Winrate", s.n ? Math.round(s.rate * 100) + " %" : "–", s.n ? (s.rate >= .5 ? "win" : "loss") : "")}${tile("Ø Züge", s.n ? s.avgTurns.toFixed(1) : "–")}${tile("Ø Dauer", s.n ? A.fmtDur(s.avgDur) : "–")}</div></div>
-        <div class="deck-side"><div class="col export"><h3>Deckliste exportieren</h3>
-          <div class="export-actions"><button class="primary small" id="copy-exp" title="Arena-Importformat in die Zwischenablage">${A.FI.copies} Für Arena kopieren</button><button class="ghost small" id="save-exp" title="Als Textdatei herunterladen">${A.FI.download} Als .txt speichern</button></div>
-          <pre class="export collapsed" id="exp" title="Klick zum Auf- und Zuklappen">${A.esc(deckText(d))}</pre></div>
-        <div class="col matches"><h3>Matches mit diesem Deck</h3>
-          <table><tbody>${ms.slice(0, 6).map((m) => `<tr class="clickable" onclick="location.href='replay.html?id=${m.matchId}'"><td>${A.relDate(m.start)}</td><td>${A.resultBadge(m.result)}</td><td>${A.esc(m.opponent)}</td><td class="muted small">${m.turns} Züge</td></tr>`).join("") || `<tr><td class="muted">noch keine</td></tr>`}</tbody></table>
-          ${ms.length > 6 ? `<a class="small" href="matches.html?deck=${encodeURIComponent(label(d))}">alle ${ms.length} anzeigen →</a>` : ""}</div></div>
+        <div class="info"><div class="t">${A.esc(d.name)}</div><div class="small muted">${A.esc(commanderOf(d))} · ${A.esc(d.format || "")} · ${T("{n} Karten", { n: cardCount(d) })} · ${T("zuletzt geändert {d}", { d: d.lastUpdated ? A.fmtDate(d.lastUpdated) : "?" })}${d.fromMatch ? " · " + T("Deckliste aus dem letzten Match") : ""}</div>
+          <div class="tiles stat-rows">${tile(T("Matches"), s.n)}${tile(T("Siege"), s.w, "win")}${tile(T("Niederlagen"), s.l, "loss")}${tile(T("Winrate"), s.n ? Math.round(s.rate * 100) + " %" : "–", s.n ? (s.rate >= .5 ? "win" : "loss") : "")}${tile(T("Ø Züge"), s.n ? s.avgTurns.toFixed(1) : "–")}${tile(T("Ø Dauer"), s.n ? A.fmtDur(s.avgDur) : "–")}</div></div>
+        <div class="deck-side"><div class="col export"><h3>${T("Deckliste exportieren")}</h3>
+          <div class="export-actions"><button class="primary small" id="copy-exp" title="${T("Arena-Importformat in die Zwischenablage")}">${A.FI.copies} ${T("Für Arena kopieren")}</button><button class="ghost small" id="save-exp" title="${T("Als Textdatei herunterladen")}">${A.FI.download} ${T("Als .txt speichern")}</button></div>
+          <pre class="export collapsed" id="exp" title="${T("Klick zum Auf- und Zuklappen")}">${A.esc(deckText(d))}</pre></div>
+        <div class="col matches"><h3>${T("Matches mit diesem Deck")}</h3>
+          <table><tbody>${ms.slice(0, 6).map((m) => `<tr class="clickable" onclick="location.href='replay.html?id=${m.matchId}'"><td>${A.relDate(m.start)}</td><td>${A.resultBadge(m.result)}</td><td>${A.esc(m.opponent)}</td><td class="muted small">${m.turns} ${T("Züge")}</td></tr>`).join("") || `<tr><td class="muted">${T("noch keine")}</td></tr>`}</tbody></table>
+          ${ms.length > 6 ? `<a class="small" href="matches.html?deck=${encodeURIComponent(label(d))}">${T("alle {n} anzeigen →", { n: ms.length })}</a>` : ""}</div></div>
         ${A.deckStatsHtml(A.deckStats(d))}
         ${A.xButton("close")}
       </div>
-      <div class="deck-toolbar"><div id="d-q"></div><div id="d-set"></div><div class="seg colors" id="d-colors" title="Farbe"></div><div id="d-sort"></div><button type="button" class="reset" id="d-reset" title="Filter und Sortierung zurücksetzen">${A.FI.reset}</button><div id="d-size"></div><div class="seg" id="view"><button data-v="img" class="on" title="Kartenraster">${A.FI.all}</button><button data-v="list" title="Liste">${A.FI.sorcery}</button></div></div>
+      <div class="deck-toolbar"><div id="d-q"></div><div id="d-set"></div><div class="seg colors" id="d-colors" title="${T("Farbe")}"></div><div id="d-sort"></div><button type="button" class="reset" id="d-reset" title="${T("Filter und Sortierung zurücksetzen")}">${A.FI.reset}</button><div id="d-size"></div><div class="seg" id="view"><button data-v="img" class="on" title="${T("Kartenraster")}">${A.FI.all}</button><button data-v="list" title="${T("Liste")}">${A.FI.sorcery}</button></div></div>
       <div id="zones"></div></div>`;
     const expText = deckText(d);
-    A.$("#copy-exp").addEventListener("click", (ev) => { navigator.clipboard.writeText(expText); ev.currentTarget.innerHTML = A.FI.check + " Kopiert"; });
+    A.$("#copy-exp").addEventListener("click", (ev) => { navigator.clipboard.writeText(expText); ev.currentTarget.innerHTML = A.FI.check + " " + T("Kopiert"); });
     A.$("#save-exp").addEventListener("click", () => { const u = URL.createObjectURL(new Blob([expText], { type: "text/plain;charset=utf-8" })); const l = document.createElement("a"); l.href = u; l.download = d.name.replace(/[\/:*?"<>|]+/g, "_") + ".txt"; l.click(); setTimeout(() => URL.revokeObjectURL(u), 1000); });
     A.$("#exp").addEventListener("click", (ev) => { ev.currentTarget.classList.toggle("collapsed"); });
     const zonesEl = A.$("#zones");
     // Hauptdeck nach Typen: Kreaturen, Zaubersprüche, andere bleibende Karten, Länder
-    const TYPE_GROUPS = [["Kreaturen", (c) => c.types.includes(2)], ["Zaubersprüche", (c) => c.types.includes(4) || c.types.includes(10)], ["Bleibende Karten", (c) => !c.isLand], ["Länder", () => true]];
+    const TYPE_GROUPS = [[T("Kreaturen"), (c) => c.types.includes(2)], [T("Zaubersprüche"), (c) => c.types.includes(4) || c.types.includes(10)], [T("Bleibende Karten"), (c) => !c.isLand], [T("Länder"), () => true]];
     const sections = [];
     for (const [z, t] of ZONES) {
       const list = d.zones[z] || [];
@@ -140,11 +141,11 @@ App.load().then((D) => {
       const n = shown.reduce((s, [, q]) => s + q, 0);
       const cmdHtml = m === "img"
         ? cmd.map(([g]) => A.cardTile(g, { compact: false, cls: "cmdr" })).join("")
-        : cmd.map(([g]) => { const c = A.card(g); return `<div class="cardline cmd"><span class="q">★</span><span>${A.esc(c.name)}</span><span class="badge unk">Commander</span><span class="set" title="${A.esc(A.setName(c.set))}">${A.esc(c.set)} ${A.esc(c.nr)}</span></div>`; }).join("");
+        : cmd.map(([g]) => { const c = A.card(g); return `<div class="cardline cmd"><span class="q">★</span><span>${A.esc(c.name)}</span><span class="badge unk">${T("Commander")}</span><span class="set" title="${A.esc(A.setName(c.set))}">${A.esc(c.set)} ${A.esc(c.nr)}</span></div>`; }).join("");
       // Commander steht als normale erste Kachel im Raster; seine Überschrift ist genau so breit wie seine Kachel(n)
       const titles = cmd.length && m === "img"
-        ? `<div class="zone-titles"><div class="zone-title cmd" style="--n:${cmd.length}">Commander</div>${shown.length ? `<div class="zone-title">${t} · ${n}</div>` : ""}</div>`
-        : `<div class="zone-title">${cmd.length ? "Commander · " : ""}${t} · ${n}</div>`;
+        ? `<div class="zone-titles"><div class="zone-title cmd" style="--n:${cmd.length}">${T("Commander")}</div>${shown.length ? `<div class="zone-title">${t} · ${n}</div>` : ""}</div>`
+        : `<div class="zone-title">${cmd.length ? T("Commander") + " · " : ""}${t} · ${n}</div>`;
       return `<section class="zone-sec">${titles}` +
         (m === "img" ? `<div class="cards">${cmdHtml}${shown.map(([g, q]) => A.cardTile(g, { qty: q, compact: false })).join("")}</div>`
           : cmdHtml + shown.map(([g, q]) => { const c = A.card(g); return `<div class="cardline"><span class="q">${q}</span><span>${A.esc(c.name)}</span><span class="set" title="${A.esc(A.setName(c.set))}">${A.esc(c.set)} ${A.esc(c.nr)}</span></div>`; }).join("")) + "</section>";
@@ -153,22 +154,22 @@ App.load().then((D) => {
     const draw = () => {
       A.$("#d-reset").classList.toggle("show", !!(q || setF || colorsF.size || sortBy !== "cmc"));
       zonesEl.className = mode === "img" ? "zones-flow" : "zones-list";
-      zonesEl.innerHTML = mainSections.map((x, k) => secHtml(x, mode, k === 0)).join("") || '<div class="empty">Keine Karte passt zur Suche</div>';
+      zonesEl.innerHTML = mainSections.map((x, k) => secHtml(x, mode, k === 0)).join("") || `<div class="empty">${T("Keine Karte passt zur Suche")}</div>`;
       A.Art.bind(zonesEl); A.bindCardImages(zonesEl); A.hoverPreview(zonesEl); A.cardLinks(zonesEl);
     };
     // Set-Filter nur mit Symbol (Sets aus diesem Deck), Farbfilter nur mit vorhandenen Farben, Sortierung wie in der Bibliothek
-    const ddSet = A.dropdown(A.$("#d-set"), { title: "Set", searchable: setsInDeck.length > 8, onChange: (v) => { setF = v; draw(); }, items: [
-      { v: "", label: "Alle Sets", short: "", icon: A.FI.set }, ...setsInDeck.map((c) => ({ v: c, label: c, short: "", title: A.setName(c), search: A.setName(c), icon: A.setIcon(c) }))] });
+    const ddSet = A.dropdown(A.$("#d-set"), { title: T("Set"), searchable: setsInDeck.length > 8, onChange: (v) => { setF = v; draw(); }, items: [
+      { v: "", label: T("Alle Sets"), short: "", icon: A.FI.set }, ...setsInDeck.map((c) => ({ v: c, label: c, short: "", title: A.setName(c), search: A.setName(c), icon: A.setIcon(c) }))] });
     A.$("#d-set").classList.add("icon-only", "sets");
     const colEl = A.$("#d-colors");
-    colEl.innerHTML = [...colorsInDeck, ...(hasColorless ? ["c"] : [])].map((k) => `<button type="button" data-v="${k}" title="${{ w: "Weiß", u: "Blau", b: "Schwarz", r: "Rot", g: "Grün", c: "Farblos" }[k]}">${A.manaSymbol(k)}</button>`).join("");
+    colEl.innerHTML = [...colorsInDeck, ...(hasColorless ? ["c"] : [])].map((k) => `<button type="button" data-v="${k}" title="${T({ w: "Weiß", u: "Blau", b: "Schwarz", r: "Rot", g: "Grün", c: "Farblos" }[k])}">${A.manaSymbol(k)}</button>`).join("");
     if (colorsInDeck.length + (hasColorless ? 1 : 0) < 2) colEl.style.display = "none";
     A.$$("button", colEl).forEach((b) => b.addEventListener("click", () => { const v = b.dataset.v; if (colorsF.has(v)) colorsF.delete(v); else colorsF.add(v); b.classList.toggle("on", colorsF.has(v)); draw(); }));
-    const ddSort = A.dropdown(A.$("#d-sort"), { title: "Sortierung", value: "cmc", defaultValue: "cmc", onChange: (v) => { sortBy = v; draw(); }, items: [
-      { v: "cmc", label: "Manawert", short: "Mana", icon: A.FI.mana }, { v: "name", label: "Name A–Z", short: "Name", icon: A.FI.az },
-      { v: "wins", label: "Meiste Siege", short: "Siege", icon: A.FI.trophy }, { v: "played", label: "Meist gespielt", short: "Gespielt", icon: A.FI.play },
-      { v: "rarity", label: "Seltenheit", icon: A.FI.gem("#e0b654") }, { v: "set", label: "Set und Nummer", short: "Set", icon: A.FI.set }] });
-    const dq = A.searchBox(A.$("#d-q"), { placeholder: "Karte im Deck suchen", onInput: A.debounce((v) => { q = v.trim().toLowerCase(); draw(); }, 150) });
+    const ddSort = A.dropdown(A.$("#d-sort"), { title: T("Sortierung"), value: "cmc", defaultValue: "cmc", onChange: (v) => { sortBy = v; draw(); }, items: [
+      { v: "cmc", label: T("Manawert"), short: T("Mana"), icon: A.FI.mana }, { v: "name", label: T("Name A–Z"), short: T("Name"), icon: A.FI.az },
+      { v: "wins", label: T("Meiste Siege"), short: T("Siege"), icon: A.FI.trophy }, { v: "played", label: T("Meist gespielt"), short: T("Gespielt"), icon: A.FI.play },
+      { v: "rarity", label: T("Seltenheit"), icon: A.FI.gem("#e0b654") }, { v: "set", label: T("Set und Nummer"), short: T("Set"), icon: A.FI.set }] });
+    const dq = A.searchBox(A.$("#d-q"), { placeholder: T("Karte im Deck suchen"), onInput: A.debounce((v) => { q = v.trim().toLowerCase(); draw(); }, 150) });
     A.sizeSlider(A.$("#d-size"), el, "mtga-deck-tile-w", 90, 200);
     draw();
     A.Art.bind(el);
