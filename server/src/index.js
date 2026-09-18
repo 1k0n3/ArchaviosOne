@@ -29,7 +29,7 @@ async function main() {
   await app.register(require("@fastify/cookie"), { secret: config.sessionSecret });
   await app.register(require("@fastify/formbody"));
   // Statische Dateien: eigene (static/), das gemeinsame Frontend (web/) und Icons (assets/) unter /static/
-  await app.register(require("@fastify/static"), { root: [path.join(__dirname, "..", "static"), path.join(__dirname, "..", "..", "web"), path.join(__dirname, "..", "..", "assets")], prefix: "/static/", decorateReply: false, maxAge: "1h", allowedPath: (p) => /.(css|js|png|ico|webmanifest|svg)$/.test(p) });
+  await app.register(require("@fastify/static"), { root: [path.join(__dirname, "..", "static"), path.join(__dirname, "..", "..", "web"), path.join(__dirname, "..", "..", "assets")], prefix: "/static/", decorateReply: false, maxAge: "1h", allowedPath: (p) => /.(css|js|png|jpg|ico|webmanifest|svg)$/.test(p) });
   app.get("/healthz", async () => ({ ok: true, cards: db.get("SELECT COUNT(*) n FROM cards").n }));
   await app.register(require("./routes/pages"));
   await app.register(require("./routes/api"));

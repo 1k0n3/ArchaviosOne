@@ -24,7 +24,7 @@ function set_session_cookie(string $raw): void { cookie_set(SESSION_COOKIE, $raw
 /** Verteilt eine Anfrage; $m = Methode, $p = Pfad */
 function dispatch(string $m, string $p): void {
   // ---- statische Dateien: eigene (static/), Frontend (web/), Icons (assets/) ----
-  if (preg_match('#^/static/([A-Za-z0-9_.-]+)$#', $p, $x) && preg_match('/\.(css|js|png|ico|webmanifest|svg)$/', $x[1])) {
+  if (preg_match('#^/static/([A-Za-z0-9_.-]+)$#', $p, $x) && preg_match('/\.(css|js|png|jpg|ico|webmanifest|svg)$/', $x[1])) {
     foreach ([STATIC_DIR, WEB_DIR, ASSETS_DIR] as $dir) if (is_file("$dir/{$x[1]}")) send_file("$dir/{$x[1]}", mime_of($x[1]), 'public, max-age=3600');
     send(404, 'nicht gefunden', 'text/plain');
   }
