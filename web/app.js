@@ -254,8 +254,12 @@ window.App = (function () {
         if (ddOpen && ddOpen !== el) ddOpen.classList.remove("open");
         el.classList.toggle("open", open); ddOpen = open ? el : null;
         if (open) {
-          const menu = $(".dd-menu", el); menu.classList.remove("dd-right");
-          if (menu.getBoundingClientRect().right > window.innerWidth - 8) menu.classList.add("dd-right");
+          // Menü im Sichtbereich halten: links am Knopf ausrichten, bei Platzmangel nach links rücken, nie über einen Rand
+          // (per left-Wert statt transform, damit die Einblend-Animation nichts überschreibt)
+          const menu = $(".dd-menu", el); menu.style.left = ""; menu.style.right = ""; menu.style.maxWidth = Math.min(280, window.innerWidth - 16) + "px";
+          const dr = el.getBoundingClientRect(), mw = menu.getBoundingClientRect().width;
+          let left = dr.left; if (left + mw > window.innerWidth - 8) left = window.innerWidth - 8 - mw; if (left < 8) left = 8;
+          menu.style.left = Math.round(left - dr.left) + "px"; menu.style.right = "auto";
           const q = $(".dd-q", el); if (q) { q.value = ""; q.focus(); } const on = $(".dd-list .on", el); if (on) on.scrollIntoView({ block: "center" });
         }
       });
