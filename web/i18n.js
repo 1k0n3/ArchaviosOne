@@ -384,6 +384,7 @@ window.I18N = (function () {
     "{who} verliert das Spiel": ["{who} loses the game", "{who} perd la partie", "{who} pierde el juego", "{who} perde la partita", "{who} perde o jogo", "{who}が敗北"],
     "Ohne Rang": ["Unranked", "Non classé", "Sin rango", "Senza rango", "Sem ranque", "ランクなし"],
     "Erfolge": ["Achievements", "Succès", "Logros", "Obiettivi", "Conquistas", "実績"],
+    "Saison {n} · endet {d}": ["Season {n} · ends {d}", "Saison {n} · fin le {d}", "Temporada {n} · termina el {d}", "Stagione {n} · finisce il {d}", "Temporada {n} · termina em {d}", "シーズン{n}・{d}終了"],
     "{n} abholbar": ["{n} claimable", "{n} à récupérer", "{n} por reclamar", "{n} da riscuotere", "{n} para resgatar", "{n}件受取可能"],
     "{n} in Arbeit": ["{n} in progress", "{n} en cours", "{n} en curso", "{n} in corso", "{n} em andamento", "{n}件進行中"],
     "abholbar": ["claimable", "à récupérer", "por reclamar", "da riscuotere", "para resgatar", "受取可能"],

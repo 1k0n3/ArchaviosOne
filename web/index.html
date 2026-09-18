@@ -27,8 +27,8 @@ App.load().then((D) => {
         <div id="f-format"></div>
         <div id="f-deck"></div>
       </div></div>
-    <div class="hero" id="hero"></div>
-    <div class="tiles" id="tiles" style="margin-top:14px"></div>
+    <section class="profile-hero" id="hero"></section>
+    <div class="stats-strip" id="tiles"></div>
     <div id="account"></div>
     <h2 class="fold-h2" id="h-charts">${T("Statistik")}</h2>
     <div class="grid c2" id="charts" style="margin-top:14px">
@@ -62,58 +62,73 @@ App.load().then((D) => {
     return D.matches.filter((m) => m.start >= since && (!fFormat.value || m.format === fFormat.value) && (!fDeck.value || A.deckLabel(m) === fDeck.value));
   }
   // Konto: Gold, Edelsteine, Wildcards, Tresor, Rang, Mastery, Tagesquests (aus der Player.log)
+  // Erfolge aus den Kontodaten aufbereiten (Zähler, offene Einträge); Ids aus dem Spiel lesbar gemacht
+  function achInfo(a) {
+    const ach = a && a.achievements || null;
+    if (!ach) return null;
+    const list = Object.entries(ach.groups || {}).flatMap(([g, v]) => v.list.map((x) => Object.assign({ group: g }, x)));
+    const claimable = new Set(ach.claimable || []), close = new Set(ach.closeToComplete || []);
+    const nice = (id) => id.replace(/Tier(\d)$/, " $1").replace(/(Cumulative|Oneshot)$/, "").replace(/([a-z0-9])([A-Z])/g, "$1 $2").trim();
+    // abholbare Erfolge sind im Spiel schon "Completed" (Belohnung noch nicht geholt) – trotzdem zeigen
+    const open = list.filter((x) => claimable.has(x.id) || (x.status !== "Completed" && (close.has(x.id) || x.progress != null)))
+      .sort((x, y) => (claimable.has(y.id) - claimable.has(x.id)) || (close.has(y.id) - close.has(x.id)) || ((y.progress || 0) - (x.progress || 0)));
+    return { done: list.filter((x) => x.status === "Completed").length, total: list.length, claimable, close, open, nice, inProgress: list.filter((x) => x.status !== "Completed" && x.progress != null).length };
+  }
+  const rankText = (r) => A.esc(T(r.tier || "Ohne Rang")) + (r.key && r.key !== "unranked" && r.key !== "mythic" && r.level ? " " + r.level : "");
+
+  /** Profilkopf: Spieler, Badges (Rang, Mastery, Erfolge, Wildcards, Edelsteine, Tresor) und die Form rechts */
+  function renderProfile(s, list, streak) {
+    const a = D.account || {};
+    const player = D.player || T("Spieler");
+    const ai = achInfo(a);
+    const wc = a.wildcards || {};
+    const badge = (ico, main, sub, cls = "") => `<div class="bcard ${cls}"><div class="ico">${ico}</div><div class="tx"><b>${main}</b>${sub ? `<span>${sub}</span>` : ""}</div></div>`;
+    const rank = (fmt, r, label) => r ? badge(a.rankIcons && a.rankIcons[fmt] ? `<img class="emblem" src="${A.esc(a.rankIcons[fmt])}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{innerHTML:window.App.FI.trophy}))">` : FI.trophy, rankText(r), label + (r.won || r.lost ? " · " + T("{w} S · {l} N", { w: r.won, l: r.lost }) : ""), "rank") : "";
+    const badges = [
+      rank("constructed", a.rank && a.rank.constructed, T("Constructed")),
+      rank("limited", a.rank && a.rank.limited, T("Limited")),
+      a.mastery ? badge(`<span class="seticon">${A.setIcon(a.mastery.pass)}</span>`, T("Level") + " " + a.mastery.level, T("Mastery") + " " + A.esc(a.mastery.pass) + (a.mastery.xp != null ? " · " + a.mastery.xp + " XP" : ""), "mastery") : "",
+      ai ? badge(FI.trophy, ai.done + " / " + ai.total, T("Erfolge") + (ai.claimable.size ? " · " + T("{n} abholbar", { n: ai.claimable.size }) : ""), ai.claimable.size ? "claim" : "") : "",
+      a.wildcards ? badge(FI.copies, `<span class="wcs"><span class="wc wc-c" title="Common">${wc.c || 0}</span><span class="wc wc-u" title="Uncommon">${wc.u || 0}</span><span class="wc wc-r" title="Rare">${wc.r || 0}</span><span class="wc wc-m" title="Mythic">${wc.m || 0}</span></span>`, T("Wildcards"), "wild") : "",
+      a.gems != null ? badge(FI.gem("#8fb8ff"), (a.gems || 0).toLocaleString(), T("Edelsteine") + (a.gold != null ? " · " + a.gold.toLocaleString() + " " + T("Gold") : ""), "gems") : "",
+      a.vault != null ? badge(FI.all, (a.vault || 0).toFixed(1) + " %", T("Tresor") + (a.orbs ? " · " + T("{n} Orbs", { n: a.orbs }) : ""), "vault") : ""
+    ].filter(Boolean).join("");
+    const meta = [a.season && a.season.ordinal ? T("Saison {n} · endet {d}", { n: a.season.ordinal, d: A.fmtDate(a.season.end) }) : "", a.takenAt ? T("Stand") + " " + A.fmtDate(a.takenAt) + " " + A.fmtTime(a.takenAt) : ""].filter(Boolean).join(" · ");
+    A.$("#hero").innerHTML = `<div class="who"><div class="avatar">${A.esc(player.slice(0, 1).toUpperCase())}</div><div><div class="name">${A.esc(player)}</div><div class="meta">${meta || T("Lokales Dashboard")}</div></div></div>
+      <div class="badges">${badges || `<div class="muted small">${T("Konto")}: ${T("nicht im Protokoll")}</div>`}</div>
+      <div class="perf">${A.ring(s.rate)}<div><div class="title">${T("{w} Siege · {l} Niederlagen", { w: s.w, l: s.l })}</div><div class="desc">${T("{n} Matches", { n: s.n })} ${range ? T("in den letzten {n} Tagen", { n: range }) : T("insgesamt")}${streak ? " · " + streak : ""}</div>
+      <div class="form">${list.slice(0, 15).reverse().map((m) => `<div class="d ${isW(m) ? "w" : isL(m) ? "l" : ""}" data-tip="${A.esc(`${A.fmtDate(m.start)} ${A.esc(T(m.result))} vs ${m.opponent} (${m.myDeck}, ${m.turns} ${T("Züge")})`)}"></div>`).join("")}<span class="muted small">${T("letzte {n} Matches", { n: Math.min(15, list.length) })}</span></div></div></div>`;
+    A.$$("#hero .form .d").forEach((d) => { d.addEventListener("mousemove", (ev) => A.tooltip(true, d.dataset.tip, ev)); d.addEventListener("mouseleave", () => A.tooltip(false)); });
+  }
+
+  /** Konto-Details unter der Statistik: Tagesquests, offene Erfolge, Booster */
   function renderAccount() {
     const a = D.account, el = A.$("#account");
     if (!a) { el.innerHTML = ""; return; }
-    const wc = a.wildcards || {};
-    // Rang-Kachel mit Emblem aus den Spieldaten (lokal über den Dashboard-Server, auf der Website als mitgesendetes Bild)
-    const rank = (r, label, fmt) => {
-      if (!r) return "";
-      const icon = a.rankIcons && a.rankIcons[fmt];
-      return `<div class="tile rank ${icon ? "has-icon" : ""}"><div class="label">${FI.trophy}${label}</div>${icon ? `<img class="emblem" src="${A.esc(icon)}" alt="" loading="lazy" onerror="this.remove()">` : ""}<div class="value">${A.esc(T(r.tier || "Ohne Rang"))}${r.key && r.key !== "unranked" && r.key !== "mythic" && r.level ? " " + r.level : ""}</div><div class="sub">${r.won || r.lost ? T("{w} S · {l} N", { w: r.won, l: r.lost }) : ""}${fmt === "constructed" && a.season && a.season.end ? (r.won || r.lost ? " · " : "") + T("Saison endet {d}", { d: A.fmtDate(a.season.end) }) : ""}</div></div>`;
-    };
-    // Erfolge: Kachel mit Zähler und darunter die offenen (abholbar, in Arbeit, fast fertig); Ids aus dem Spiel lesbar gemacht
-    const ach = a.achievements || null;
-    const achList = ach ? Object.entries(ach.groups || {}).flatMap(([g, v]) => v.list.map((x) => Object.assign({ group: g }, x))) : [];
-    const achDone = achList.filter((x) => x.status === "Completed").length, achTotal = achList.length;
-    const claimable = new Set(ach && ach.claimable || []), close = new Set(ach && ach.closeToComplete || []);
-    const nice = (id) => id.replace(/Tier(\d)$/, " $1").replace(/(Cumulative|Oneshot)$/, "").replace(/([a-z0-9])([A-Z])/g, "$1 $2").trim();
-    // abholbare Erfolge sind im Spiel schon "Completed" (Belohnung noch nicht geholt) – trotzdem zeigen
-    const open = achList.filter((x) => claimable.has(x.id) || (x.status !== "Completed" && (close.has(x.id) || x.progress != null)))
-      .sort((x, y) => (claimable.has(y.id) - claimable.has(x.id)) || (close.has(y.id) - close.has(x.id)) || ((y.progress || 0) - (x.progress || 0)));
-    const inProgress = achList.filter((x) => x.status !== "Completed" && x.progress != null).length;
-    const achHtml = open.map((x) => `<div class="ach ${claimable.has(x.id) ? "claim" : ""}"><b>${A.esc(nice(x.id))}</b><span class="muted small">${T(x.group === "Colors" ? "Farben" : "Kern")}${claimable.has(x.id) ? ` · <em>${T("abholbar")}</em>` : close.has(x.id) ? " · " + T("fast fertig") : ""}${x.progress != null ? " · " + T("Fortschritt {n}", { n: x.progress }) : ""}</span></div>`).join("");
-    const achTile = ach ? `<div class="tile"><div class="label">${FI.trophy}${T("Erfolge")}</div><div class="value">${achDone}<span class="muted small"> / ${achTotal}</span></div><div class="sub">${[claimable.size ? T("{n} abholbar", { n: claimable.size }) : "", inProgress ? T("{n} in Arbeit", { n: inProgress }) : ""].filter(Boolean).join(" · ")}</div></div>` : "";
+    const ai = achInfo(a);
     const quests = (a.quests || []).map((q) => `<div class="quest"><b>${A.esc(q.name)}</b><span class="muted small">${T("Ziel")} ${q.goal}${q.reward && q.reward.gold ? " · " + q.reward.gold + " " + T("Gold") : ""}</span></div>`).join("");
-    el.innerHTML = `<h2 class="fold-h2" id="h-account">${T("Konto")} <span class="muted small" style="text-transform:none;letter-spacing:0">${T("Stand")} ${A.fmtDate(a.takenAt)} ${A.fmtTime(a.takenAt)}</span></h2>
-      <div id="account-body"><div class="tiles account">
-        <div class="tile"><div class="label">${FI.gem("#f2b134")}${T("Gold")}</div><div class="value gold" ${a.gold == null ? `title="${T("nicht im Protokoll")}"` : ""}>${a.gold == null ? "?" : a.gold.toLocaleString()}</div></div>
-        <div class="tile"><div class="label">${FI.gem("#8fb8ff")}${T("Edelsteine")}</div><div class="value gems">${(a.gems || 0).toLocaleString()}</div></div>
-        <div class="tile"><div class="label">${FI.copies}${T("Wildcards")}</div><div class="value wcs"><span class="wc wc-c" title="Common">${wc.c || 0}</span><span class="wc wc-u" title="Uncommon">${wc.u || 0}</span><span class="wc wc-r" title="Rare">${wc.r || 0}</span><span class="wc wc-m" title="Mythic">${wc.m || 0}</span></div></div>
-        <div class="tile"><div class="label">${FI.all}${T("Tresor")}</div><div class="value">${(a.vault || 0).toFixed(1)} %</div><div class="sub">${a.orbs ? T("{n} Orbs", { n: a.orbs }) : ""}</div></div>
-        ${rank(a.rank && a.rank.constructed, T("Constructed"), "constructed")}${rank(a.rank && a.rank.limited, T("Limited"), "limited")}
-        ${a.mastery ? `<div class="tile mastery"><div class="label">${FI.play}${T("Mastery")} ${A.esc(a.mastery.pass)}</div><span class="emblem set">${A.setIcon(a.mastery.pass)}</span><div class="value">${T("Level")} ${a.mastery.level}</div><div class="sub">${a.mastery.xp != null ? a.mastery.xp + " XP" : ""}${a.mastery.premium ? " · Premium" : ""}</div></div>` : ""}
-        ${achTile}
-        ${a.boosters && a.boosters.length ? `<div class="tile"><div class="label">${FI.set}${T("Booster")}</div><div class="value">${a.boosters.reduce((s, b) => s + b.count, 0)}</div><div class="sub">${a.boosters.slice(0, 4).map((b) => A.esc(b.set) + " ×" + b.count).join(", ")}</div></div>` : ""}
-      </div>${quests ? `<div class="quests"><div class="ds-t">${T("Tagesquests")}</div>${quests}</div>` : ""}${ach ? `<div class="achs"><div class="ds-t">${T("Erfolge")} <span class="muted small" style="text-transform:none;letter-spacing:0">${achDone} / ${achTotal}</span></div>${achHtml || `<div class="muted small">${T("Alle erledigt")}</div>`}</div>` : ""}</div>`;
-    A.foldable(A.$("#h-account"), A.$("#account-body"), "index-account", true);
+    const achHtml = ai ? ai.open.map((x) => `<div class="ach ${ai.claimable.has(x.id) ? "claim" : ""}"><b>${A.esc(ai.nice(x.id))}</b><span class="muted small">${T(x.group === "Colors" ? "Farben" : "Kern")}${ai.claimable.has(x.id) ? ` · <em>${T("abholbar")}</em>` : ai.close.has(x.id) ? " · " + T("fast fertig") : ""}${x.progress != null ? " · " + T("Fortschritt {n}", { n: x.progress }) : ""}</span></div>`).join("") : "";
+    const boosters = a.boosters && a.boosters.length ? `<div class="quest"><b>${T("Booster")}: ${a.boosters.reduce((s, b) => s + b.count, 0)}</b><span class="muted small">${a.boosters.slice(0, 6).map((b) => A.esc(b.set) + " ×" + b.count).join(", ")}</span></div>` : "";
+    if (!quests && !achHtml && !boosters) { el.innerHTML = ""; return; }
+    el.innerHTML = `<h2 class="fold-h2" id="h-account">${T("Konto")} <span class="muted small" style="text-transform:none;letter-spacing:0">${T("Tagesquests")}${ai ? " · " + T("Erfolge") + " " + ai.done + " / " + ai.total : ""}</span></h2>
+      <div id="account-body">${quests || boosters ? `<div class="quests"><div class="ds-t">${T("Tagesquests")}</div>${quests}${boosters}</div>` : ""}${ai ? `<div class="achs"><div class="ds-t">${T("Erfolge")} <span class="muted small" style="text-transform:none;letter-spacing:0">${ai.done} / ${ai.total}</span></div>${achHtml || `<div class="muted small">${T("Alle erledigt")}</div>`}</div>` : ""}</div>`;
+    A.foldable(A.$("#h-account"), A.$("#account-body"), "index-account-details", false);   // standardmäßig zu: die Diagramme folgen direkt
   }
   function render() {
     const list = filtered().sort((a, b) => b.start - a.start);
     const chrono = [...list].reverse();
     const s = A.stats(list);
     const streak = (() => { let n = 0, t = list[0] && list[0].result; for (const m of list) { if (m.result === t) n++; else break; } return t ? T("{n}× {r} in Folge", { n, r: T(t) }) : ""; })();
-    A.$("#hero").innerHTML = `${A.ring(s.rate)}<div><div class="title">${T("{w} Siege · {l} Niederlagen", { w: s.w, l: s.l })}</div><div class="desc">${T("{n} Matches", { n: s.n })} ${range ? T("in den letzten {n} Tagen", { n: range }) : T("insgesamt")}${streak ? " · " + streak : ""}</div>
-      <div class="form">${list.slice(0, 15).reverse().map((m) => `<div class="d ${isW(m) ? "w" : isL(m) ? "l" : ""}" data-tip="${A.esc(`${A.fmtDate(m.start)} ${A.esc(T(m.result))} vs ${m.opponent} (${m.myDeck}, ${m.turns} ${T("Züge")})`)}"></div>`).join("")}<span class="lbl">${T("letzte {n} Matches", { n: Math.min(15, list.length) })}</span></div></div>`;
-    A.$$("#hero .form .d").forEach((d) => { d.addEventListener("mousemove", (ev) => A.tooltip(true, d.dataset.tip, ev)); d.addEventListener("mouseleave", () => A.tooltip(false)); });
+    renderProfile(s, list, streak);
 
     const onPlay = list.filter((m) => m.onPlay === true), onDraw = list.filter((m) => m.onPlay === false);
     const sp = A.stats(onPlay), sd = A.stats(onDraw);
+    // Statistikleiste: sechs Werte in einer Leiste statt sechs Boxen
     A.$("#tiles").innerHTML = [
       [T("Matches"), s.n, "", ""], [T("Siege"), s.w, "", "win"], [T("Niederlagen"), s.l, "", "loss"],
-      [T("Winrate"), Math.round(s.rate * 100) + " %", s.w + s.l ? T("{n} von {m}", { n: s.w, m: s.w + s.l }) : "", ""],
+      [T("Winrate"), Math.round(s.rate * 100) + " %", s.w + s.l ? T("{n} von {m}", { n: s.w, m: s.w + s.l }) : "", s.n ? (s.rate >= .5 ? "win" : "loss") : ""],
       [T("Ø Züge"), s.avgTurns.toFixed(1), "", ""], [T("Ø Dauer"), s.n ? A.fmtDur(s.avgDur) : "–", "", ""]
-    ].map(([l, v, sub, cls]) => `<div class="tile ${cls}"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${sub}</div></div>`).join("");
+    ].map(([l, v, sub, cls]) => `<div class="st ${cls}"><div class="v">${v}</div><div class="l">${l}</div>${sub ? `<div class="s">${sub}</div>` : ""}</div>`).join("");
 
     renderAccount();
     // Verlauf: gleitende Winrate über 10 Matches

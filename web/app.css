@@ -103,6 +103,40 @@ label.f { display: flex; align-items: center; gap: 8px; color: var(--ink-2); fon
 .tile.win .value { color: var(--win); }
 .tile.loss .value { color: var(--loss); }
 
+/* Profilkopf der Übersicht: Spieler + Badges links, Form (Ring, Bilanz, letzte Matches) rechts */
+.profile-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "who perf" "badges perf"; gap: 14px 28px; align-items: center; background: linear-gradient(120deg, #2a1e14 0%, #1a1512 55%, #261a26 100%); border: 1px solid var(--line-2); border-radius: var(--r); padding: 22px 26px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+.profile-hero::before { content: ""; position: absolute; inset: -40% -10% auto auto; width: 420px; height: 420px; border-radius: 50%; background: radial-gradient(circle, rgba(242,177,52,.14), transparent 60%); pointer-events: none; }
+.profile-hero .who { grid-area: who; display: flex; align-items: center; gap: 16px; min-width: 0; }
+.profile-hero .avatar { width: 72px; height: 72px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font: 800 32px/1 var(--font-title); color: var(--gold-ink); background: radial-gradient(circle at 35% 30%, var(--gold-2), var(--gold) 70%); box-shadow: 0 0 0 3px #1a1512, 0 0 0 5px rgba(242,177,52,.55), 0 10px 24px rgba(0,0,0,.5); }
+.profile-hero .name { font: 700 26px/1.15 var(--font-title); letter-spacing: .5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-hero .meta { color: var(--ink-3); font-size: 12.5px; margin-top: 4px; }
+.profile-hero .badges { grid-area: badges; display: flex; flex-wrap: wrap; gap: 8px; }
+.bcard { display: flex; align-items: center; gap: 9px; padding: 6px 12px 6px 8px; border-radius: 12px; background: rgba(255,255,255,.045); border: 1px solid var(--line); min-height: 46px; }
+.bcard .ico { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; flex: none; color: var(--gold); }
+.bcard .ico svg { width: 20px; height: 20px; }
+.bcard .ico .emblem { height: 44px; width: auto; max-width: 48px; filter: drop-shadow(0 3px 6px rgba(0,0,0,.6)); }
+.bcard .ico .seticon { display: inline-flex; width: 30px; height: 30px; } .bcard .ico .seticon .seti, .bcard .ico .seticon img, .bcard .ico .seticon svg { width: 100%; height: 100%; filter: invert(1) opacity(.85); }
+.bcard .tx { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.bcard .tx b { font-size: 15px; font-weight: 800; white-space: nowrap; }
+.bcard .tx span { font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+.bcard.claim { border-color: rgba(242,177,52,.55); background: rgba(242,177,52,.07); }
+.bcard .wcs { display: inline-flex; gap: 4px; }
+.bcard .wc { padding: 1px 7px; border-radius: 999px; font-size: 12px; font-weight: 800; border: 1px solid var(--line-2); }
+.profile-hero .perf { grid-area: perf; display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; padding-left: 26px; border-left: 1px solid var(--line); }
+.profile-hero .perf .ring text { fill: var(--ink); font-weight: 800; }
+.profile-hero .perf .ring circle:last-of-type { transition: stroke-dashoffset .8s ease; }
+.profile-hero .perf .title { font-family: var(--font-title); font-size: 20px; font-weight: 700; white-space: nowrap; }
+.profile-hero .perf .desc { color: var(--ink-2); margin-top: 4px; font-size: 13px; }
+/* Statistikleiste: sechs Werte in einer Leiste, durch feine Linien getrennt */
+.stats-strip { display: grid; grid-template-columns: repeat(6, 1fr); margin-top: 14px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
+.stats-strip .st { padding: 16px 18px; border-left: 1px solid var(--line); min-width: 0; }
+.stats-strip .st:first-child { border-left: 0; }
+.stats-strip .v { font: 800 30px/1.1 var(--font-title); letter-spacing: .5px; }
+.stats-strip .l { color: var(--ink-3); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+.stats-strip .s { color: var(--ink-2); font-size: 12px; margin-top: 2px; }
+.stats-strip .win .v { color: var(--win); } .stats-strip .loss .v { color: var(--loss); }
+@media (max-width: 1100px) { .profile-hero { grid-template-columns: 1fr; grid-template-areas: "who" "badges" "perf"; } .profile-hero .perf { padding-left: 0; border-left: 0; padding-top: 14px; border-top: 1px solid var(--line); } }
+@media (max-width: 760px) { .stats-strip { grid-template-columns: repeat(3, 1fr); } .stats-strip .st { padding: 12px 12px; border-top: 1px solid var(--line); } .stats-strip .st:nth-child(-n+3) { border-top: 0; } .stats-strip .st:nth-child(4) { border-left: 0; } .stats-strip .v { font-size: 22px; } .profile-hero { padding: 16px; } .profile-hero .perf { grid-template-columns: 1fr; justify-items: center; text-align: center; } .profile-hero .perf .title { white-space: normal; } }
 .hero { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: center; background: linear-gradient(120deg, #2a1e14 0%, #1a1512 55%, #261a26 100%); border: 1px solid var(--line-2); border-radius: var(--r); padding: 20px 24px; box-shadow: var(--shadow); }
 .hero .ring text { fill: var(--ink); font-weight: 800; }
 .hero .title { font-family: var(--font-title); font-size: 22px; font-weight: 700; }
