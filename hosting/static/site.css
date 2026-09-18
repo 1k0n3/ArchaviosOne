@@ -90,3 +90,17 @@ body.site.app .content { padding: 22px 26px 40px; }
   .feat-grid, .steps, .shots { grid-template-columns: 1fr; }
   .sec-title { margin-top: 30px; }
 }
+/* Startseite auf dem Handy: nichts darf breiter als der Bildschirm werden */
+.stats-site { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.stats-site span { display: block; }
+body.site { overflow-x: clip; }
+@media (max-width: 600px) {
+  .site-main { padding: 16px 14px 40px; }
+  .stats-site { grid-template-columns: 1fr; gap: 8px; }
+  .stats-site div { display: flex; align-items: baseline; justify-content: center; gap: 8px; padding: 10px; }
+  .stats-site b { font-size: 20px; }
+  .hero-site h1 { font-size: 24px; overflow-wrap: anywhere; }
+  .hero-site p { font-size: 14px; }
+  .hero-site .cta a { flex: 1; text-align: center; justify-content: center; }
+  .site-head { flex-wrap: wrap; } .site-head nav { margin-left: 0; width: 100%; gap: 10px; }
+}
