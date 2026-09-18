@@ -245,8 +245,12 @@ async function main() {
     putManifest(manifest);
   } else console.log("Keine Änderungen – Server hat bereits alle Dateien.");
 
-  // Nach dem Upload prüfen, ob die Website den neuen Stand ausliefert
-  const after = (changed.length || removed.length) ? await onlineVersion() : online;
+  // Nach dem Upload prüfen, ob die Website den neuen Stand ausliefert (PHP-Opcache braucht manchmal einige Sekunden)
+  let after = (changed.length || removed.length) ? await onlineVersion() : online;
+  for (let i = 0; i < 4 && after && !after.error && version.commit && after.commit !== version.commit; i++) {
+    await new Promise((r) => setTimeout(r, 8000));
+    after = await onlineVersion();
+  }
   if (!after) console.log(`Website-Stand: ${fmtVersion(version)} (keine Website-Adresse zum Prüfen – "url" in deploy-config.json oder syncUrl setzen)`);
   else if (after.error) console.log(`Website nicht erreichbar: ${after.error}`);
   else if (after.commit && version.commit && after.commit !== version.commit) { console.log(`ACHTUNG: Website meldet ${fmtVersion(after)}, lokal ist ${fmtVersion(version)} – Upload prüfen (remoteDir richtig?).`); process.exitCode = 1; }
