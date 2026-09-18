@@ -87,8 +87,25 @@ function dispatch(string $m, string $p): void {
   }
   if ($p === '/verify/resend') {
     $u = require_user();
-    if (!$u['email_verified']) { $token = create_email_token($u['id'], 'verify', 24); $link = cfg('base_url') . "/verify/$token"; $sent = mail_verify($u['email'], $link); app_log("Bestätigungslink für {$u['email']}" . ($sent ? '' : ' (Mail nicht gesendet)') . ": $link"); }
-    flash_set('ok', 'Bestätigungsmail gesendet.'); redirect('/settings');
+    if ($u['email_verified']) { flash_set('ok', 'Deine Adresse ist bereits bestätigt.'); redirect('/settings'); }
+    $token = create_email_token($u['id'], 'verify', 24); $link = cfg('base_url') . "/verify/$token";
+    $before = @filesize(DATA_DIR . '/app.log') ?: 0;
+    $sent = mail_verify($u['email'], $link);
+    app_log("Bestätigungslink für {$u['email']}" . ($sent ? '' : ' (Mail nicht gesendet)') . ": $link");
+    if ($sent) flash_set('ok', 'Bestätigungsmail an ' . $u['email'] . ' gesendet – bitte auch den Spam-Ordner prüfen.');
+    else {
+      $new = (string)@file_get_contents(DATA_DIR . '/app.log', false, null, $before);
+      $errs = array_values(array_filter(array_map(fn($l) => trim(preg_replace('/^[[^]]*]s*/', '', $l)), explode("
+", $new)), fn($l) => str_starts_with($l, 'SMTP') || str_starts_with($l, 'mail()')));
+      flash_set('error', 'Mail konnte nicht gesendet werden' . ($errs ? ' – ' . $errs[0] : '') . '. Mail-Einstellungen in config.php prüfen (/mailtest).');
+    }
+    redirect('/settings');
+  }
+  if ($p === '/verify/resend-email' && $m === 'POST') {   // von der Anmeldeseite, ohne Sitzung (keine Auskunft, ob die Adresse existiert)
+    rate_limit('resend', 5, 900); require_csrf();
+    $u = get_user_by_email(post('email'));
+    if ($u && !$u['email_verified']) { $token = create_email_token($u['id'], 'verify', 24); $link = cfg('base_url') . "/verify/$token"; $sent = mail_verify($u['email'], $link); app_log("Bestätigungslink für {$u['email']}" . ($sent ? '' : ' (Mail nicht gesendet)') . ": $link"); }
+    render('Bestätigung', page_message('Mail unterwegs', 'Wenn zu dieser Adresse ein unbestätigtes Konto existiert, ist ein neuer Bestätigungslink unterwegs (24 Stunden gültig).', ['href' => '/login', 'text' => 'Zur Anmeldung']));
   }
   if (preg_match('#^/verify/([A-Za-z0-9_-]+)$#', $p, $x)) {
     $u = consume_email_token($x[1], 'verify');
@@ -185,12 +202,6 @@ function dispatch(string $m, string $p): void {
     if ($verify) { $token = create_email_token($u['id'], 'verify', 24); $link = cfg('base_url') . "/verify/$token"; $sent = mail_verify($email, $link); app_log("Bestätigungslink für $email" . ($sent ? '' : ' (Mail nicht gesendet)') . ": $link"); flash_set('ok', 'E-Mail geändert. Bitte die neue Adresse über den zugeschickten Link bestätigen.'); }
     else flash_set('ok', 'E-Mail geändert.');
     redirect('/settings');
-  }
-  if ($p === '/verify/resend-email' && $m === 'POST') {   // von der Anmeldeseite, ohne Sitzung (keine Auskunft, ob die Adresse existiert)
-    rate_limit('resend', 5, 900); require_csrf();
-    $u = get_user_by_email(post('email'));
-    if ($u && !$u['email_verified']) { $token = create_email_token($u['id'], 'verify', 24); $link = cfg('base_url') . "/verify/$token"; $sent = mail_verify($u['email'], $link); app_log("Bestätigungslink für {$u['email']}" . ($sent ? '' : ' (Mail nicht gesendet)') . ": $link"); }
-    render('Bestätigung', page_message('Mail unterwegs', 'Wenn zu dieser Adresse ein unbestätigtes Konto existiert, ist ein neuer Bestätigungslink unterwegs (24 Stunden gültig).', ['href' => '/login', 'text' => 'Zur Anmeldung']));
   }
   if ($p === '/settings/logout-all' && $m === 'POST') { $u = require_user(); require_csrf(); destroy_all_sessions($u['id']); cookie_clear(SESSION_COOKIE); redirect('/login'); }
   if (preg_match('#^/decks/([^/]+)/visibility$#', $p, $x) && $m === 'POST') {
