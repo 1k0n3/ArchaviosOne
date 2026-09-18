@@ -886,7 +886,7 @@ button.reset { margin-right: 20px; }
 .dp-probs div { display: flex; align-items: center; gap: 6px; } .dp-probs svg { width: 12px; height: 12px; color: var(--loss-ink); flex: none; }
 .dp-ok { margin: 0 10px 6px; padding: 6px 10px; border-radius: 8px; background: var(--win-soft); border: 1px solid var(--win-line); font-size: 12px; display: flex; align-items: center; gap: 6px; }
 .dp-ok svg { width: 12px; height: 12px; color: var(--win-ink); }
-.dp-curve { display: flex; align-items: flex-end; gap: 4px; height: 120px; padding: 0 12px 4px; border-bottom: 1px solid var(--line); }
+.dp-curve { display: flex; align-items: flex-end; gap: 4px; height: 80px; padding: 0 12px 4px; border-bottom: 1px solid var(--line); }
 .dp-curve .bar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; font-size: 10px; color: var(--ink-3); }
 .dp-curve .bar b { font-size: 10px; color: var(--ink-2); line-height: 1; margin-bottom: 2px; }
 .dp-curve .bar i { display: block; width: 100%; height: var(--h); min-height: 2px; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, var(--gold-2), var(--gold)); }
