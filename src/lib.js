@@ -256,7 +256,7 @@ function stampFull(d = new Date()) { return `${stampDate(d)} ${pad(d.getHours())
 
 module.exports = {
   RARITY, COLLECTION_HEAD, frameFlags, manaCost,
-  mtgaPid, findCardDb, loadCards, runScan, resolveAnchors, chooseBlock,
+  mtgaPid, findInstallDir, findCardDb, loadCards, runScan, resolveAnchors, chooseBlock,
   snapshotFromBlock, toRows, csvLine, writeCollectionCsv, appendCsv, diffSnapshots, totalCards,
   stampDate, stampTime, stampFull
 };

@@ -158,6 +158,12 @@ function build(outDir, cards) {
   for (const g of usedCards) { const c = cards.get(g); if (c) cardDict[g] = cardEntry(c); }
 
   let account = null; try { account = JSON.parse(fs.readFileSync(path.join(outDir, "account.json"), "utf8")); } catch (e) { /* noch keine Kontodaten */ }
+  // Rang-Embleme: lokal liefert sie der Dashboard-Server aus den Spieldaten (ui/rank/…), die Website bekommt sie als Data-URL
+  if (account && account.rank) {
+    const u = (f, r) => r && r.key ? `ui/rank/${f}/${r.key}/${Math.min(4, Math.max(1, r.level || 1))}?h=128` : null;
+    const icons = { constructed: u("constructed", account.rank.constructed), limited: u("limited", account.rank.limited) };
+    if (icons.constructed || icons.limited) account.rankIcons = icons;
+  }
   const data = { generatedAt: new Date().toISOString(), format: FORMAT, player: myName, matches: summaries, decks, cards: cardDict, account, syncUrl: String(readConfig().syncUrl || "").replace(/\/$/, "") || null };
   fs.writeFileSync(path.join(webDir, "data.js"), "window.MTGA_DATA=" + JSON.stringify(data) + ";");
   fs.writeFileSync(path.join(webDir, "data.json"), JSON.stringify(data));

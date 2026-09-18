@@ -452,7 +452,7 @@ function extractTextures(file) {
     try { sf = readSerialized(f.buf); } catch (e) { continue; }
     for (const o of sf.objects) {
       if (o.classId !== 28) continue;
-      try { out.push(readTexture(sf, o, b.files)); } catch (e) { out.push({ error: e.message }); }
+      try { out.push(Object.assign(readTexture(sf, o, b.files), { pathId: String(o.pathId) })); } catch (e) { out.push({ error: e.message }); }
     }
   }
   return out;
@@ -480,7 +480,75 @@ function textureToPng(tex) {
 
 const { decodeBC7 } = require("./bc7");
 
-module.exports = { readBundle, readSerialized, extractTextures, textureToPng, textureToRgba, toPng, FORMATS, lz4Decompress };
+/** Beliebiges Objekt über seinen Typbaum lesen (z. B. Sprite 213, SpriteAtlas 687078895) */
+function readObject(sf, obj) {
+  const t = sf.types[obj.typeIndex];
+  if (!t || !t.tree) throw new Error("Kein Typbaum");
+  const r = new R(sf.buf, sf.be); r.p = obj.start;
+  return readByTree(r, t.tree);
+}
+/**
+ * Sprites eines Bundles: Name, Rechteck in der Atlas-Textur (Unity-Koordinaten: y von unten) und Textur-PathID.
+ * Bei gepackten Atlanten stehen die Rechtecke im SpriteAtlas (m_RenderDataMap), Reihenfolge wie m_PackedSprites.
+ */
+function extractSprites(file) {
+  const b = readBundle(file);
+  const out = [];
+  for (const f of b.files) {
+    if (!f.buf.length || f.path.endsWith(".resS") || f.path.endsWith(".resource")) continue;
+    let sf; try { sf = readSerialized(f.buf); } catch (e) { continue; }
+    // Arrays kommen aus dem Typbaum als [{data: …}]; Map-Einträge als {first: Schlüssel, second: Wert}
+    const arr = (x) => (Array.isArray(x) ? x.map((e) => (e && e.data !== undefined ? e.data : e)) : []);
+    const keyOf = (k) => k && k.first ? [0, 1, 2, 3].map((i) => k.first["data[" + i + "]"]).join(",") + ":" + k.second : "";
+    const rdByKey = new Map();
+    for (const o of sf.objects) {
+      if (o.classId !== 687078895) continue;
+      let a; try { a = readObject(sf, o); } catch (e) { continue; }
+      for (const e of arr(a.m_RenderDataMap)) if (e && e.first && e.second) rdByKey.set(keyOf(e.first), e.second);
+    }
+    for (const o of sf.objects) {
+      if (o.classId !== 213) continue;
+      let s; try { s = readObject(sf, o); } catch (e) { continue; }
+      const rd = rdByKey.get(keyOf(s.m_RenderDataKey)) || s.m_RD || {};
+      const tr = rd.textureRect || s.m_Rect || {};
+      out.push({ name: s.m_Name, texturePathId: rd.texture ? String(rd.texture.m_PathID) : null, x: tr.x, y: tr.y, width: tr.width, height: tr.height, rotated: ((rd.settingsRaw || 0) >> 2 & 0xF) !== 0, file: f.path });
+    }
+  }
+  return out;
+}
+
+/**
+ * Einzelnes Sprite eines Atlas-Bundles als PNG (RGBA). Unity-Rechtecke zählen y von unten, die dekodierten
+ * Texturzeilen liegen ebenfalls von unten – der Ausschnitt wird zeilenweise kopiert und beim PNG-Schreiben gedreht.
+ */
+function spritePng(file, spriteName, opts = {}) {
+  const sprites = extractSprites(file);
+  const sp = sprites.find((s) => s.name === spriteName);
+  if (!sp || !(sp.width > 0)) return null;
+  const texs = extractTextures(file).filter((t) => !t.error);
+  let tex = texs.find((t) => sp.texturePathId && String(t.pathId) === sp.texturePathId);
+  if (!tex) tex = texs.sort((a, b) => b.width * b.height - a.width * a.height)[0];
+  if (!tex) return null;
+  const rgba = textureToRgba(tex);
+  const x = Math.max(0, Math.floor(sp.x)), y = Math.max(0, Math.floor(sp.y));
+  const w = Math.min(tex.width - x, Math.ceil(sp.width)), h = Math.min(tex.height - y, Math.ceil(sp.height));
+  const crop = Buffer.alloc(w * h * 4);
+  for (let row = 0; row < h; row++) rgba.copy(crop, row * w * 4, ((y + row) * tex.width + x) * 4, ((y + row) * tex.width + x + w) * 4);
+  const scale = opts.maxHeight && h > opts.maxHeight ? opts.maxHeight / h : 1;
+  if (scale === 1) return { png: toPng(crop, w, h, true, true), width: w, height: h };
+  // Verkleinern (Mittelwert je Zielpixel), z. B. für Vorschaubilder in der Website-Synchronisierung
+  const dw = Math.max(1, Math.round(w * scale)), dh = Math.max(1, Math.round(h * scale));
+  const small = Buffer.alloc(dw * dh * 4);
+  for (let dy = 0; dy < dh; dy++) for (let dx = 0; dx < dw; dx++) {
+    const sx0 = Math.floor(dx / scale), sx1 = Math.min(w, Math.ceil((dx + 1) / scale)), sy0 = Math.floor(dy / scale), sy1 = Math.min(h, Math.ceil((dy + 1) / scale));
+    let r = 0, g = 0, b = 0, a = 0, n = 0;
+    for (let sy = sy0; sy < sy1; sy++) for (let sx = sx0; sx < sx1; sx++) { const i = (sy * w + sx) * 4; r += crop[i]; g += crop[i + 1]; b += crop[i + 2]; a += crop[i + 3]; n++; }
+    const o = (dy * dw + dx) * 4; small[o] = r / n; small[o + 1] = g / n; small[o + 2] = b / n; small[o + 3] = a / n;
+  }
+  return { png: toPng(small, dw, dh, true, true), width: dw, height: dh };
+}
+
+module.exports = { readBundle, readSerialized, extractTextures, extractSprites, spritePng, readObject, textureToPng, textureToRgba, toPng, FORMATS, lz4Decompress };
 
 if (require.main === module) {
   const file = process.argv[2];

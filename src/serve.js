@@ -374,6 +374,16 @@ function start(webDir, port, log) {
       }).catch((e) => { res.writeHead(500); res.end(e.message); });
       return;
     }
+    // Rang-Emblem aus den Spieldaten: /ui/rank/<constructed|limited>/<bronze…mythic|unranked>/<1-4>[?h=128]
+    const rk = p.match(/^\/ui\/rank\/(constructed|limited)\/([a-z]+)\/(\d)$/);
+    if (rk) {
+      const maxH = Math.min(512, Math.max(0, parseInt(url.searchParams.get("h") || "0", 10) || 0));
+      let r = null; try { r = require("./emblems").rankPng(rk[1], rk[2], rk[3], maxH); } catch (e) { r = null; }
+      if (!r) { res.writeHead(404, { "Cache-Control": "no-cache" }); res.end(); return; }
+      res.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "public, max-age=604800", "Content-Length": r.png.length });
+      res.end(r.png);
+      return;
+    }
     if (p === "/api/card-url") {
       const g = +url.searchParams.get("g");
       cardImageUrl(g, url.searchParams.get("v") || "normal").then((u) => { res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" }); res.end(JSON.stringify({ url: u })); });

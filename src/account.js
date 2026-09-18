@@ -5,7 +5,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const RANK_NAMES = { Bronze: "Bronze", Silver: "Silber", Gold: "Gold", Platinum: "Platin", Diamond: "Diamant", Mythic: "Mythic" };
+const RANK_NAMES = { Bronze: "Bronze", Silver: "Silber", Gold: "Gold", Platinum: "Platin", Diamond: "Diamant", Mythic: "Mythic", Unranked: "Ohne Rang" };
 
 class AccountParser {
   constructor(onUpdate) {
@@ -51,8 +51,9 @@ class AccountParser {
   rank(r) {
     this.state.rank = {
       season: r.constructedSeasonOrdinal || null,
-      constructed: { tier: RANK_NAMES[r.constructedClass] || r.constructedClass || "", level: r.constructedLevel || 0, step: r.constructedStep || 0, won: r.constructedMatchesWon || 0, lost: r.constructedMatchesLost || 0 },
-      limited: { tier: RANK_NAMES[r.limitedClass] || r.limitedClass || "", level: r.limitedLevel || 0, step: r.limitedStep || 0, won: r.limitedMatchesWon || 0, lost: r.limitedMatchesLost || 0 }
+      // key = englischer Stufenname in Kleinbuchstaben (für die Embleme aus den Spieldaten)
+      constructed: { tier: RANK_NAMES[r.constructedClass] || r.constructedClass || "", key: String(r.constructedClass || "unranked").toLowerCase(), level: r.constructedLevel || 0, step: r.constructedStep || 0, won: r.constructedMatchesWon || 0, lost: r.constructedMatchesLost || 0 },
+      limited: { tier: RANK_NAMES[r.limitedClass] || r.limitedClass || "", key: String(r.limitedClass || "unranked").toLowerCase(), level: r.limitedLevel || 0, step: r.limitedStep || 0, won: r.limitedMatchesWon || 0, lost: r.limitedMatchesLost || 0 }
     };
   }
   mastery(graph, j) {
@@ -111,7 +112,14 @@ if (require.main === module) {
   const w = last.wildcards || {};
   console.log(`Konto eingelesen: ${last.gold} Gold, ${last.gems} Edelsteine, Wildcards ${[w.c, w.u, w.r, w.m].join("/")}` + (last.rank ? `, Rang ${last.rank.constructed.tier} ${last.rank.constructed.level}` : "") + (last.mastery ? `, Mastery ${last.mastery.pass} Level ${last.mastery.level}` : ""));
   (async () => {
-    try { const sync = require("./sync"); if (sync.device()) { sync.enqueueAccount(last); await sync.flush(); console.log("Website: Kontodaten gesendet."); } else console.log("Website: nicht verbunden (Tray → Mit Website verbinden…)"); } catch (e) { console.log("Website: " + e.message); }
+    try {
+      const sync = require("./sync");
+      if (sync.device()) {
+        // Rang-Embleme aus den Spieldaten klein mitschicken (die Website hat keine Spieldaten)
+        let icons = null; try { icons = require("./emblems").rankIconsDataUrls(last); } catch (e) { /* ohne Embleme */ }
+        sync.enqueueAccount(icons ? Object.assign({}, last, { rankIcons: icons }) : last); await sync.flush(); console.log("Website: Kontodaten gesendet" + (icons ? " (mit Rang-Emblemen)" : "") + ".");
+      } else console.log("Website: nicht verbunden (Tray → Mit Website verbinden…)");
+    } catch (e) { console.log("Website: " + e.message); }
     try { require("child_process").execFileSync(process.execPath, [path.join(__dirname, "webgen.js")], { stdio: "ignore", windowsHide: true }); console.log("Dashboard neu gebaut."); } catch (e) { console.log("Dashboard: " + e.message); }
   })();
 }

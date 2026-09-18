@@ -66,7 +66,12 @@ App.load().then((D) => {
     const a = D.account, el = A.$("#account");
     if (!a) { el.innerHTML = ""; return; }
     const wc = a.wildcards || {};
-    const rank = (r, label) => r ? `<div class="tile"><div class="label">${FI.trophy}${label}</div><div class="value">${A.esc(r.tier || "–")} ${r.level || ""}</div><div class="sub">${r.won || r.lost ? T("{w} S · {l} N", { w: r.won, l: r.lost }) : ""}</div></div>` : "";
+    // Rang-Kachel mit Emblem aus den Spieldaten (lokal über den Dashboard-Server, auf der Website als mitgesendetes Bild)
+    const rank = (r, label, fmt) => {
+      if (!r) return "";
+      const icon = a.rankIcons && a.rankIcons[fmt];
+      return `<div class="tile rank ${icon ? "has-icon" : ""}"><div class="label">${FI.trophy}${label}</div>${icon ? `<img class="emblem" src="${A.esc(icon)}" alt="" loading="lazy" onerror="this.remove()">` : ""}<div class="value">${A.esc(T(r.tier || "Ohne Rang"))}${r.key && r.key !== "unranked" && r.key !== "mythic" && r.level ? " " + r.level : ""}</div><div class="sub">${r.won || r.lost ? T("{w} S · {l} N", { w: r.won, l: r.lost }) : ""}</div></div>`;
+    };
     const quests = (a.quests || []).map((q) => `<div class="quest"><b>${A.esc(q.name)}</b><span class="muted small">${T("Ziel")} ${q.goal}${q.reward && q.reward.gold ? " · " + q.reward.gold + " " + T("Gold") : ""}</span></div>`).join("");
     el.innerHTML = `<h2 class="fold-h2" id="h-account">${T("Konto")} <span class="muted small" style="text-transform:none;letter-spacing:0">${T("Stand")} ${A.fmtDate(a.takenAt)} ${A.fmtTime(a.takenAt)}</span></h2>
       <div id="account-body"><div class="tiles account">
@@ -74,8 +79,8 @@ App.load().then((D) => {
         <div class="tile"><div class="label">${FI.gem("#8fb8ff")}${T("Edelsteine")}</div><div class="value gems">${(a.gems || 0).toLocaleString()}</div></div>
         <div class="tile"><div class="label">${FI.copies}${T("Wildcards")}</div><div class="value wcs"><span class="wc wc-c" title="Common">${wc.c || 0}</span><span class="wc wc-u" title="Uncommon">${wc.u || 0}</span><span class="wc wc-r" title="Rare">${wc.r || 0}</span><span class="wc wc-m" title="Mythic">${wc.m || 0}</span></div></div>
         <div class="tile"><div class="label">${FI.all}${T("Tresor")}</div><div class="value">${(a.vault || 0).toFixed(1)} %</div><div class="sub">${a.orbs ? T("{n} Orbs", { n: a.orbs }) : ""}</div></div>
-        ${rank(a.rank && a.rank.constructed, T("Constructed"))}${rank(a.rank && a.rank.limited, T("Limited"))}
-        ${a.mastery ? `<div class="tile"><div class="label">${FI.play}${T("Mastery")} ${A.esc(a.mastery.pass)}</div><div class="value">${T("Level")} ${a.mastery.level}</div><div class="sub">${a.mastery.xp != null ? a.mastery.xp + " XP" : ""}${a.mastery.premium ? " · Premium" : ""}</div></div>` : ""}
+        ${rank(a.rank && a.rank.constructed, T("Constructed"), "constructed")}${rank(a.rank && a.rank.limited, T("Limited"), "limited")}
+        ${a.mastery ? `<div class="tile mastery"><div class="label">${FI.play}${T("Mastery")} ${A.esc(a.mastery.pass)}</div><span class="emblem set">${A.setIcon(a.mastery.pass)}</span><div class="value">${T("Level")} ${a.mastery.level}</div><div class="sub">${a.mastery.xp != null ? a.mastery.xp + " XP" : ""}${a.mastery.premium ? " · Premium" : ""}</div></div>` : ""}
         ${a.boosters && a.boosters.length ? `<div class="tile"><div class="label">${FI.set}${T("Booster")}</div><div class="value">${a.boosters.reduce((s, b) => s + b.count, 0)}</div><div class="sub">${a.boosters.slice(0, 4).map((b) => A.esc(b.set) + " ×" + b.count).join(", ")}</div></div>` : ""}
       </div>${quests ? `<div class="quests"><div class="ds-t">${T("Tagesquests")}</div>${quests}</div>` : ""}</div>`;
     A.foldable(A.$("#h-account"), A.$("#account-body"), "index-account", true);
