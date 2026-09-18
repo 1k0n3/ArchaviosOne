@@ -44,7 +44,7 @@ function layout_app(string $title, string $body, array $user, ?array $flash, str
   return '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . esc($title) . ' · MTGA Stats</title>
 <link rel="icon" href="/static/favicon.ico" sizes="any"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap"><link rel="stylesheet" href="/static/app.css"><link rel="stylesheet" href="/static/site.css"></head>
 <body class="site app"><div class="shell"><aside class="side-nav">
-  <a class="brand" href="/" title="Zur Website">' . logo_svg() . '<div><div class="t1">MTGA Stats</div><div class="t2">Website</div></div></a>' . $nav . '
+  <a class="brand" href="/?site=1" title="Zur Website">' . logo_svg() . '<div><div class="t1">MTGA Stats</div><div class="t2">Website</div></div></a>' . $nav . '
   <div class="spacer"></div>
   <a class="player link ' . ($active === '/settings' ? 'active' : '') . '" href="/settings" title="Konto &amp; Geräte"><div class="av">' . esc(mb_strtoupper(mb_substr($name, 0, 1))) . '</div><div><div class="n">' . esc($name) . '</div><div class="s">' . esc($user['email']) . '</div></div></a>
   <div class="foot">' . esc(cfg('base_url')) . '</div>

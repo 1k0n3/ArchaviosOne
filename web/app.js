@@ -402,7 +402,7 @@ window.App = (function () {
     const langSel = window.I18N ? `<label class="lang" title="${tr("Sprache")}"><select>${Object.entries(I18N.LANGS).map(([k, v]) => `<option value="${k}" ${k === I18N.lang ? "selected" : ""}>${v}</option>`).join("")}</select></label>` : "";
     const st = stats(DATA ? DATA.matches : []);
     const nav = `<aside class="side-nav">
-      ${site ? `<a class="brand" href="/" title="${tr("Zur Website")}">` : `<div class="brand">`}${logoSvg()}<div><div class="t1">MTGA Stats</div><div class="t2">${site ? tr("Website") : tr("Lokales Dashboard")}</div></div>${site ? "</a>" : "</div>"}
+      ${site ? `<a class="brand" href="/?site=1" title="${tr("Zur Website")}">` : `<div class="brand">`}${logoSvg()}<div><div class="t1">MTGA Stats</div><div class="t2">${site ? tr("Website") : tr("Lokales Dashboard")}</div></div>${site ? "</a>" : "</div>"}
       ${pages.map(([h, t, ic]) => `<a class="nav ${active === h ? "active" : ""}" href="${h}">${ICONS[ic]}<span>${t}</span></a>`).join("")}
       ${siteLinks ? `<div class="nav-sep"></div>${siteLinks}` : ""}
       <div class="spacer"></div>

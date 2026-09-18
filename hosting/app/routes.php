@@ -54,6 +54,7 @@ function dispatch(string $m, string $p): void {
   $user = current_user();
 
   if ($p === '/' && $m === 'GET') {
+    if ($user && query('site') === '') redirect('/app');   // angemeldet: direkt ins Dashboard (Startseite über /?site=1 erreichbar)
     $stats = ['users' => db_val('SELECT COUNT(*) FROM users'), 'decks' => db_val("SELECT COUNT(*) FROM decks WHERE visibility = 'public' AND deleted_at IS NULL"), 'matches' => db_val('SELECT COUNT(*) FROM matches')];
     render('Start', page_home(public_decks(8), $stats), ['flash' => $flash, 'wide' => true, 'main' => 'home', 'plain' => true]);
   }
@@ -81,7 +82,7 @@ function dispatch(string $m, string $p): void {
         app_log("Bestätigungslink für $email" . ($sent ? '' : ' (Mail nicht gesendet)') . ": $link");   // immer protokollieren, falls die Mail nicht ankommt
       }
     }
-    if (!$verify) { flash_set('ok', 'Konto angelegt. Du kannst dich jetzt anmelden.'); redirect('/login'); }
+    if (!$verify) { $nu = get_user_by_email($email); if ($nu && verify_password($pw, $nu['password_hash'])) { set_session_cookie(create_session($nu['id'])); redirect('/app'); } flash_set('ok', 'Konto angelegt. Du kannst dich jetzt anmelden.'); redirect('/login'); }
     render('Fast geschafft', page_message('Bitte E-Mail bestätigen', "Wir haben eine Nachricht an $email geschickt. Klicke den Link darin, dann kannst du dich anmelden.", ['href' => '/login', 'text' => 'Zur Anmeldung']));
   }
   if ($p === '/verify/resend') {
@@ -93,7 +94,7 @@ function dispatch(string $m, string $p): void {
     $u = consume_email_token($x[1], 'verify');
     if (!$u) render('Link ungültig', page_message('Link ungültig oder abgelaufen', 'Fordere in den Einstellungen eine neue Bestätigungsmail an.', ['href' => '/login', 'text' => 'Zur Anmeldung']));
     db_run('UPDATE users SET email_verified = 1 WHERE id = ?', $u['id']);
-    flash_set('ok', 'E-Mail bestätigt. Du kannst dich jetzt anmelden.'); redirect('/login');
+    set_session_cookie(create_session($u['id'])); redirect('/app');   // bestätigt = angemeldet, direkt ins Dashboard
   }
 
   // ---- Anmelden / Abmelden ----
