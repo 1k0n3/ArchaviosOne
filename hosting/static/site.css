@@ -104,3 +104,12 @@ body.site { overflow-x: clip; }
   .hero-site .cta a { flex: 1; text-align: center; justify-content: center; }
   .site-head { flex-wrap: wrap; } .site-head nav { margin-left: 0; width: 100%; gap: 10px; }
 }
+/* Meldungen (flash) unter der Kopfzeile statt darüber: Inhalt als Spalte, Reihenfolge Kopfzeile → Meldung → Rest */
+body.site.app .content { display: flex; flex-direction: column; align-items: stretch; }
+body.site.app .content > .topbar { order: 0; }
+body.site.app .content > .flash { order: 1; margin: 0 0 16px; }
+body.site.app .content > :not(.topbar):not(.flash) { order: 2; }
+.flash { display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+.flash::before { content: ""; width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--ink-3); }
+.flash.ok::before { background: var(--win); box-shadow: 0 0 8px var(--win); }
+.flash.error::before { background: var(--loss); box-shadow: 0 0 8px var(--loss); }
