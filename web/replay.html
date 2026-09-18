@@ -280,8 +280,8 @@ App.load().then((D) => {
         <div class="turn"><span class="t">${T("Zug")}</span><span class="n">${f.turn || "–"}</span></div>
         <div class="who">${f.act === me ? T("Ich") : f.act === opp ? T("Gegner") : "–"}</div>
         <div class="ph">${PHASES.map(([ph, ic]) => `<span class="phi ${f.ph === ph ? "on" : ""}" title="${T(ph)}">${ic}</span>`).join("")}</div>
-        ${f.stp ? `<div class="step" title="${A.esc(T(f.stp))}">${A.esc(T(f.stp))}</div>` : ""}
-        ${f.g > 1 ? `<div class="game">${T("Spiel")} ${f.g}</div>` : ""}
+        <div class="step" title="${A.esc(T(f.stp || ""))}">${A.esc(T(f.stp || ""))}</div>
+        <div class="game">${f.g > 1 ? T("Spiel") + " " + f.g : ""}</div>
       </div>`;
     }
     /** Stapel: nur die Karte (Fähigkeiten zeigen ihre Quellkarte), Details erst per Klick */

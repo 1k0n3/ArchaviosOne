@@ -608,3 +608,11 @@ button.zi:hover { border-color: var(--gold); color: var(--gold-2); transform: tr
 
 /* Autoplay-Schalter in der Leiste */
 .pb-row button.toggle.on { border-color: rgba(242,177,52,.7); color: var(--gold-2); background: var(--win-soft); }
+
+/* Phasenleiste: feste Plätze, damit beim Abspielen nichts springt (Schritt und Spiel-Nr. sind immer da, ggf. leer) */
+.phasebar { justify-content: flex-start; }
+.phasebar .turn { height: 34px; } .phasebar .turn .n { display: block; min-width: 30px; }
+.phasebar .who { min-width: 44px; text-align: center; height: 16px; line-height: 12px; }
+.phasebar .step { height: 96px; max-height: 96px; }
+.phasebar .game { height: 12px; line-height: 12px; }
+@media (max-height: 820px) { .phasebar .step { height: 0; } }
