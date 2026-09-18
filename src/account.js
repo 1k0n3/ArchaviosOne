@@ -27,9 +27,12 @@ class AccountParser {
     const pending = this.pending; this.pending = null;
     if (!pending && !s.startsWith("{ \"InventoryInfo\"") && !s.startsWith("{\"InventoryInfo\"")) return;
     let j; try { j = JSON.parse(s); } catch (e) { return; }
-    if (j.InventoryInfo) this.inventory(j.InventoryInfo);
+    if (j.InventoryInfo) { this.inventory(j.InventoryInfo); if (j.HomePageAchievements) this.homeAchievements(j.HomePageAchievements); }
     else if (pending && pending.name === "RankGetCombinedRankInfo") this.rank(j);
+    else if (pending && pending.name === "RankGetSeasonAndRankDetails" && j.currentSeason) this.season(j.currentSeason);
+    else if (pending && pending.name === "PeriodicRewardsGetStatus") this.periodic(j);
     else if (pending && pending.name === "GraphGetGraphState" && /^BattlePass_/.test(pending.graph || "")) this.mastery(pending.graph, j);
+    else if (pending && pending.name === "GraphGetGraphState" && /^Achievements_/.test(pending.graph || "")) this.achievements(pending.graph, j);
     else if (pending && pending.name === "QuestGetQuests" && Array.isArray(j.quests)) this.quests(j.quests);
     else return;
     this.changed();
@@ -39,7 +42,8 @@ class AccountParser {
     const tokens = i.CustomTokens || {};
     const orbs = Object.entries(tokens).filter(([k]) => /BattlePass_.*_Orb$/.test(k)).reduce((s, [, v]) => s + (+v || 0), 0);
     Object.assign(this.state, {
-      gold: i.Gold || 0, gems: i.Gems || 0,
+      // Gold steht nicht in jeder Inventar-Antwort: fehlt es, bleibt der letzte bekannte Wert (sonst unbekannt = null)
+      gold: i.Gold != null ? i.Gold : (this.state.gold != null ? this.state.gold : null), gems: i.Gems || 0,
       vault: Math.round((i.TotalVaultProgress || 0)) / 10,          // Tresor in Prozent (Wert kommt in Zehnteln)
       wildcards: { c: i.WildCardCommons || 0, u: i.WildCardUnCommons || 0, r: i.WildCardRares || 0, m: i.WildCardMythics || 0 },
       wcTrack: i.WcTrackPosition || 0,
@@ -68,6 +72,34 @@ class AccountParser {
     if (cur && cur.xp != null && xp == null) return;
     if (cur && cur.active && !active && xp == null) return;
     this.state.mastery = { pass: graph.replace(/^BattlePass_/, ""), level, xp: xp != null ? +xp : null, premium: !!(nodes.RewardTierUpgrade && nodes.RewardTierUpgrade.Status === "Completed"), active };
+  }
+  season(s) {
+    this.state.season = { ordinal: s.seasonOrdinal || null, start: s.seasonStartTime || null, end: s.seasonEndTime || null };
+  }
+  periodic(p) {
+    this.state.rewards = { dailyReset: p._dailyRewardResetTimestamp || null, weeklyReset: p._weeklyRewardResetTimestamp || null, weeklySequence: p._weeklyRewardSequenceId || null };
+  }
+  /** Startseiten-Hinweise: abholbare, fast fertige und zuletzt fortgeschrittene Erfolge (nur Ids) */
+  homeAchievements(h) {
+    const ids = (l) => (Array.isArray(l) ? l.map((x) => x.NodeId).filter(Boolean) : []);
+    const a = this.state.achievements || (this.state.achievements = { groups: {} });
+    a.claimable = ids(h.Claimable); a.closeToComplete = ids(h.CloseToComplete); a.recent = ids(h.RecentlyProgressed);
+  }
+  /**
+   * Erfolge (Achievements_Core, Achievements_Colors): je Knoten Status, Fortschritt und Abschlussdatum.
+   * "…Reward"-Knoten und "---META_…" sind Technik und werden übersprungen.
+   */
+  achievements(graph, j) {
+    const nodes = j.NodeStates || {};
+    const list = [];
+    for (const [id, v] of Object.entries(nodes)) {
+      if (!v || /Reward$/.test(id) || /^---/.test(id)) continue;
+      const st = v.Status || (v.StatusInternal === 2 ? "Completed" : v.StatusInternal === 1 ? "Available" : "Locked");
+      const done = (v.ProgressionHistoryStateDataState || {}).progressedDateTimeUTC || (v.ProgressionHistoryStateDataState || {}).ProgressedDateTimeUTCInternal || null;
+      list.push({ id, status: st, progress: v.ProgressNodeState && v.ProgressNodeState.CurrentProgress != null ? v.ProgressNodeState.CurrentProgress : null, completedAt: done && !/^0001-/.test(done) ? done : null });
+    }
+    const a = this.state.achievements || (this.state.achievements = { groups: {} });
+    a.groups[graph.replace(/^Achievements_/, "")] = { total: list.length, completed: list.filter((x) => x.status === "Completed").length, list };
   }
   quests(list) {
     this.state.quests = list.map((q) => ({
@@ -110,7 +142,7 @@ if (require.main === module) {
   fs.mkdirSync(outDir, { recursive: true });
   saveAccount(outDir, last);
   const w = last.wildcards || {};
-  console.log(`Konto eingelesen: ${last.gold} Gold, ${last.gems} Edelsteine, Wildcards ${[w.c, w.u, w.r, w.m].join("/")}` + (last.rank ? `, Rang ${last.rank.constructed.tier} ${last.rank.constructed.level}` : "") + (last.mastery ? `, Mastery ${last.mastery.pass} Level ${last.mastery.level}` : ""));
+  console.log(`Konto eingelesen: ${last.gold == null ? "? " : last.gold + " "}Gold, ${last.gems} Edelsteine, Wildcards ${[w.c, w.u, w.r, w.m].join("/")}` + (last.rank ? `, Rang ${last.rank.constructed.tier} ${last.rank.constructed.level}` : "") + (last.mastery ? `, Mastery ${last.mastery.pass} Level ${last.mastery.level}` : ""));
   (async () => {
     try {
       const sync = require("./sync");

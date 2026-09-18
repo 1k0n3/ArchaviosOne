@@ -226,7 +226,7 @@ const account = require("./account");
 let accountDirty = false;
 function onAccount(a) {
   try { account.saveAccount(cfg.outDir, a); } catch (e) { log("Konto: " + e.message); return; }
-  log(`Konto: ${a.gold} Gold, ${a.gems} Edelsteine, Wildcards ${a.wildcards ? [a.wildcards.c, a.wildcards.u, a.wildcards.r, a.wildcards.m].join("/") : "?"}` + (a.rank ? `, Rang ${a.rank.constructed.tier} ${a.rank.constructed.level}` : "") + (a.mastery ? `, Mastery ${a.mastery.pass} Level ${a.mastery.level}` : ""));
+  log(`Konto: ${a.gold == null ? "? " : a.gold + " "}Gold, ${a.gems} Edelsteine, Wildcards ${a.wildcards ? [a.wildcards.c, a.wildcards.u, a.wildcards.r, a.wildcards.m].join("/") : "?"}` + (a.rank ? `, Rang ${a.rank.constructed.tier} ${a.rank.constructed.level}` : "") + (a.mastery ? `, Mastery ${a.mastery.pass} Level ${a.mastery.level}` : ""));
   if (cfg.syncAccount !== false) {
     try {
       // Rang-Embleme aus den Spieldaten klein mitschicken (die Website hat keine Spieldaten)
