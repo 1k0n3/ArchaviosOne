@@ -24,7 +24,7 @@ function smtp_send(string $from, string $to, string $subject, string $text): boo
   $c = cfg('mail.smtp', []);
   $host = $c['host'] ?? ''; $port = (int)($c['port'] ?? 587); $secure = $c['secure'] ?? 'tls';
   $fp = @stream_socket_client(($secure === 'ssl' ? 'ssl://' : 'tcp://') . $host . ':' . $port, $errno, $errstr, 15);
-  if (!$fp) { app_log("SMTP: $errstr"); return false; }
+  if (!$fp) { app_log("SMTP: keine Verbindung zu $host:$port ($secure): $errstr"); return false; }
   $read = function () use ($fp) { $out = ''; while (($line = fgets($fp, 1024)) !== false) { $out .= $line; if (!isset($line[3]) || $line[3] !== '-') break; } return $out; };
   $cmd = function (string $s, string $ok) use ($fp, $read) { fwrite($fp, $s . "\r\n"); $r = $read(); if (!str_starts_with($r, $ok)) throw new RuntimeException("SMTP: $s -> " . trim($r)); return $r; };
   try {
