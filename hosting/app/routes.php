@@ -63,17 +63,22 @@ function dispatch(string $m, string $p): void {
     $name = trim(post('name')); $email = trim(post('email')); $pw = post('password');
     if (mb_strlen($name) < 2 || mb_strlen($name) > 40 || !filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 200 || password_problem($pw))
       render('Registrieren', page_register($_POST), ['flash' => ['kind' => 'error', 'text' => password_problem($pw) ?: 'Bitte Name, gültige E-Mail und ein Passwort mit mindestens 10 Zeichen angeben.']]);
+    $verify = cfg('verify_email', true);
     if (!get_user_by_email($email)) {   // keine Auskunft, ob die Adresse existiert
-      $u = create_user($email, $pw, $name);
-      $token = create_email_token($u['id'], 'verify', 24);
-      $link = cfg('base_url') . "/verify/$token";
-      if (!mail_verify($u['email'], $link)) app_log("Bestätigungslink für $email: $link");
+      $u = create_user($email, $pw, $name, !$verify);
+      if ($verify) {
+        $token = create_email_token($u['id'], 'verify', 24);
+        $link = cfg('base_url') . "/verify/$token";
+        $sent = mail_verify($u['email'], $link);
+        app_log("Bestätigungslink für $email" . ($sent ? '' : ' (Mail nicht gesendet)') . ": $link");   // immer protokollieren, falls die Mail nicht ankommt
+      }
     }
+    if (!$verify) { flash_set('ok', 'Konto angelegt. Du kannst dich jetzt anmelden.'); redirect('/login'); }
     render('Fast geschafft', page_message('Bitte E-Mail bestätigen', "Wir haben eine Nachricht an $email geschickt. Klicke den Link darin, dann kannst du dich anmelden.", ['href' => '/login', 'text' => 'Zur Anmeldung']));
   }
   if ($p === '/verify/resend') {
     $u = require_user();
-    if (!$u['email_verified']) { $token = create_email_token($u['id'], 'verify', 24); $link = cfg('base_url') . "/verify/$token"; if (!mail_verify($u['email'], $link)) app_log("Bestätigungslink für {$u['email']}: $link"); }
+    if (!$u['email_verified']) { $token = create_email_token($u['id'], 'verify', 24); $link = cfg('base_url') . "/verify/$token"; $sent = mail_verify($u['email'], $link); app_log("Bestätigungslink für {$u['email']}" . ($sent ? '' : ' (Mail nicht gesendet)') . ": $link"); }
     flash_set('ok', 'Bestätigungsmail gesendet.'); redirect('/settings');
   }
   if (preg_match('#^/verify/([A-Za-z0-9_-]+)$#', $p, $x)) {
@@ -90,7 +95,7 @@ function dispatch(string $m, string $p): void {
     $u = get_user_by_email(post('email')); $next = post('next');
     $ok = $u && verify_password(post('password'), $u['password_hash']);
     if (!$ok) { if (!$u) verify_password('x', hash_password('gleiche-zeit')); render('Anmelden', page_login($next), ['flash' => ['kind' => 'error', 'text' => 'E-Mail oder Passwort stimmen nicht.']]); }
-    if (!$u['email_verified']) render('Anmelden', page_login(), ['flash' => ['kind' => 'error', 'text' => 'Bitte zuerst die E-Mail-Adresse bestätigen (Link in der Mail).']]);
+    if (!$u['email_verified'] && cfg('verify_email', true)) render('Anmelden', page_login(), ['flash' => ['kind' => 'error', 'text' => 'Bitte zuerst die E-Mail-Adresse bestätigen (Link in der Mail).']]);
     set_session_cookie(create_session($u['id'])); redirect(safe_next($next));
   }
   if ($p === '/logout' && $m === 'POST') { require_csrf(); destroy_session(cookie(SESSION_COOKIE)); cookie_clear(SESSION_COOKIE); redirect('/'); }
@@ -100,7 +105,7 @@ function dispatch(string $m, string $p): void {
   if ($p === '/forgot' && $m === 'POST') {
     rate_limit('forgot', 5, 900); require_csrf();
     $u = get_user_by_email(post('email'));
-    if ($u && $u['password_hash']) { $token = create_email_token($u['id'], 'reset', 2); $link = cfg('base_url') . "/reset/$token"; if (!mail_reset($u['email'], $link)) app_log("Reset-Link für {$u['email']}: $link"); }
+    if ($u && $u['password_hash']) { $token = create_email_token($u['id'], 'reset', 2); $link = cfg('base_url') . "/reset/$token"; $sent = mail_reset($u['email'], $link); app_log("Reset-Link für {$u['email']}" . ($sent ? '' : ' (Mail nicht gesendet)') . ": $link"); }
     render('Passwort zurücksetzen', page_message('Mail unterwegs', 'Wenn ein Konto zu dieser Adresse existiert, ist ein Link zum Zurücksetzen unterwegs (2 Stunden gültig).'));
   }
   if (preg_match('#^/reset/([A-Za-z0-9_-]+)$#', $p, $x)) {

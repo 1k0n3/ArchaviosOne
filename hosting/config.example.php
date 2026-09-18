@@ -30,6 +30,8 @@ return [
 
   // Neue Konten erlauben
   'registration_open' => true,
+  // E-Mail-Bestätigung verlangen? false = Konto ist sofort nutzbar (praktisch, wenn der Hoster keine Mails verschickt)
+  'verify_email' => true,
 
   // Companion-Download: GitHub-Repository (owner/name) → direkter ZIP-Link; download_url überschreibt ihn
   'github_repo' => '',
