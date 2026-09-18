@@ -25,6 +25,7 @@ const { exportDecks } = require("./decks");
 const matches = require("./matches");
 const webgen = require("./webgen");
 const serve = require("./serve");
+const sync = require("./sync");
 
 // ---- Konfiguration --------------------------------------------------------------------------
 
@@ -191,9 +192,16 @@ function buildWeb() {
     const r = webgen.build(cfg.outDir, cards);
     log(`Dashboard aktualisiert: ${r.matches} Matches, ${r.decks} Decks -> ${path.relative(cfg.outDir, r.index)}`);
     prefetchCardImages();
+    // Decks in die Cloud-Warteschlange (nur geänderte), danach senden
+    try { const n = sync.enqueueDecks(webgen.readDecks(cards)); if (n) log(`Sync: ${n} Decks eingereiht`); } catch (e) { log("Sync: Decks nicht eingereiht: " + e.message); }
+    syncFlush();
   } catch (e) {
     log("Dashboard nicht aktualisiert: " + e.message);
   }
+}
+/** Warteschlange an die Website senden (still, wenn nicht verbunden oder offline) */
+function syncFlush() {
+  sync.flush(log).then((r) => { if (r.error && r.error !== "nicht verbunden") log("Sync: " + r.error + (r.left ? ` (${r.left} wartend)` : "")); }).catch((e) => log("Sync: " + e.message));
 }
 
 function onMatch(m) {
@@ -201,6 +209,7 @@ function onMatch(m) {
   if (!r.isNew) return;
   const s = matches.matchSummary(m, cards);
   matches.writeIndexCsv(cfg.outDir, cards);
+  try { sync.enqueueMatch(m, s); } catch (e) { log("Sync: Match nicht eingereiht: " + e.message); }
   log(`Match: ${s.result} gegen ${s.opponent} mit ${s.myDeck}${s.commander ? " (" + s.commander + ")" : ""}, ${s.turns} Züge, ${s.opponentCards.length} Gegnerkarten gesehen`);
   buildWeb();
 }
@@ -255,6 +264,7 @@ async function runSession(pid) {
     }
   }
   saveState(start.snapshot, session);
+  try { sync.enqueueCollection(start.snapshot); } catch (e) { /* nicht verbunden */ }
   tryExportDecks();
 
   // Laufende Prüfung
@@ -301,6 +311,7 @@ async function runSession(pid) {
     s.added, s.changed, (s.delta > 0 ? "+" : "") + s.delta
   ]]);
   saveState(current, session);
+  try { sync.enqueueCollection(current); } catch (e) { /* nicht verbunden */ }
   if (!cfg.once) await matchTask;
   tryExportDecks();
   buildWeb();
@@ -310,6 +321,7 @@ async function runSession(pid) {
 
 // ---- Hauptschleife ------------------------------------------------------------------------------------
 
+setInterval(syncFlush, 5 * 60 * 1000);
 (async function main() {
   const dbPath = lib.findCardDb(cfg.db);
   const loaded = lib.loadCards(dbPath);

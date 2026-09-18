@@ -1,0 +1,33 @@
+# Betrieb auf einem Hetzner-Server: App-Container + Caddy (automatisches HTTPS über Let's Encrypt)
+#   1. .env aus .env.example anlegen (BASE_URL, SMTP, OAuth)
+#   2. In Caddyfile die Domain eintragen
+#   3. docker compose up -d --build
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    env_file: .env
+    environment:
+      - DATA_DIR=/data
+    volumes:
+      - mtga-data:/data
+    restart: unless-stopped
+    expose:
+      - "3000"
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+volumes:
+  mtga-data:
+  caddy-data:
+  caddy-config:

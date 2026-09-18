@@ -1,0 +1,38 @@
+/* Website-Rahmen (Konto, Einstellungen, Startseite); baut auf app.css auf */
+body.site { display: block; }
+.site-head { display: flex; align-items: center; gap: 18px; padding: 14px 28px; border-bottom: 1px solid var(--line); background: rgba(10,13,22,.85); backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 20; }
+.site-head .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); }
+.site-head .brand b { display: block; font-size: 16px; } .site-head .brand small { color: var(--ink-3); font-size: 11px; }
+.site-head nav { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.site-head nav a { color: var(--ink-2); font-weight: 600; } .site-head nav a:hover { color: var(--gold-2); }
+.site-head nav form.inline { display: inline; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line-2); color: var(--ink) !important; font-weight: 700; }
+.btn:hover { background: var(--panel-3); border-color: var(--gold); }
+.btn.primary { background: linear-gradient(180deg, var(--gold-2), var(--gold)); color: var(--gold-ink) !important; border-color: transparent; }
+.btn.small { padding: 5px 10px; font-size: 12px; }
+.site-main { max-width: 1100px; margin: 0 auto; padding: 28px 24px 60px; }
+.site-main.wide { max-width: 1500px; }
+.site-foot { max-width: 1100px; margin: 0 auto; padding: 20px 24px 40px; color: var(--ink-3); font-size: 12px; }
+.flash { padding: 10px 14px; border-radius: 10px; margin-bottom: 18px; border: 1px solid var(--line-2); background: var(--panel-2); }
+.flash.error { border-color: rgba(217,119,6,.6); } .flash.ok { border-color: rgba(59,130,246,.6); }
+.card-form { max-width: 460px; margin: 30px auto; background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); border-radius: var(--r); padding: 26px 28px; box-shadow: var(--shadow); }
+.card-form h1 { font-size: 22px; margin-bottom: 14px; }
+.fld { display: flex; flex-direction: column; gap: 5px; margin: 0 0 12px; font-size: 13px; color: var(--ink-2); }
+.fld input, .card-form select, .panel select { width: 100%; }
+.oauth { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+.oauth-btn { justify-content: center; }
+.oauth-btn.discord { background: #5865f2; border-color: #5865f2; color: #fff !important; }
+.oauth-btn.google { background: #fff; border-color: #ddd; color: #222 !important; }
+.hero-site { display: grid; grid-template-columns: 1.4fr 1fr; gap: 30px; align-items: center; padding: 30px 0 20px; }
+.hero-site h1 { font-size: 34px; line-height: 1.15; margin-bottom: 12px; }
+.hero-site p { color: var(--ink-2); font-size: 15px; }
+.stats-site { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.stats-site div { text-align: center; padding: 16px 8px; border-radius: var(--r); background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); }
+.stats-site b { display: block; font-size: 26px; } .stats-site span { color: var(--ink-3); font-size: 12px; }
+.deck-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+.deck-card { display: block; border-radius: var(--r); overflow: hidden; background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); color: var(--ink); transition: transform .15s, border-color .15s; }
+.deck-card:hover { transform: translateY(-3px); border-color: var(--gold); color: var(--ink); }
+.deck-card .art { height: 130px; background: #141a2a; overflow: hidden; } .deck-card .art img { width: 100%; height: 100%; object-fit: cover; object-position: center 22%; }
+.deck-card .body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 2px; }
+.device-code { font: 800 30px/1 ui-monospace, Consolas, monospace; letter-spacing: 4px; color: var(--gold-2); text-align: center; padding: 14px; border: 1px dashed var(--gold); border-radius: 12px; margin: 10px 0 12px; }
+@media (max-width: 800px) { .hero-site { grid-template-columns: 1fr; } .site-head { padding: 10px 14px; flex-wrap: wrap; } .site-head nav { margin-left: 0; flex-wrap: wrap; } }

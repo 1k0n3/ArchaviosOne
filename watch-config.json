@@ -1,48 +1,35 @@
 {
   "_hinweis": "Alle Zeiten in Sekunden. Änderungen gelten beim nächsten Start des Watchers.",
-
   "pollSec": 300,
   "_pollSec": "Wie oft geprüft wird, ob MTGA läuft, solange es nicht läuft.",
-
   "checkSec": 60,
   "_checkSec": "Wie oft während des Spiels auf Änderungen geprüft wird (nur bekannter Speicherblock, schnell).",
-
   "fullScanSec": 600,
   "_fullScanSec": "Wie oft während des Spiels trotzdem ein kompletter Speicher-Scan gemacht wird (findet verschobene Daten). 0 = nie.",
-
   "retrySec": 60,
   "_retrySec": "Wiederholung, wenn nach dem Spielstart noch keine Sammlung im Speicher ist.",
-
   "startDelaySec": 0,
   "_startDelaySec": "Wartezeit nach Erkennen des Spiels, bevor der erste Scan startet.",
-
   "minCards": 200,
   "_minCards": "Unter so vielen Karten gilt ein Block als 'Sammlung noch nicht geladen'.",
-
   "maxQty": 400,
   "_maxQty": "Höchste plausible Anzahl pro Karte.",
-
   "matchCheckSec": 10,
   "_matchCheckSec": "Wie oft während des Spiels die Player.log auf neue Match-Ereignisse geprüft wird (sehr günstig).",
-
   "webDashboard": true,
   "_webDashboard": "Web-Dashboard (out/web/index.html) nach jedem Match und Sitzungsende aktualisieren.",
-
   "webServer": true,
   "_webServer": "Lokalen Dashboard-Server starten (liefert Kartenbilder direkt aus den MTGA-Spieldaten).",
-
   "prefetchCardImages": false,
   "_prefetchCardImages": "Bild-Links aller Karten aus Matches und Decks beim Start im Hintergrund auflösen. Aus, weil Scryfall sonst drosselt; Bilder werden ohnehin seitenweise in Sekunden aufgelöst.",
-
   "webPort": 8765,
   "_webPort": "Port des Dashboard-Servers: http://localhost:<Port>/",
-
   "writeEndCsvIfUnchanged": true,
   "_writeEndCsvIfUnchanged": "Nachher-CSV auch schreiben, wenn sich nichts geändert hat.",
-
   "outDir": "out",
   "_outDir": "Ausgabeordner (relativ zum Tool-Ordner oder absolut).",
-
   "anchors": [],
-  "_anchors": "Optionale Plausibilitätsanker, z. B. [\"Forest=4\", \"Shock=3\"]."
+  "_anchors": "Optionale Plausibilitätsanker, z. B. [\"Forest=4\", \"Shock=3\"].",
+  "_syncUrl": "Adresse der MTGA-Stats-Website für den Cloud-Sync (leer = aus). Verbinden: Tray-Menü 'Mit Website verbinden…' oder node src/sync.js connect <CODE>",
+  "syncUrl": ""
 }

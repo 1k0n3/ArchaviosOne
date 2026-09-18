@@ -824,3 +824,6 @@ button.reset:hover { color: var(--gold-2); border-color: var(--gold); }
 button.reset { display: inline-flex; visibility: hidden; }
 button.reset.show { visibility: visible; }
 button.reset { margin-right: 20px; }
+.side-nav .nav-sep { height: 1px; background: var(--line); margin: 10px 8px; }
+.deckbox .front img.artbg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 20%; }
+.deck-cell .art img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }

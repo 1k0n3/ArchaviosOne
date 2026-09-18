@@ -10,3 +10,8 @@ npm-debug.log
 .idea/
 Thumbs.db
 .DS_Store
+# Website-Server: Datenbank, Geheimnisse, Abhängigkeiten
+server/data/
+server/node_modules/
+server/.env
+# Companion: Cloud-Sync-Warteschlange und Gerätetoken liegen in out/ (bereits ausgeschlossen)

@@ -310,13 +310,15 @@ window.App = (function () {
   /** 3D-Deckbox im Querformat wie in Arena: Box mit Deckel, Artwork, Farb-Pips, Namensplakette */
   function deckBox(d, opts = {}) {
     const art = artOf(d.tile);
+    // Ohne lokales Artwork (Website): Kartenbild der Titelkarte als Boxbild
+    const artHtml = art ? artCanvas(art, "artbg") : (d.tile ? `<img class="artbg wide" src="card-img/${d.tile}?v=normal" alt="" loading="lazy" onerror="this.remove()">` : "");
     const pips = (opts.colors || deckColors(d)).map((c) => `<span class="pip p-${c}">${manaSymbol(c)}</span>`).join("");
     return `<div class="deckbox ${opts.cls || ""}" data-id="${esc(d.id || "")}" title="${esc(d.name)}">
-      <div class="box"><div class="face top"><span class="brand">✦ ARENA</span></div><div class="face front">${artCanvas(art, "artbg")}<div class="pips">${pips}</div>${opts.badge || ""}</div><div class="face side"></div></div>
+      <div class="box"><div class="face top"><span class="brand">✦ ARENA</span></div><div class="face front">${artHtml}<div class="pips">${pips}</div>${opts.badge || ""}</div><div class="face side"></div></div>
       <div class="plate"><span class="n">${esc(d.name)}</span>${opts.sub ? `<span class="s">${esc(opts.sub)}</span>` : ""}</div></div>`;
   }
   function deckCell(m) {
-    return `<div class="deck-cell"><div class="art">${artCanvas(artOf(m.tile))}</div><div><div class="n">${esc(m.myDeck || "?")}</div><div class="s">${esc(m.commander || m.format || "")}</div></div></div>`;
+    return `<div class="deck-cell"><div class="art">${artOf(m.tile) ? artCanvas(artOf(m.tile)) : (m.tile ? `<img src="card-img/${m.tile}?v=small" alt="" loading="lazy" onerror="this.remove()">` : "")}</div><div><div class="n">${esc(m.myDeck || "?")}</div><div class="s">${esc(m.commander || m.format || "")}</div></div></div>`;
   }
 
   // ---- Formatierung ---------------------------------------------------------------------
@@ -356,12 +358,17 @@ window.App = (function () {
   };
 
   function shell(active, contentHtml) {
-    const pages = [["index.html", "Übersicht", "dash"], ["matches.html", "Matches", "matches"], ["decks.html", "Decks", "decks"], ["library.html", "Bibliothek", "lib"]];
+    // Auf der Website: freigegebene Decks zeigen nur die Deckseite, das eigene Dashboard bekommt Konto-Links
+    const site = DATA && DATA.site;
+    let pages = [["index.html", "Übersicht", "dash"], ["matches.html", "Matches", "matches"], ["decks.html", "Decks", "decks"], ["library.html", "Bibliothek", "lib"]];
+    if (site && site.shared) pages = [["decks.html", "Geteiltes Deck", "decks"]];
+    const siteLinks = site ? (site.shared ? `<a class="nav" href="/">${ICONS.dash}<span>Zur Website</span></a><a class="nav" href="/p/${esc(site.handle)}">${ICONS.lib}<span>Profil von ${esc(site.handle)}</span></a>` : `<a class="nav" href="/settings">${ICONS.decks}<span>Konto &amp; Geräte</span></a><a class="nav" href="/">${ICONS.dash}<span>Website</span></a>`) : "";
     const player = (DATA && DATA.player) || "Spieler";
     const st = stats(DATA ? DATA.matches : []);
     const nav = `<aside class="side-nav">
       <div class="brand">${logoSvg()}<div><div class="t1">MTGA Stats</div><div class="t2">Lokales Dashboard</div></div></div>
       ${pages.map(([h, t, ic]) => `<a class="nav ${active === h ? "active" : ""}" href="${h}">${ICONS[ic]}<span>${t}</span></a>`).join("")}
+      ${siteLinks ? `<div class="nav-sep"></div>${siteLinks}` : ""}
       <div class="spacer"></div>
       <div class="player"><div class="av">${esc(player.slice(0, 1).toUpperCase())}</div><div><div class="n">${esc(player)}</div><div class="s">${st.n} Matches · ${Math.round(st.rate * 100)} % Winrate</div></div></div>
       <div class="foot">Stand ${DATA && DATA.generatedAt ? fmtDate(DATA.generatedAt) + " " + fmtTime(DATA.generatedAt) : "?"}${Art.supported ? "" : " · Bilder: WebGL S3TC nicht verfügbar"}</div>

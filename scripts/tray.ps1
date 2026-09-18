@@ -248,6 +248,30 @@ $script:miOpenLog = Add-Item "Protokoll öffnen" {
 }
 $script:miOpenCfg = Add-Item "Alle Einstellungen bearbeiten (JSON)" { Start-Process notepad.exe $script:configPath }
 Add-Separator
+Add-Header "CLOUD-SYNC"
+$script:miConnect = Add-Item "Mit Website verbinden…" {
+  Add-Type -AssemblyName Microsoft.VisualBasic
+  $url = Get-ConfigValue "syncUrl" ""
+  if (-not $url) {
+    $url = [Microsoft.VisualBasic.Interaction]::InputBox("Adresse der MTGA-Stats-Website (z. B. https://mtga.example.de)", "MTGA Stats – Website", "https://")
+    if (-not $url -or $url -eq "https://") { return }
+    Set-ConfigValue "syncUrl" $url.Trim()
+  }
+  $code = [Microsoft.VisualBasic.Interaction]::InputBox("Verbindungscode aus den Website-Einstellungen (Companion verbinden):", "MTGA Stats – Gerät verbinden", "")
+  if (-not $code) { return }
+  $out = & node (Join-Path $script:dir "src\sync.js") connect $code.Trim() --url (Get-ConfigValue "syncUrl" "") 2>&1
+  Show-Balloon ([string]$out)
+}
+$script:miSyncNow = Add-Item "Jetzt synchronisieren" {
+  $out = & node (Join-Path $script:dir "src\sync.js") flush 2>&1
+  $st = & node (Join-Path $script:dir "src\sync.js") status 2>&1 | ConvertFrom-Json
+  if ($st.connected) { Show-Balloon ("Verbunden als " + $st.user.displayName + " · " + $st.queued + " wartend" + $(if ($st.lastError) { " · Fehler: " + $st.lastError } else { "" })) } else { Show-Balloon "Nicht mit einer Website verbunden." }
+}
+$script:miDisconnect = Add-Item "Verbindung trennen" {
+  & node (Join-Path $script:dir "src\sync.js") disconnect 2>&1 | Out-Null
+  Show-Balloon "Cloud-Sync getrennt."
+}
+Add-Separator
 $script:miExit = Add-Item "Beenden" { Exit-Tray }
 
 $script:tray.ContextMenuStrip = $menu

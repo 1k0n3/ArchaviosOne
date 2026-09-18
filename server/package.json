@@ -1,0 +1,25 @@
+{
+  "name": "mtga-stats-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MTGA Stats website: accounts, deck sharing, cloud sync for the companion, cached card images.",
+  "type": "commonjs",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "migrate": "node src/db.js migrate",
+    "cards": "node src/cards.js sync",
+    "test": "node --test \"test/*.test.js\""
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/formbody": "^8.0.2",
+    "@fastify/helmet": "^13.0.1",
+    "@fastify/rate-limit": "^10.2.2",
+    "@fastify/static": "^8.1.1",
+    "fastify": "^5.3.2",
+    "nodemailer": "^7.0.3",
+    "zod": "^3.24.4"
+  }
+}
