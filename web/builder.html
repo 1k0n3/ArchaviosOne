@@ -139,7 +139,7 @@ App.load().then(async (D) => {
     const missing = Object.entries(deck.main).filter(([g, q]) => !isBasic(byId.get(+g)) && q > ownedOf(byId.get(+g))).length;   // Standardländer sind in Arena unbegrenzt if (missing) out.push(T("{n} Karten nicht (ausreichend) im Besitz", { n: missing }));
     return out;
   }
-  const row = (g, q, zone) => { const c = byId.get(g); const short = q > ownedOf(c) && !isBasic(c); return `<div class="drow ${short ? "short" : ""}" data-g="${g}" data-zone="${zone}" title="${A.esc(c[18] || "")}"><span class="q">${zone === "cmd" ? "★" : q}</span><span class="n">${A.esc(c[1])}</span><span class="cost">${A.manaHtml ? A.manaHtml(c[10]) : A.esc(c[10])}</span><button type="button" class="alt" title="${T("Alternativen")}">${FI.swords}</button><button type="button" class="minus" title="${T("Entfernen")}">−</button></div>`; };
+  const row = (g, q, zone) => { const c = byId.get(g); const short = q > ownedOf(c) && !isBasic(c); return `<div class="drow ${short ? "short" : ""}" data-g="${g}" data-zone="${zone}" data-pv-anchor="left"><span class="q">${zone === "cmd" ? "★" : q}</span><span class="n">${A.esc(c[1])}</span><span class="cost">${A.manaHtml ? A.manaHtml(c[10]) : A.esc(c[10])}</span><button type="button" class="alt" title="${T("Alternativen")}">${FI.search}</button><button type="button" class="minus" title="${T("Entfernen")}">${FI.x}</button></div>`; };
   function renderDeck() {
     const f = fmt(), n = mainCount(), st = A.deckStats({ zones: { CommandZone: deck.cmd.map((g) => [g, 1]), MainDeck: Object.entries(deck.main).map(([g, q]) => [+g, q]) } });
     const groups = TYPE_GROUPS.map(([t]) => [t, []]);
@@ -156,8 +156,9 @@ App.load().then(async (D) => {
         ${groups.filter(([, l]) => l.length).map(([t, l]) => `<div class="dp-sec">${T(t)} <span>${l.reduce((s, [, q]) => s + q, 0)}</span></div>${l.map(([g, q]) => row(g, q, "main")).join("")}`).join("") || `<div class="muted small dp-hint">${T("Karten links anklicken, um sie ins Deck zu legen. Rechtsklick entfernt.")}</div>`}
         ${sideCount() ? `<div class="dp-sec">${T("Sideboard")} <span>${sideCount()}</span></div>${Object.entries(deck.side).map(([g, q]) => row(+g, q, "side")).join("")}` : ""}
       </div>
-      <div class="dp-actions"><button class="primary small" id="dp-copy">${FI.copies} ${T("Für Arena kopieren")}</button><button class="ghost small" id="dp-save">${FI.download} .txt</button><button class="ghost small" id="dp-fix" title="${T("Alternativen aus deiner Sammlung für fehlende Karten")}">${FI.swords} ${T("Fehlende ersetzen")}</button></div>`;
+      <div class="dp-actions"><div class="main"><button class="primary small" id="dp-copy">${FI.copies} ${T("Für Arena kopieren")}</button><button class="small" id="dp-fix" title="${T("Alternativen aus deiner Sammlung für fehlende Karten")}">${FI.search} ${T("Alternativen suchen")}</button></div><button class="ghost sub" id="dp-save">${FI.download} ${T("als TXT speichern")}</button></div>`;
     A.$("#dp-name").addEventListener("change", (ev) => { deck.name = ev.target.value.trim() || T("Neues Deck"); persist(); });
+    A.hoverPreview(A.$("#deckpanel"));   // Kartenbild neben der Zeile beim Überfahren
     A.dropdown(A.$("#dp-format"), { title: T("Format"), value: deck.format, defaultValue: deck.format, onChange: (v) => { deck.format = v; persist(); renderDeck(); renderPool(); }, items: Object.entries(FORMATS).map(([v, x]) => ({ v, label: x.label, icon: x.cmd ? FI.deck : FI.set })) });
     A.dropdown(A.$("#dp-menu"), { title: T("Decks"), value: "", defaultValue: "", onChange: (v) => menu(v), items: [
       { v: "", label: T("Deckmenü"), short: "", icon: FI.deck },

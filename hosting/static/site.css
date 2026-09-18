@@ -49,6 +49,8 @@ body.site.app .content { padding: 22px 26px 40px; }
 .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
 .settings-grid .panel.wide { grid-column: 1 / -1; }
 .settings-grid h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--ink-3); }
+.settings-grid h3 .cnt { color: var(--gold); margin-left: 4px; }
+.settings-grid h3.fold-head.folded { margin-bottom: 0; }
 .settings-grid .fld input { width: 100%; }
 .settings-grid form.inline { display: inline; }
 .settings-grid p.small { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

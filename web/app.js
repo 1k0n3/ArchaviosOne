@@ -556,14 +556,21 @@ window.App = (function () {
   let pv;
   function hoverPreview(root, dict) {
     if (!pv) { pv = document.createElement("div"); pv.className = "card-preview"; document.body.appendChild(pv); }
-    const place = (ev) => {
+    const place = (ev, el) => {
       const w = pv.offsetWidth || 240, h = pv.offsetHeight || 340;
       let x = ev.clientX + 24, y = ev.clientY - h / 2;
-      if (x + w > window.innerWidth - 8) x = ev.clientX - w - 24;
+      if (el && el.dataset.pvAnchor) {
+        // neben dem Element verankert (Deckliste im Deckbau): links daneben, notfalls rechts
+        const r = el.getBoundingClientRect();
+        x = el.dataset.pvAnchor === "right" ? r.right + 12 : r.left - w - 12;
+        if (x < 8) x = r.right + 12;
+        if (x + w > window.innerWidth - 8) x = Math.max(8, window.innerWidth - w - 8);
+        y = r.top + r.height / 2 - h / 2;
+      } else if (x + w > window.innerWidth - 8) x = ev.clientX - w - 24;
       y = Math.max(8, Math.min(window.innerHeight - h - 8, y));
       pv.style.left = x + "px"; pv.style.top = y + "px";
     };
-    for (const el of $$(".c[data-g], .cc[data-g]", root)) {
+    for (const el of $$(".c[data-g], .cc[data-g], [data-pv-anchor][data-g]", root)) {
       if (el.dataset.pv) continue;
       el.dataset.pv = "1";
       el.addEventListener("mouseenter", (ev) => {
@@ -573,9 +580,9 @@ window.App = (function () {
         $$(".c", pv).forEach((x) => x.removeAttribute("data-g"));
         pv.style.display = "block";
         Art.bind(pv);
-        place(ev);
+        place(ev, el);
       });
-      el.addEventListener("mousemove", place);
+      el.addEventListener("mousemove", (ev) => place(ev, el));
       el.addEventListener("mouseleave", () => { pv.style.display = "none"; });
       el.addEventListener("click", () => { pv.style.display = "none"; });
     }
