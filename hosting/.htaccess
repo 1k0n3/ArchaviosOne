@@ -2,6 +2,11 @@
 Options -Indexes
 DirectoryIndex index.php
 
+<IfModule mod_dir.c>
+  # /app ist eine Route, kein Ordner: keine automatische Weiterleitung auf /app/
+  DirectorySlash Off
+</IfModule>
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   # Authorization-Header an PHP durchreichen (Gerätetoken des Companions)

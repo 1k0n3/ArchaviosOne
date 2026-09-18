@@ -221,18 +221,30 @@ function refreshKnownDecks() {
   try { matches.setKnownDecks(webgen.readDecks(cards)); } catch (e) { /* kein Log */ }
 }
 
+// Kontodaten (Gold, Edelsteine, Wildcards, Rang, Mastery, Quests) aus demselben Log-Strom wie die Matches
+const account = require("./account");
+let accountDirty = false;
+function onAccount(a) {
+  try { account.saveAccount(cfg.outDir, a); } catch (e) { log("Konto: " + e.message); return; }
+  log(`Konto: ${a.gold} Gold, ${a.gems} Edelsteine, Wildcards ${a.wildcards ? [a.wildcards.c, a.wildcards.u, a.wildcards.r, a.wildcards.m].join("/") : "?"}` + (a.rank ? `, Rang ${a.rank.constructed.tier} ${a.rank.constructed.level}` : "") + (a.mastery ? `, Mastery ${a.mastery.pass} Level ${a.mastery.level}` : ""));
+  try { sync.enqueueAccount(a); } catch (e) { log("Sync: Konto nicht eingereiht: " + e.message); }
+  accountDirty = true;
+}
 function matchCatchUp() {
   refreshKnownDecks();
   const dir = matches.defaultLogDir();
   const prev = path.join(dir, "Player-prev.log");
+  const mp = new matches.MatchParser(onMatch), ap = new account.AccountParser(onAccount);
+  const both = { line(l) { mp.line(l); ap.line(l); }, resetMatch() { mp.resetMatch(); } };
   if (fs.existsSync(prev)) matches.parseLogFile(prev, onMatch);
-  logTailer = new matches.LogTailer(path.join(dir, "Player.log"), new matches.MatchParser(onMatch));
+  logTailer = new matches.LogTailer(path.join(dir, "Player.log"), both);
   logTailer.poll();
 }
 
 async function matchLoop(pid) {
   while (lib.mtgaPid() === pid) {
     try { if (logTailer) logTailer.poll(); } catch (e) { log("Match-Log: " + e.message); }
+    if (accountDirty) { accountDirty = false; try { buildWeb(); } catch (e) { log("Dashboard: " + e.message); } }
     await sleep(cfg.matchCheckSec);
   }
   try { if (logTailer) logTailer.poll(); } catch (e) { /* ignorieren */ }

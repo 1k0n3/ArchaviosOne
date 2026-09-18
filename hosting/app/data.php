@@ -28,7 +28,8 @@ function data_version(string $userId): string {
   $a = db_val('SELECT MAX(updated_at) FROM decks WHERE user_id = ?', $userId) ?? '';
   $b = db_val('SELECT MAX(created_at) FROM matches WHERE user_id = ?', $userId) ?? '';
   $c = db_val('SELECT MAX(taken_at) FROM collections WHERE user_id = ?', $userId) ?? '';
-  return substr(md5("$a|$b|$c"), 0, 16);
+  $d = db_val('SELECT taken_at FROM account_state WHERE user_id = ?', $userId) ?? '';
+  return substr(md5("$a|$b|$c|$d"), 0, 16);
 }
 
 /** Datenpaket eines Nutzers; own = true liefert alles, sonst nur freigegebene Decks und keine Matches */
@@ -39,7 +40,8 @@ function build_data(array $user, bool $own, ?array $deckIds = null): array {
   $ids = [];
   foreach ($decks as $d) { $ids[] = $d['tile']; foreach ((array)$d['zones'] as $z) foreach ($z as $p) $ids[] = $p[0]; }
   foreach ($matches as $m) { $ids[] = $m['tile'] ?? null; foreach ($m['played'] ?? [] as $p) $ids[] = $p[0]; foreach ($m['opponentCards'] ?? [] as $c) $ids[] = $c['grpId'] ?? null; }
-  return ['generatedAt' => now_iso(), 'format' => 4, 'player' => $user['arena_name'] ?: $user['display_name'], 'matches' => $matches, 'decks' => $decks, 'cards' => (object)cards_dict($ids), 'site' => ['handle' => $user['handle'], 'own' => $own]];
+  $acct = $own ? db_get('SELECT data FROM account_state WHERE user_id = ?', $user['id']) : null;
+  return ['generatedAt' => now_iso(), 'format' => 4, 'player' => $user['arena_name'] ?: $user['display_name'], 'matches' => $matches, 'decks' => $decks, 'cards' => (object)cards_dict($ids), 'account' => $acct ? json_decode($acct['data'], true) : null, 'site' => ['handle' => $user['handle'], 'own' => $own]];
 }
 
 /** Kartenliste für die Bibliothek mit Besitzstand aus der letzten Sammlung (als JSON-Text, wird groß) */

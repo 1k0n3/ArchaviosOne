@@ -7,7 +7,7 @@ const auth = require("../auth");
 const Deck = z.object({ id: z.string().min(1).max(80), name: z.string().max(120), format: z.string().max(60).optional().nullable(), tile: z.number().int().optional().nullable(), lastUpdated: z.string().optional().nullable(), zones: z.record(z.array(z.tuple([z.number().int(), z.number().int()]))), cardInfo: z.any().optional() });
 const Event = z.object({
   id: z.string().min(8).max(80),
-  kind: z.enum(["match", "deck", "deck_deleted", "collection"]),
+  kind: z.enum(["match", "deck", "deck_deleted", "collection", "account"]),
   at: z.string(),
   payload: z.any()
 });
@@ -87,6 +87,9 @@ module.exports = async function apiRoutes(app) {
         db.run("INSERT INTO tokens (arena_id, name, set_code, collector, type_line, colors, power, toughness, oracle_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(arena_id) DO NOTHING",
           +g, String(t.name), String(t.set || "").toLowerCase(), String(t.nr || ""), t.typeLine || "", t.colors || "", t.power || "", t.toughness || "", t.text || "");
       }
+    } else if (ev.kind === "account") {
+      const a = z.object({ takenAt: z.string().optional() }).passthrough().parse(ev.payload);
+      db.run("INSERT INTO account_state (user_id, data, taken_at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, taken_at = excluded.taken_at", userId, JSON.stringify(a), a.takenAt || ev.at);
     } else if (ev.kind === "collection") {
       const c = z.object({ takenAt: z.string(), snapshot: z.array(z.tuple([z.number().int(), z.number().int()])) }).parse(ev.payload);
       db.run("INSERT OR REPLACE INTO collections (user_id, taken_at, snapshot) VALUES (?, ?, ?)", userId, c.takenAt, JSON.stringify(c.snapshot));

@@ -969,3 +969,16 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; background: r
 .side-nav .player.link button.out { width: 30px; height: 30px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--ink-3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
 .side-nav .player.link button.out svg { width: 16px; height: 16px; }
 .side-nav .player.link button.out:hover { color: var(--loss-ink); border-color: var(--loss-line); background: var(--loss-soft); }
+
+/* ---- Konto (Übersicht): Währungen, Wildcards, Rang, Mastery, Quests ---- */
+.tiles.account .value.gold { color: var(--gold-2); }
+.tiles.account .value.gems { color: var(--loss-ink); }
+.tiles.account .value.wcs { display: flex; gap: 6px; font-size: 16px; }
+.tiles.account .wc { padding: 2px 8px; border-radius: 999px; font-weight: 800; border: 1px solid var(--line-2); }
+.tiles.account .wc-c { background: #2a2622; color: #d9d2c5; } .tiles.account .wc-u { background: #263241; color: #cfe0ee; }
+.tiles.account .wc-r { background: #4a3a12; color: #ffd36b; } .tiles.account .wc-m { background: #5a2a14; color: #ffb27a; }
+.quests { margin-top: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.quests .ds-t { grid-column: 1 / -1; }
+.quest { padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.03); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.tiles.account .tile .label svg { width: 14px; height: 14px; vertical-align: -3px; margin-right: 5px; }
+.tiles.account .tile .label { display: flex; align-items: center; gap: 4px; }

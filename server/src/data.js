@@ -26,7 +26,8 @@ function buildData(user, { own = false, deckIds = null } = {}) {
   for (const d of decks) { ids.add(d.tile); for (const z of Object.values(d.zones)) for (const [g] of z) ids.add(g); }
   for (const m of matches) { ids.add(m.tile); for (const [g] of m.played || []) ids.add(g); for (const c of m.opponentCards || []) ids.add(c.grpId); }
   ids.delete(0); ids.delete(undefined); ids.delete(null);
-  return { generatedAt: db.now(), format: 4, player: user.arena_name || user.display_name, matches, decks, cards: cards.cardsDict([...ids]), site: { handle: user.handle, own } };
+  const acct = own ? db.get("SELECT data FROM account_state WHERE user_id = ?", user.id) : null;
+  return { generatedAt: db.now(), format: 4, player: user.arena_name || user.display_name, matches, decks, cards: cards.cardsDict([...ids]), account: acct ? JSON.parse(acct.data) : null, site: { handle: user.handle, own } };
 }
 
 /** Kartenliste für die Bibliothek mit Besitzstand aus der letzten Sammlung */

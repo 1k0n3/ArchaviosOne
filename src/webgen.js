@@ -127,7 +127,8 @@ function build(outDir, cards) {
   const cardDict = {};
   for (const g of usedCards) { const c = cards.get(g); if (c) cardDict[g] = cardEntry(c); }
 
-  const data = { generatedAt: new Date().toISOString(), format: FORMAT, player: myName, matches: summaries, decks, cards: cardDict };
+  let account = null; try { account = JSON.parse(fs.readFileSync(path.join(outDir, "account.json"), "utf8")); } catch (e) { /* noch keine Kontodaten */ }
+  const data = { generatedAt: new Date().toISOString(), format: FORMAT, player: myName, matches: summaries, decks, cards: cardDict, account };
   fs.writeFileSync(path.join(webDir, "data.js"), "window.MTGA_DATA=" + JSON.stringify(data) + ";");
   fs.writeFileSync(path.join(webDir, "data.json"), JSON.stringify(data));
   return { index: path.join(webDir, "index.html"), matches: summaries.length, decks: decks.length };

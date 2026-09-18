@@ -70,8 +70,10 @@ function db_migrate(): int {
 }
 /** Schema beim ersten Aufruf anlegen; danach nur noch ein schneller Blick auf meta */
 function db_ensure(): void {
-  try { db_get("SELECT 1 FROM meta WHERE key_name = 'schema' LIMIT 1"); }
-  catch (Throwable $e) { db_migrate(); db_upsert('meta', ['key_name' => 'schema', 'value' => '1'], ['key_name']); }
+  // Schema anlegen bzw. neue Migrationen einspielen (Prüfung über die Anzahl der Migrationsdateien, sehr günstig)
+  $files = glob(__DIR__ . '/migrations/' . (db_is_mysql() ? 'mysql' : 'sqlite') . '/*.sql') ?: [];
+  try { $done = (int)db_val('SELECT COUNT(*) FROM schema_migrations'); } catch (Throwable $e) { $done = -1; }
+  if ($done !== count($files)) { db_migrate(); db_upsert('meta', ['key_name' => 'schema', 'value' => (string)count($files)], ['key_name']); }
 }
 function meta_get(string $key): ?string { $r = db_get('SELECT value FROM meta WHERE key_name = ?', $key); return $r ? $r['value'] : null; }
 function meta_set(string $key, ?string $value): void { if ($value === null) db_run('DELETE FROM meta WHERE key_name = ?', $key); else db_upsert('meta', ['key_name' => $key, 'value' => $value], ['key_name']); }

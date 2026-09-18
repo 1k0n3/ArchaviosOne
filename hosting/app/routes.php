@@ -62,7 +62,7 @@ function dispatch(string $m, string $p): void {
   if ($p === '/download') { $repo = (string)cfg('github_repo', ''); $dl = (string)cfg('download_url', '') ?: ($repo ? "https://github.com/$repo/archive/refs/heads/main.zip" : ''); render('Companion', page_download($dl, $repo ? "https://github.com/$repo" : '')); }
   if ($p === '/impressum') render('Impressum', page_legal('Impressum', 'Angaben zum Betreiber bitte hier eintragen (Name, Anschrift, Kontakt).'));
   if ($p === '/datenschutz') render('Datenschutz', page_legal('Datenschutz', 'Gespeichert werden E-Mail-Adresse, Anzeigename, verknüpfte Konten sowie die vom Companion synchronisierten Spieldaten (Decks, Matches, Sammlung). Kartenbilder werden von Scryfall geladen. Sitzungen laufen über ein HttpOnly-Cookie.'));
-  if ($p === '/app') { $u = require_user(); redirect('/u/' . $u['handle'] . '/'); }
+  if ($p === '/app' || $p === '/app/') { $u = require_user(); redirect('/u/' . $u['handle'] . '/'); }
 
   // ---- Registrierung ----
   if ($p === '/register' && $m === 'GET') render('Registrieren', page_register(), ['flash' => $flash]);
@@ -250,7 +250,7 @@ function api_dispatch(string $m, string $p): void {
     $accepted = []; $skipped = []; $failed = [];
     foreach ($b['events'] as $ev) {
       $id = (string)($ev['id'] ?? ''); $kind = (string)($ev['kind'] ?? '');
-      if (strlen($id) < 8 || strlen($id) > 80 || !in_array($kind, ['match', 'deck', 'deck_deleted', 'collection'], true)) { $failed[] = ['id' => $id, 'error' => 'ungültiges Ereignis']; continue; }
+      if (strlen($id) < 8 || strlen($id) > 80 || !in_array($kind, ['match', 'deck', 'deck_deleted', 'collection', 'account'], true)) { $failed[] = ['id' => $id, 'error' => 'ungültiges Ereignis']; continue; }
       if (db_get('SELECT 1 FROM sync_events WHERE user_id = ? AND event_id = ?', $r['user']['id'], $id)) { $skipped[] = $id; continue; }
       try {
         db_tx(function () use ($r, $ev, $id, $kind) { apply_event($r['user']['id'], $kind, $ev['payload'] ?? null, (string)($ev['at'] ?? now_iso())); db_run('INSERT INTO sync_events (user_id, event_id, kind, received_at) VALUES (?, ?, ?, ?)', $r['user']['id'], $id, $kind, now_iso()); });
@@ -292,6 +292,9 @@ function apply_event(string $userId, string $kind, $pl, string $at): void {
       if (!is_array($t) || empty($t['name'])) continue;
       db_insert_ignore('tokens', ['arena_id' => (int)$g, 'name' => (string)$t['name'], 'set_code' => strtolower((string)($t['set'] ?? '')), 'collector' => (string)($t['nr'] ?? ''), 'type_line' => (string)($t['typeLine'] ?? ''), 'colors' => (string)($t['colors'] ?? ''), 'power' => (string)($t['power'] ?? ''), 'toughness' => (string)($t['toughness'] ?? ''), 'oracle_text' => (string)($t['text'] ?? '')]);
     }
+  } elseif ($kind === 'account') {
+    if (!is_array($pl)) throw new InvalidArgumentException('Konto unvollständig');
+    db_upsert('account_state', ['user_id' => $userId, 'data' => json_out($pl), 'taken_at' => (string)($pl['takenAt'] ?? $at)], ['user_id']);
   } elseif ($kind === 'collection') {
     if (!is_array($pl) || empty($pl['takenAt']) || !isset($pl['snapshot']) || !is_array($pl['snapshot'])) throw new InvalidArgumentException('Sammlung unvollständig');
     $snap = array_values(array_map(fn($p) => [(int)$p[0], (int)$p[1]], array_filter($pl['snapshot'], 'is_array')));

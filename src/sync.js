@@ -77,6 +77,14 @@ function enqueueDecks(decks, cards) {
   saveState(st);
   return n;
 }
+/** Kontodaten (Gold, Edelsteine, Rang …): nur bei Änderung, ID aus dem Inhalt */
+function enqueueAccount(a) {
+  const body = Object.assign({}, a); delete body.takenAt;
+  // nur der letzte Stand zählt: ältere, noch nicht gesendete Kontostände aus der Warteschlange nehmen
+  const q = path.join(syncDir(), "queue");
+  if (fs.existsSync(q)) for (const f of fs.readdirSync(q)) if (f.startsWith("account_")) { try { fs.unlinkSync(path.join(q, f)); } catch (e) { /* ignorieren */ } }
+  enqueue("account", "acct:" + hash(body), a, a.takenAt || new Date().toISOString());
+}
 function enqueueCollection(snapshotMap, takenAt) {
   const at = takenAt || new Date().toISOString();
   enqueue("collection", "col:" + at, { takenAt: at, snapshot: [...snapshotMap] }, at);
@@ -141,7 +149,7 @@ function status() {
   return { connected: !!dev, url: dev ? dev.url : baseUrl(), user: dev ? dev.user : null, queued: left, lastFlushAt: st.lastFlushAt, lastError: st.lastError, sent: st.sent || 0 };
 }
 
-module.exports = { enqueueMatch, enqueueDecks, enqueueCollection, tokensOf, cardInfoOf, matchCardIds, resendAll, syncAll, flush, connect, disconnect, status, device };
+module.exports = { enqueueMatch, enqueueDecks, enqueueCollection, enqueueAccount, tokensOf, cardInfoOf, matchCardIds, resendAll, syncAll, flush, connect, disconnect, status, device };
 
 
 /** Alles erneut einreihen (z. B. nach neuer Server-Datenbank): gespeicherte Matches, alle Decks, letzte Sammlung */
@@ -157,6 +165,8 @@ async function resendAll(log = () => {}) {
   const nd = enqueueDecks(webgen.readDecks(cards), cards);
   const snap = readJson(path.join(outDir(), "state.json"), null);
   if (snap && snap.snapshot) enqueueCollection(new Map(snap.snapshot));
+  const acct = readJson(path.join(outDir(), "account.json"), null);
+  if (acct) enqueueAccount(acct);
   log(`Eingereiht: ${n} Matches, ${nd} Decks, Sammlung`);
   const r = await flush(log); log(JSON.stringify(r)); return r;
 }
