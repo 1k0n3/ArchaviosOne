@@ -90,7 +90,7 @@ function Restart-Watcher([string]$reason) {
 function Open-Dashboard {
   if (-not (Test-WatcherRunning)) { Start-Watcher; Start-Sleep -Milliseconds 1500 }
   # Als eigenständiges App-Fenster (Chrome/Edge im App-Modus), sonst im Standardbrowser
-  $app = Join-Path $script:dir "scriptsopen-app.ps1"
+  $app = Join-Path $script:dir "scripts\open-app.ps1"
   if (Test-Path $app) { Start-Process wscript.exe -ArgumentList "`"$(Join-Path $script:dir 'scripts\hidden.vbs')`" `"$app`" -Port $(Get-ConfigValue "webPort" 8765)" }
   else { Start-Process (Get-DashboardUrl) }
 }
@@ -215,6 +215,7 @@ function Add-Header([string]$text) {
 
 # Kopf: Dashboard ganz oben
 $script:miDash = Add-Item "Dashboard öffnen" { Open-Dashboard } $true $true
+$script:miSite = Add-Item "Website öffnen" { $u = Get-ConfigValue "syncUrl" ""; if ($u) { Start-Process $u } else { Show-Balloon "Noch keine Website verbunden (Cloud-Sync → Mit Website verbinden…)." } }
 $script:miStatus = Add-Item "Status: ..." $null $false
 $script:miMtga = Add-Item "MTGA: ..." $null $false
 $script:miLast = Add-Item "" $null $false
@@ -346,6 +347,7 @@ $script:miAutostartAdmin = Add-Item "Mit Administratorrechten (wenn MTGA als Adm
   Show-Balloon $(if ($new) { "Autostart läuft künftig mit Administratorrechten." } else { "Autostart läuft künftig ohne Administratorrechte." })
 }
 $menu.Add_Opening({
+  $script:miSite.Enabled = [bool](Get-ConfigValue "syncUrl" "")
   $t = Get-AutostartTask
   $script:miAutostart.Checked = [bool]($t -and $t.State -ne "Disabled")
   $script:miAutostartAdmin.Checked = $(if ($t) { $t.Principal.RunLevel -eq "Highest" } else { [bool](Get-ConfigValue "autostartElevated" $false) })

@@ -508,9 +508,9 @@ button.zi:hover { border-color: var(--gold); color: var(--gold-2); transform: tr
 .phasebar.me::after { bottom: 0; background: var(--gold); box-shadow: 0 0 14px var(--gold); }
 /* Stapel: Zähler direkt am Stapel (unten mittig, am Drehpunkt), Stapel klar abgesetzt */
 .cc .cnt, .perms .cc.stacked .cnt { left: 50%; right: auto; top: auto; bottom: -11px; transform: translateX(-50%); font-size: 13px; padding: 0 9px; border-radius: 999px; background: var(--gold); color: var(--gold-ink); border: 2px solid #120f0c; }
-.cc.stacked .lay { background: #232b47; border: 1px solid rgba(242,177,52,.5); }
+.cc.stacked .lay { background: #2c241c; border: 1px solid rgba(242,177,52,.5); }
 .cc.stacked .lay.l1 { transform: translate(6px, -6px); } .cc.stacked .lay.l2 { transform: translate(12px, -12px); }
-.lands .cc.stacked, .perms .cc.stacked { margin-left: 20px !important; margin-right: 26px !important; }
+.lands .cc.stacked, .perms .cc.stacked { margin-left: -10px !important; }
 .lands .cc.stacked.tapped, .perms .cc.stacked.tapped { margin-right: calc(var(--lh) * .3 + 22px) !important; }
 .lands .cc.stacked:first-child, .perms .cc.stacked:first-child { margin-left: 4px !important; }
 .cc.stacked .pt { bottom: 12px; }
@@ -551,7 +551,7 @@ button.zi:hover { border-color: var(--gold); color: var(--gold-2); transform: tr
 .cc.stacked.tapped .lay.l2 { transform: rotate(15deg) translate(12px, -12px); }
 .lands .cc.sm.tapped:last-child { margin-right: calc(var(--lh) * .22); }
 .perms .cc.tapped:last-child { margin-right: calc(var(--ch) * .22); }
-.lands .cc.stacked.tapped, .perms .cc.stacked.tapped { margin-right: calc(var(--lh) * .24 + 22px) !important; }
+.lands .cc.stacked.tapped, .perms .cc.stacked.tapped { margin-right: calc(var(--lh) * .24 + 60px) !important; }
 /* "Bilder aus": Platzhaltergrafik je Kartentyp */
 .tcard .ta { flex: 0 0 34%; display: flex; align-items: center; justify-content: center; border-radius: 2px; color: rgba(255,255,255,.92); box-shadow: inset 0 0 0 1px rgba(0,0,0,.35); background: linear-gradient(160deg, #4a5270, #23283c); }
 .tcard .ta svg { width: 46%; height: 70%; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
@@ -605,3 +605,6 @@ button.zi:hover { border-color: var(--gold); color: var(--gold-2); transform: tr
 .cc.hand .tcard .tx, .cc.stackc .tcard .tx { font-size: 10.5px; }
 .cc.stackc .tcard .tx { font-size: 12px; }
 .cc.stackc .tcard .emb, .cc.hand .tcard .emb { width: 20px; height: 20px; } .cc.stackc .tcard .emb svg, .cc.hand .tcard .emb svg { width: 12px; height: 12px; }
+
+/* Autoplay-Schalter in der Leiste */
+.pb-row button.toggle.on { border-color: rgba(242,177,52,.7); color: var(--gold-2); background: var(--win-soft); }

@@ -49,6 +49,8 @@ window.I18N = (function () {
     "Artefakte": ["Artifacts","Artefacts","Artefactos","Artefatti","Artefatos","アーティファクト"],
     "Schlachten": ["Battles","Batailles","Batallas","Battaglie","Batalhas","バトル"],
     "Sonstiges": ["Other","Autres","Otros","Altro","Outros","その他"],
+    "Autoplay an – Replays starten von selbst": ["Autoplay on – replays start by themselves", "Lecture auto activée", "Reproducción automática activada", "Riproduzione automatica attiva", "Reprodução automática ligada", "自動再生オン"],
+    "Autoplay aus": ["Autoplay off", "Lecture auto désactivée", "Reproducción automática desactivada", "Riproduzione automatica disattivata", "Reprodução automática desligada", "自動再生オフ"],
     // Navigation, Rahmen
     "Übersicht": ["Overview", "Aperçu", "Resumen", "Panoramica", "Visão geral", "概要"],
     "Matches": ["Matches", "Parties", "Partidas", "Partite", "Partidas", "対戦"],

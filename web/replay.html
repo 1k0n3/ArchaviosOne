@@ -88,7 +88,7 @@ App.load().then((D) => {
             <button class="icon ghost" id="b-last" title="${T("Ende (Ende)")}">${I.last}</button>
             <div class="pos" id="pos"></div>
             <div class="right">
-              <div class="seg" id="speed"><button data-v="2000">0.5×</button><button data-v="1000" class="on">1×</button><button data-v="500">2×</button><button data-v="200">5×</button></div>
+              <div class="seg" id="speed"><button data-v="2000">0.5×</button><button data-v="1000" class="on">1×</button><button data-v="500">2×</button><button data-v="200">5×</button></div><button class="ghost toggle" id="b-auto">Auto</button>
               <button class="ghost" id="b-imgs">${imgs ? T("Bilder aus") : T("Bilder an")}</button>
               <button class="icon ghost" id="b-log" title="${T("Protokoll (L)")}">${I.log}</button>
               <button class="icon ghost" id="b-full" title="${T("Vollbild (F)")}">${I.full}</button>
@@ -410,6 +410,12 @@ App.load().then((D) => {
     // Startschritt per URL (?step=120), sonst Anfang
     i = Math.max(0, Math.min(frames.length - 1, parseInt(A.param("step") || "0", 10) || 0));
     render();
+    // Autoplay: Wiedergabe startet von selbst (im Browser merkbar, Knopf "Auto" in der Leiste)
+    let auto = true; try { auto = localStorage.getItem("mtga-autoplay") !== "0"; } catch (e) { /* ohne Speicher */ }
+    const paintAuto = () => { A.$("#b-auto").classList.toggle("on", auto); A.$("#b-auto").title = auto ? T("Autoplay an – Replays starten von selbst") : T("Autoplay aus"); };
+    A.$("#b-auto").addEventListener("click", () => { auto = !auto; try { localStorage.setItem("mtga-autoplay", auto ? "1" : "0"); } catch (e) { /* ignorieren */ } paintAuto(); if (auto && !timer) setPlaying(true); });
+    paintAuto();
+    if (auto && i < frames.length - 1) setTimeout(() => { if (!timer) setPlaying(true); }, 800);
   }
 });
 </script>
