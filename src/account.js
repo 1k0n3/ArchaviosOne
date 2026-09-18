@@ -60,9 +60,12 @@ class AccountParser {
     let level = 0;
     for (const [k, v] of Object.entries(nodes)) { const m = k.match(/^LevelTrack_Level_(\d+)$/); if (m && v && v.Status === "Completed") level = Math.max(level, +m[1]); }
     const xp = (JSON.stringify(j).match(/"CurrentProgress":(\d+)/) || [])[1];
-    // Arena fragt auch alte Pässe ab: nur der laufende (noch offene Level) zählt; sonst der zuletzt gesehene als Notnagel
+    // Arena fragt auch alte Pässe ab, und auch die haben einen "offenen" nächsten Level. Verlässliches Merkmal für den
+    // laufenden Pass ist der XP-Fortschritt (CurrentProgress): nur er hat einen. Ein Pass ohne XP ersetzt nie einen mit XP.
     const active = Object.entries(nodes).some(([k, v]) => /^LevelTrack_Level_\d+$/.test(k) && v && v.Status === "Available");
-    if (!active && this.state.mastery && this.state.mastery.active) return;
+    const cur = this.state.mastery;
+    if (cur && cur.xp != null && xp == null) return;
+    if (cur && cur.active && !active && xp == null) return;
     this.state.mastery = { pass: graph.replace(/^BattlePass_/, ""), level, xp: xp != null ? +xp : null, premium: !!(nodes.RewardTierUpgrade && nodes.RewardTierUpgrade.Status === "Completed"), active };
   }
   quests(list) {
