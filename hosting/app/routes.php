@@ -328,7 +328,7 @@ function dash_user(string $handle, string $rest): never {
   if (!$u) send(404, 'Profil nicht gefunden', 'text/plain; charset=utf-8');
   $me = current_user();
   if (!$me || $me['id'] !== $u['id']) redirect('/login?next=' . rawurlencode(req_url()));
-  dash_serve("/u/$handle", $rest, ['user' => $u, 'own' => true, 'start' => 'index.html', 'data' => fn() => build_data($u, true)]);
+  dash_serve("/u/$handle", $rest, ['user' => $u, 'own' => true, 'start' => 'index.html', 'data' => function () use ($u) { $d = build_data($u, true); $d['site']['csrf'] = csrf_token(); return $d; }]);
 }
 function dash_deck(string $slug, string $rest): never {
   $d = db_get("SELECT d.*, u.handle FROM decks d JOIN users u ON u.id = d.user_id WHERE d.share_slug = ? AND d.visibility != 'private' AND d.deleted_at IS NULL", $slug);

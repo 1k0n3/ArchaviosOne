@@ -62,7 +62,7 @@ module.exports = async function dashRoutes(app) {
     const me = auth.sessionUser(req.cookies.mtgs_session);
     if (!u) { reply.code(404).send("Profil nicht gefunden"); return null; }
     if (!me || me.id !== u.id) { reply.redirect("/login?next=" + encodeURIComponent(req.url)); return null; }
-    return { user: u, own: true, start: "index.html", data: () => data.buildData(u, { own: true }) };
+    return { user: u, own: true, start: "index.html", data: () => Object.assign(data.buildData(u, { own: true }), { site: { handle: u.handle, own: true, csrf: auth.csrfToken(req.cookies.mtgs_session) } }) };
   });
 
   // Freigegebenes Deck: per Link (visibility link/public)

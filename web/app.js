@@ -386,6 +386,7 @@ window.App = (function () {
     dash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg>',
     matches: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 3.5 20.5 9.5 9 21H3v-6z"/><path d="m12 6 6 6"/></svg>',
     decks: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="12" height="16" rx="2"/><path d="M9 7h4M9 11h4"/><path d="M17 7h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2"/></svg>',
+    out: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 17l5-5-5-5M15 12H3M21 3v18"/></svg>',
     build: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 4 20 10 10 20H4v-6z"/><path d="M12 6l6 6"/><path d="M3 21h6"/></svg>',
     lib: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/><path d="M4 19a2 2 0 0 0 2 2h14"/><path d="M8 7h8M8 11h6"/></svg>'
   };
@@ -406,7 +407,9 @@ window.App = (function () {
       ${pages.map(([h, t, ic]) => `<a class="nav ${active === h ? "active" : ""}" href="${h}">${ICONS[ic]}<span>${t}</span></a>`).join("")}
       ${siteLinks ? `<div class="nav-sep"></div>${siteLinks}` : ""}
       <div class="spacer"></div>
-      ${site && site.own ? `<a class="player link" href="/settings" title="${tr("Konto & Geräte")}">` : `<div class="player">`}<div class="av">${esc(player.slice(0, 1).toUpperCase())}</div><div><div class="n">${esc(player)}</div><div class="s">${tr("{n} Matches", { n: st.n })} · ${Math.round(st.rate * 100)} % ${tr("Winrate")}</div></div>${site && site.own ? "</a>" : "</div>"}
+      ${site && site.own
+        ? `<div class="player link"><a class="who" href="/settings" title="${tr("Konto & Geräte")}"><div class="av">${esc(player.slice(0, 1).toUpperCase())}</div><div><div class="n">${esc(player)}</div><div class="s">${tr("{n} Matches", { n: st.n })} · ${Math.round(st.rate * 100)} % ${tr("Winrate")}</div></div></a>${site.csrf ? `<form method="post" action="/logout" class="inline"><input type="hidden" name="csrf" value="${esc(site.csrf)}"><button class="out" type="submit" title="${tr("Abmelden")}">${ICONS.out}</button></form>` : ""}</div>`
+        : `<div class="player"><div class="av">${esc(player.slice(0, 1).toUpperCase())}</div><div><div class="n">${esc(player)}</div><div class="s">${tr("{n} Matches", { n: st.n })} · ${Math.round(st.rate * 100)} % ${tr("Winrate")}</div></div></div>`}
       ${langSel}
       <div class="foot">${tr("Stand")} ${DATA && DATA.generatedAt ? fmtDate(DATA.generatedAt) + " " + fmtTime(DATA.generatedAt) : "?"}${Art.supported ? "" : " · " + tr("Bilder: WebGL S3TC nicht verfügbar")}</div>
     </aside>`;

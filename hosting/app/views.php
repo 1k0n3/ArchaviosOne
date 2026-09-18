@@ -38,7 +38,7 @@ function layout_app(string $title, string $body, array $user, ?array $flash, str
   $pages = [["/u/$h/index.html", 'Übersicht', 'dash'], ["/u/$h/matches.html", 'Matches', 'matches'], ["/u/$h/decks.html", 'Decks', 'decks'], ["/u/$h/library.html", 'Bibliothek', 'lib'], ["/u/$h/builder.html", 'Deckbau', 'build']];
   $nav = '';
   foreach ($pages as [$href, $label, $ic]) $nav .= '<a class="nav" href="' . $href . '">' . $icons[$ic] . '<span>' . $label . '</span></a>';
-  $nav .= '<div class="nav-sep"></div><form method="post" action="/logout" class="inline"><input type="hidden" name="csrf" value="' . $csrf . '"><button class="nav" type="submit">' . $icons['out'] . '<span>Abmelden</span></button></form>';
+
   $name = $user['arena_name'] ?: $user['display_name'];
   $flashHtml = $flash ? '<div class="flash ' . esc($flash['kind'] ?? 'info') . '">' . esc($flash['text'] ?? '') . '</div>' : '';
   return '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . esc($title) . ' · MTGA Stats</title>
@@ -46,7 +46,7 @@ function layout_app(string $title, string $body, array $user, ?array $flash, str
 <body class="site app"><div class="shell"><aside class="side-nav">
   <a class="brand" href="/?site=1" title="Zur Website">' . logo_svg() . '<div><div class="t1">MTGA Stats</div><div class="t2">Website</div></div></a>' . $nav . '
   <div class="spacer"></div>
-  <a class="player link ' . ($active === '/settings' ? 'active' : '') . '" href="/settings" title="Konto &amp; Geräte"><div class="av">' . esc(mb_strtoupper(mb_substr($name, 0, 1))) . '</div><div><div class="n">' . esc($name) . '</div><div class="s">' . esc($user['email']) . '</div></div></a>
+  <div class="player link ' . ($active === '/settings' ? 'active' : '') . '"><a class="who" href="/settings" title="Konto &amp; Geräte"><div class="av">' . esc(mb_strtoupper(mb_substr($name, 0, 1))) . '</div><div><div class="n">' . esc($name) . '</div><div class="s">' . esc($user['email']) . '</div></div></a><form method="post" action="/logout" class="inline"><input type="hidden" name="csrf" value="' . $csrf . '"><button class="out" type="submit" title="Abmelden">' . $icons['out'] . '</button></form></div>
   <div class="foot">' . esc(cfg('base_url')) . '</div>
 </aside><main class="content">' . $flashHtml . $body . '</main></div></body></html>';
 }

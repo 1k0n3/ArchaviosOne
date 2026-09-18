@@ -961,6 +961,11 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; background: r
 /* Seitenleiste: Logo als Link zur Website, Spielerkarte öffnet Konto & Geräte */
 .side-nav a.brand { color: inherit; }
 .side-nav a.brand:hover .t1 { color: var(--gold-2); }
-.side-nav a.player.link { color: inherit; cursor: pointer; transition: border-color .15s, background .15s; }
-.side-nav a.player.link:hover, .side-nav a.player.link.active { border-color: rgba(242,177,52,.6); background: var(--panel-2); }
-.side-nav a.player.link .n::after { content: " ›"; color: var(--gold); }
+.side-nav .player.link { padding: 6px 6px 6px 12px; gap: 6px; transition: border-color .15s, background .15s; }
+.side-nav .player.link a.who { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; color: inherit; }
+.side-nav .player.link:hover, .side-nav .player.link.active { border-color: rgba(242,177,52,.6); background: var(--panel-2); }
+.side-nav .player.link a.who:hover .n { color: var(--gold-2); }
+.side-nav .player.link form.inline { display: block; flex: none; }
+.side-nav .player.link button.out { width: 30px; height: 30px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--ink-3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.side-nav .player.link button.out svg { width: 16px; height: 16px; }
+.side-nav .player.link button.out:hover { color: var(--loss-ink); border-color: var(--loss-line); background: var(--loss-soft); }
