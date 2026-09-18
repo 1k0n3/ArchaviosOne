@@ -350,6 +350,7 @@ $script:miAutostartAdmin = Add-Item "Mit Administratorrechten (wenn MTGA als Adm
 $menu.Add_Opening({
   $script:miSite.Enabled = [bool](Get-ConfigValue "syncUrl" "")
   if ($script:miDeploy) { $script:miDeploy.Visible = Test-Path (Join-Path $script:dir "deploy-config.json") }
+  if ($script:miSyncAccount) { $script:miSyncAccount.Checked = [bool](Get-ConfigValue "syncAccount" $true) }
   $t = Get-AutostartTask
   $script:miAutostart.Checked = [bool]($t -and $t.State -ne "Disabled")
   $script:miAutostartAdmin.Checked = $(if ($t) { $t.Principal.RunLevel -eq "Highest" } else { [bool](Get-ConfigValue "autostartElevated" $false) })
@@ -385,6 +386,18 @@ $script:miSyncNow = Add-Item "Jetzt synchronisieren" {
   Invoke-NodeHidden @("src\sync.js", "sync") | Out-Null
   $st = (Invoke-NodeHidden @("src\sync.js", "status")) | ConvertFrom-Json
   if ($st.connected) { Show-Balloon ("Verbunden als " + $st.user.displayName + " · " + $st.queued + " wartend" + $(if ($st.lastError) { " · Fehler: " + $st.lastError } else { "" })) } else { Show-Balloon "Nicht mit einer Website verbunden." }
+}
+$script:miSyncAccount = Add-Item "Kontodaten mitsenden (Gold, Edelsteine, Rang …)" {
+  $new = -not [bool](Get-ConfigValue "syncAccount" $true)
+  Set-ConfigValue "syncAccount" $new
+  $script:miSyncAccount.Checked = $new
+  Restart-Watcher $(if ($new) { "Kontodaten werden mitgesendet" } else { "Kontodaten werden nicht mehr gesendet" })
+}
+$script:miAccountNow = Add-Item "Kontodaten jetzt einlesen" {
+  Show-Balloon "Player.log wird gelesen …"
+  $out = Invoke-NodeHidden @("src\account.js", "--save")
+  $lines = @(($out -split "`r?`n") | Where-Object { $_.Trim() })
+  Show-Balloon (($lines | Select-Object -First 3) -join "`n")
 }
 $script:miDisconnect = Add-Item "Verbindung trennen" {
   Invoke-NodeHidden @("src\sync.js", "disconnect") | Out-Null

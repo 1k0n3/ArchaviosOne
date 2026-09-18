@@ -88,10 +88,27 @@ function loadAccount(outDir) { try { return JSON.parse(fs.readFileSync(accountFi
 module.exports = { AccountParser, saveAccount, loadAccount };
 
 if (require.main === module) {
-  // Test: gesamte Player.log lesen und das Ergebnis ausgeben
-  const file = process.argv[2] || path.join(require("os").homedir(), "AppData", "LocalLow", "Wizards Of The Coast", "MTGA", "Player.log");
+  // node src/account.js            gesamte Player.log lesen und das Ergebnis ausgeben
+  // node src/account.js --save     zusätzlich out/account.json schreiben, zur Website senden und das Dashboard neu bauen
+  const args = process.argv.slice(2);
+  const save = args.includes("--save");
+  const file = args.find((a) => !a.startsWith("--")) || path.join(require("os").homedir(), "AppData", "LocalLow", "Wizards Of The Coast", "MTGA", "Player.log");
   let last = null;
   const p = new AccountParser((a) => { last = a; });
-  for (const l of fs.readFileSync(file, "utf8").split(/\r?\n/)) p.line(l);
-  console.log(JSON.stringify(last, null, 2));
+  let text = "";
+  try { text = fs.readFileSync(file, "utf8"); } catch (e) { console.error("Player.log nicht lesbar: " + e.message); process.exit(1); }
+  for (const l of text.split(/\r?\n/)) p.line(l);
+  if (!last) { console.log("Keine Kontodaten im Log. In Arena unter Optionen → Konto die „Detaillierten Protokolle (Plugin-Unterstützung)“ einschalten und das Spiel neu starten."); process.exit(save ? 2 : 0); }
+  if (!save) { console.log(JSON.stringify(last, null, 2)); process.exit(0); }
+  const cfgFile = path.join(__dirname, "..", "watch-config.json");
+  let outDir = path.join(__dirname, "..", "out");
+  try { const c = JSON.parse(fs.readFileSync(cfgFile, "utf8").replace(/^﻿/, "")); if (c.outDir) outDir = path.isAbsolute(c.outDir) ? c.outDir : path.join(__dirname, "..", c.outDir); } catch (e) { /* Standard */ }
+  fs.mkdirSync(outDir, { recursive: true });
+  saveAccount(outDir, last);
+  const w = last.wildcards || {};
+  console.log(`Konto eingelesen: ${last.gold} Gold, ${last.gems} Edelsteine, Wildcards ${[w.c, w.u, w.r, w.m].join("/")}` + (last.rank ? `, Rang ${last.rank.constructed.tier} ${last.rank.constructed.level}` : "") + (last.mastery ? `, Mastery ${last.mastery.pass} Level ${last.mastery.level}` : ""));
+  (async () => {
+    try { const sync = require("./sync"); if (sync.device()) { sync.enqueueAccount(last); await sync.flush(); console.log("Website: Kontodaten gesendet."); } else console.log("Website: nicht verbunden (Tray → Mit Website verbinden…)"); } catch (e) { console.log("Website: " + e.message); }
+    try { require("child_process").execFileSync(process.execPath, [path.join(__dirname, "webgen.js")], { stdio: "ignore", windowsHide: true }); console.log("Dashboard neu gebaut."); } catch (e) { console.log("Dashboard: " + e.message); }
+  })();
 }

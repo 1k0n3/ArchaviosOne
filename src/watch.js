@@ -30,7 +30,7 @@ const sync = require("./sync");
 // ---- Konfiguration --------------------------------------------------------------------------
 
 const DEFAULTS = {
-  pollSec: 300, checkSec: 60, fullScanSec: 600, retrySec: 60, startDelaySec: 0,
+  pollSec: 300, checkSec: 60, fullScanSec: 600, retrySec: 60, startDelaySec: 0, syncAccount: true,
   minCards: 200, maxQty: 400, writeEndCsvIfUnchanged: true, outDir: "out", anchors: [], db: "",
   matchCheckSec: 10, webDashboard: true, webServer: true, webPort: 8765, prefetchCardImages: false
 };
@@ -227,7 +227,7 @@ let accountDirty = false;
 function onAccount(a) {
   try { account.saveAccount(cfg.outDir, a); } catch (e) { log("Konto: " + e.message); return; }
   log(`Konto: ${a.gold} Gold, ${a.gems} Edelsteine, Wildcards ${a.wildcards ? [a.wildcards.c, a.wildcards.u, a.wildcards.r, a.wildcards.m].join("/") : "?"}` + (a.rank ? `, Rang ${a.rank.constructed.tier} ${a.rank.constructed.level}` : "") + (a.mastery ? `, Mastery ${a.mastery.pass} Level ${a.mastery.level}` : ""));
-  try { sync.enqueueAccount(a); } catch (e) { log("Sync: Konto nicht eingereiht: " + e.message); }
+  if (cfg.syncAccount !== false) { try { sync.enqueueAccount(a); } catch (e) { log("Sync: Konto nicht eingereiht: " + e.message); } }
   accountDirty = true;
 }
 function matchCatchUp() {

@@ -33,5 +33,7 @@
                 ],
     "_anchors":  "Optionale Plausibilitätsanker, z. B. [\"Forest=4\", \"Shock=3\"].",
     "_syncUrl":  "Adresse der MTGA-Stats-Website für den Cloud-Sync (leer = aus). Verbinden: Tray-Menü \u0027Mit Website verbinden…\u0027 oder node src/sync.js connect \u003cCODE\u003e",
-    "syncUrl":  "https://mtga.a16.be"
+    "syncUrl":  "https://mtga.a16.be",
+    "_syncAccount":  "Kontodaten (Gold, Edelsteine, Wildcards, Rang, Mastery, Quests) mit zur Website senden (true/false).",
+    "syncAccount":  true
 }

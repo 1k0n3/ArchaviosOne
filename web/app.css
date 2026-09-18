@@ -863,8 +863,8 @@ button.reset { margin-right: 20px; }
 .builder .pool { min-width: 0; }
 .deckpanel { position: sticky; top: 12px; max-height: calc(100vh - 24px); display: flex; flex-direction: column; background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
 .dp-head { display: flex; align-items: center; gap: 6px; padding: 10px 10px 6px; }
-.dp-name { flex: 1; min-width: 0; font: 700 15px/1.2 var(--font-title); background: transparent; border: 1px solid transparent; border-radius: 8px; color: var(--ink); padding: 6px 8px; }
-.dp-name:hover, .dp-name:focus { border-color: var(--line-2); background: rgba(0,0,0,.2); outline: none; }
+.dp-name { flex: 1; min-width: 0; font: 700 15px/1.2 var(--font-title); background: rgba(0,0,0,.18); border: 1px solid var(--line-2); border-radius: 8px; color: var(--ink); padding: 6px 8px; }
+.dp-name:hover, .dp-name:focus { border-color: var(--ink-3); background: rgba(0,0,0,.28); outline: none; }
 .dp-head .dd-btn { height: 30px; padding: 0 8px; }
 .dp-head .dd-btn .lbl:empty { display: none; }
 .dp-meta { display: flex; align-items: center; gap: 10px; padding: 0 12px 6px; }
