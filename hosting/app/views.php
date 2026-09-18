@@ -18,7 +18,7 @@ function layout(string $title, string $body, array $o = []): string {
   return '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . esc($title) . ' · MTGA Stats</title>
 <link rel="icon" href="/static/favicon.ico" sizes="any"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap"><link rel="stylesheet" href="/static/app.css"><link rel="stylesheet" href="/static/site.css"></head>
 <body class="site"><header class="site-head"><a class="brand" href="/">' . logo_svg() . '<span><b>MTGA Stats</b><small>Decks, Matches, Sammlung</small></span></a><nav>' . $nav . '</nav></header>
-<main class="site-main ' . ($wide ? 'wide' : '') . '">' . $flashHtml . $body . '</main>
+<main class="site-main ' . ($wide ? 'wide' : '') . ' ' . esc($o['main'] ?? '') . '">' . $flashHtml . $body . '</main>
 <footer class="site-foot">MTGA Stats ist inoffizieller Fan-Inhalt gemäß der Fan Content Policy von Wizards of the Coast. Kartenbilder von <a href="https://scryfall.com" rel="noopener">Scryfall</a>. · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a></footer></body></html>';
 }
 
@@ -61,9 +61,55 @@ function oauth_buttons(): string {
 function csrf_field(): string { return '<input type="hidden" name="csrf" value="' . csrf_token() . '">'; }
 
 function page_home(array $decks, array $stats): string {
-  return '<section class="hero-site"><div><h1>Dein Arena-Dashboard, überall.</h1><p>Der lokale Begleiter zeichnet Sammlung, Decks und Matches auf deinem PC auf und synchronisiert sie hierher, sobald du online bist. Teile Decks per Link, vergleiche Statistiken, behalte alles im Blick.</p><p><a class="btn primary" href="/register">Kostenlos registrieren</a> <a class="btn" href="/download">Companion herunterladen</a></p></div>
-    <div class="stats-site"><div><b>' . (int)$stats['users'] . '</b><span>Spieler</span></div><div><b>' . (int)$stats['decks'] . '</b><span>geteilte Decks</span></div><div><b>' . (int)$stats['matches'] . '</b><span>Matches</span></div></div></section>
-    <h2>Neue öffentliche Decks</h2>' . deck_list($decks);
+  $ic = [
+    'chart' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5M4 19h16"/><path d="M8 15l3-4 3 2 5-6"/></svg>',
+    'replay' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M10 8l6 4-6 4z" fill="currentColor"/></svg>',
+    'deck' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="12" height="16" rx="2"/><path d="M17 7h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2"/></svg>',
+    'lib' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/><path d="M4 19a2 2 0 0 0 2 2h14"/><path d="M8 7h8M8 11h6"/></svg>',
+    'cloud' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 18a4 4 0 0 1-.5-8 6 6 0 0 1 11.3-1.5A4.5 4.5 0 0 1 17 18z"/><path d="M12 12v6M9 15l3-3 3 3"/></svg>',
+    'share' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>',
+    'lock' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+    'lang' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
+    'phone' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>',
+  ];
+  $feature = fn($icon, $title, $text) => '<div class="feat"><div class="fi">' . $ic[$icon] . '</div><h3>' . $title . '</h3><p>' . $text . '</p></div>';
+  $shot = fn($file, $cap) => '<figure class="shot"><img src="/static/' . $file . '" alt="' . esc($cap) . '" loading="lazy"><figcaption>' . esc($cap) . '</figcaption></figure>';
+  return '<section class="hero-site"><div class="hero-text"><span class="eyebrow">Companion für Magic: The Gathering Arena</span><h1>Dein Arena-Dashboard.<br>Auf dem PC, im Browser, auf dem Handy.</h1>
+      <p>MTGA Stats liest Sammlung, Decks und Matches direkt aus Arena, spielt jedes Match als Replay ab und zeigt dir, welche Karten und Decks wirklich gewinnen – offline auf dem PC und synchronisiert hierher, sobald du online bist.</p>
+      <p class="cta"><a class="btn primary big" href="/register">Kostenlos registrieren</a> <a class="btn big" href="/download">Companion herunterladen</a></p>
+      <p class="muted small">Windows 10/11 · keine Kontodaten von Arena nötig · Bilder kommen von Scryfall, nichts wird lokal kopiert</p></div>
+    <div class="hero-shot"><img src="/static/shot-dashboard.jpg" alt="Übersicht mit Winrate, Kacheln und Diagrammen"></div></section>
+  <section class="stats-site"><div><b>' . (int)$stats['users'] . '</b><span>Spieler</span></div><div><b>' . (int)$stats['decks'] . '</b><span>geteilte Decks</span></div><div><b>' . (int)$stats['matches'] . '</b><span>aufgezeichnete Matches</span></div></section>
+
+  <section class="features"><h2 class="sec-title">Was drinsteckt</h2><div class="feat-grid">' .
+    $feature('chart', 'Statistik, die Fragen beantwortet', 'Winrate-Verlauf, Matches pro Tag, Spiellänge, Play/Draw, Tageszeiten, Winrate je Deck, Format und Gegner-Plattform – mit Zeitraum-, Format- und Deck-Filter.') .
+    $feature('replay', 'Match-Replays wie in Arena', 'Jedes Match Schritt für Schritt: Spielfeld mit Ländern, Kreaturen, Stapel und Kommandozone, Handkarten, Lebenspunkte, Phasenleiste und Ereignisprotokoll. Mit Autoplay, Tempo und Vollbild.') .
+    $feature('deck', 'Decks mit Tiefgang', 'Alle Arena-Decks als Boxen mit Artwork, Manakurve, Farbverteilung, Typenanteil und Matches je Deck. Export im Arena-Importformat mit einem Klick.') .
+    $feature('lib', 'Bibliothek mit Besitzstand', 'Jede Arena-Karte mit deinen Exemplaren, Sets mit offiziellen Symbolen, Seltenheit, Typ, Farben – sortierbar nach Siegen, Einsätzen und Decks.') .
+    $feature('cloud', 'Offline zuerst, Cloud danach', 'Der Companion arbeitet komplett ohne Internet. Sobald du online bist, gleicht er Matches, Decks und Sammlung mit dieser Website ab – idempotent, ohne Doppelungen.') .
+    $feature('share', 'Decks teilen', 'Privat, per Link oder öffentlich: jede Deckseite hat eine eigene Adresse mit Kartenraster, Statistik und Export – auch für Leute ohne Konto.') .
+  '</div></section>
+
+  <section class="gallery"><h2 class="sec-title">Die Oberfläche</h2><div class="shots">' .
+    $shot('shot-replay.jpg', 'Replay: Spielfeld, Stapel, Lebenspunkte und Protokoll – auch als Textkarten ohne Bilder') .
+    $shot('shot-decks.jpg', 'Deckansicht: Artwork-Box, Kennzahlen, Manakurve, Farben und alle Karten nach Typ') .
+    $shot('shot-builder.jpg', 'Deckbau: aus allen Karten des Spiels, Formatregeln, Export und Alternativen aus deiner Sammlung') .
+    $shot('shot-library.jpg', 'Bibliothek: dein Besitzstand über alle Sets, filterbar und sortierbar') .
+  '</div></section>
+
+  <section class="how"><h2 class="sec-title">So funktioniert es</h2><ol class="steps">
+    <li><b>1</b><h3>Companion installieren</h3><p>ZIP laden, <code>Install.cmd</code> doppelklicken. Läuft als Symbol im Infobereich, ohne Fenster, mit Autostart – Node.js wird bei Bedarf mitinstalliert.</p></li>
+    <li><b>2</b><h3>Arena spielen</h3><p>Der Companion liest Sammlung und Decks aus dem Spiel und schreibt jedes Match mit – auch offline. Das Dashboard läuft lokal als eigenes App-Fenster.</p></li>
+    <li><b>3</b><h3>Verbinden und teilen</h3><p>Konto anlegen, Code in den Einstellungen erzeugen, im Tray-Menü eingeben. Ab dann synchronisiert alles automatisch; Decks teilst du per Link.</p></li>
+  </ol></section>
+
+  <section class="trust"><div class="feat-grid three">' .
+    $feature('lock', 'Sicher gebaut', 'Passwörter mit Argon2, Sitzungen als HttpOnly-Cookie, CSRF-Schutz, Rate-Limits, strikte Content-Security-Policy. Deine Daten bleiben auf deinem PC und auf dieser Seite – sonst nirgends.') .
+    $feature('lang', 'Sieben Sprachen', 'Deutsch, Englisch, Französisch, Spanisch, Italienisch, Portugiesisch, Japanisch. Kartennamen und -texte bleiben wie in Arena auf Englisch.') .
+    $feature('phone', 'Auch unterwegs', 'Die Website ist für das Handy optimiert: kompakte Navigation, einklappbare Abschnitte, Decks und Statistik in der Hosentasche.') .
+  '</div></section>
+
+  <section class="public"><h2 class="sec-title">Neue öffentliche Decks</h2>' . deck_list($decks) . '<p class="cta-line"><a class="btn primary" href="/register">Jetzt mitmachen</a> <a class="btn" href="/decks">Alle öffentlichen Decks</a></p></section>';
 }
 function page_register(array $values = []): string {
   return '<div class="card-form"><h1>Konto anlegen</h1><form method="post" action="/register">' . csrf_field() .

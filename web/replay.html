@@ -67,6 +67,7 @@ App.load().then((D) => {
     const cmd = (match.myDeck.commander || []).map((c) => name(c.grpId)).join(", ");
     let imgs = true;
     try { imgs = localStorage.getItem("mtga-replay-imgs") !== "0"; } catch (e) {}
+    if (A.param("imgs") === "0") imgs = false;   // ?imgs=0: Textkarten (z. B. für Screenshots)
 
     rp.innerHTML = `
       <div class="rp-head">

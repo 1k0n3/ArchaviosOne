@@ -143,6 +143,7 @@ async function cardImageUrl(arenaId, version = "normal") {
   let uris = row && row.image_uris ? JSON.parse(row.image_uris) : null;
   if (!uris) { const t = tokenRow(arenaId); if (t) uris = await resolveToken(t); }
   if (!uris) return null;
+  if (version === "art") return uris.normal ? uris.normal.replace("/normal/", "/art_crop/") : null;   // Artwork-Ausschnitt: gleicher Pfad, anderer Ordner
   return uris[version] || uris.normal || null;
 }
 const cardBackUrl = () => CARD_BACK;

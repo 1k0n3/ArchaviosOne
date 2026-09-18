@@ -616,3 +616,12 @@ button.zi:hover { border-color: var(--gold); color: var(--gold-2); transform: tr
 .phasebar .step { height: 96px; max-height: 96px; }
 .phasebar .game { height: 12px; line-height: 12px; }
 @media (max-height: 820px) { .phasebar .step { height: 0; } }
+/* Textkarten: Kopfzeile bleibt einzeilig – Manasymbole erzeugen keine Zeilenboxen mehr (sonst wuchs der Kopf bei 4–5 Symbolen) */
+.tcard .th { flex-wrap: nowrap; align-items: center; }
+.tcard .th .m, .tcard .th .cp { line-height: 0; align-items: center; }
+.tcard .th .m .ms, .tcard .th .cp .ms { display: block; flex: none; }
+.tcard .th .m .ms img, .tcard .th .cp .ms img { display: block; }
+.tcard .th .m { max-width: 60%; flex-wrap: nowrap; overflow: hidden; }
+/* Phasenleiste: Inhalt vertikal zentriert, aber mit festen Plätzen (kein Springen) */
+.phasebar { justify-content: center; }
+.phasebar .who { min-width: 0; max-width: 100%; padding: 2px 5px; }

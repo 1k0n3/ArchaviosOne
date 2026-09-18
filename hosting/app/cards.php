@@ -173,5 +173,6 @@ function card_image_url(int $arenaId, string $version = 'normal'): ?string {
   $uris = ($row && !empty($row['image_uris'])) ? json_decode($row['image_uris'], true) : null;
   if (!$uris) { $t = token_row($arenaId); if ($t) $uris = resolve_token($t); }
   if (!$uris) return null;
+  if ($version === 'art') return !empty($uris['normal']) ? str_replace('/normal/', '/art_crop/', $uris['normal']) : null;   // Artwork-Ausschnitt: gleicher Pfad, anderer Ordner
   return $uris[$version] ?? ($uris['normal'] ?? null);
 }

@@ -55,7 +55,7 @@ function dispatch(string $m, string $p): void {
 
   if ($p === '/' && $m === 'GET') {
     $stats = ['users' => db_val('SELECT COUNT(*) FROM users'), 'decks' => db_val("SELECT COUNT(*) FROM decks WHERE visibility = 'public' AND deleted_at IS NULL"), 'matches' => db_val('SELECT COUNT(*) FROM matches')];
-    render('Start', page_home(public_decks(12), $stats), ['flash' => $flash]);
+    render('Start', page_home(public_decks(8), $stats), ['flash' => $flash, 'wide' => true, 'main' => 'home', 'plain' => true]);
   }
   if ($p === '/decks') render('Öffentliche Decks', '<h1>Öffentliche Decks</h1>' . deck_list(public_decks(60)));
   if ($p === '/download') { $repo = (string)cfg('github_repo', ''); $dl = (string)cfg('download_url', '') ?: ($repo ? "https://github.com/$repo/archive/refs/heads/main.zip" : ''); render('Companion', page_download($dl, $repo ? "https://github.com/$repo" : '')); }
@@ -213,7 +213,7 @@ function dispatch(string $m, string $p): void {
 }
 
 function card_img(int $grpId): never {
-  $v = query('v'); $v = in_array($v, ['small', 'large'], true) ? $v : 'normal';
+  $v = query('v'); $v = in_array($v, ['small', 'large', 'art'], true) ? $v : 'normal';
   $url = card_image_url($grpId, $v);
   if (!$url) send(404, '', 'text/plain');
   header('Cache-Control: public, max-age=86400'); redirect($url);

@@ -341,7 +341,7 @@ window.App = (function () {
   function deckBox(d, opts = {}) {
     const art = artOf(d.tile);
     // Ohne lokales Artwork (Website): Kartenbild der Titelkarte als Boxbild
-    const artHtml = art ? artCanvas(art, "artbg") : (d.tile ? `<img class="artbg wide" src="card-img/${d.tile}?v=normal" alt="" loading="lazy" onerror="this.remove()">` : "");
+    const artHtml = art ? artCanvas(art, "artbg") : (d.tile ? `<img class="artbg" src="card-img/${d.tile}?v=art" alt="" loading="lazy" onerror="this.remove()">` : "");
     const pips = (opts.colors || deckColors(d)).map((c) => `<span class="pip p-${c}">${manaSymbol(c)}</span>`).join("");
     // Commander-/Brawl-Decks: offizielles Commander-Symbol (Scryfall-Setsymbol "cmd") auf der Box
     const cmdr = (d.zones && d.zones.CommandZone && d.zones.CommandZone.length) ? `<img class="cmdr-ico" src="https://svgs.scryfall.io/sets/cmd.svg" alt="Commander" title="Commander" loading="lazy" onerror="this.remove()">` : "";
@@ -350,7 +350,7 @@ window.App = (function () {
       <div class="plate"><span class="n">${esc(d.name)}</span>${opts.sub ? `<span class="s">${esc(opts.sub)}</span>` : ""}</div></div>`;
   }
   function deckCell(m) {
-    return `<div class="deck-cell"><div class="art">${artOf(m.tile) ? artCanvas(artOf(m.tile)) : (m.tile ? `<img src="card-img/${m.tile}?v=small" alt="" loading="lazy" onerror="this.remove()">` : "")}</div><div><div class="n">${esc(m.myDeck || "?")}</div><div class="s">${esc(m.commander || m.format || "")}</div></div></div>`;
+    return `<div class="deck-cell"><div class="art">${artOf(m.tile) ? artCanvas(artOf(m.tile)) : (m.tile ? `<img src="card-img/${m.tile}?v=art" alt="" loading="lazy" onerror="this.remove()">` : "")}</div><div><div class="n">${esc(m.myDeck || "?")}</div><div class="s">${esc(m.commander || m.format || "")}</div></div></div>`;
   }
 
   // ---- Formatierung ---------------------------------------------------------------------
@@ -597,7 +597,7 @@ window.App = (function () {
     const k = raw.toLowerCase();
     const code = raw.toUpperCase().replace(/[{}\s]/g, "").replace(/\//g, "");
     const inner = SYM[k] || `<circle cx="12" cy="12" r="11" fill="#c9c9c9"/><text x="12" y="16.5" text-anchor="middle" font-size="13" font-weight="800" fill="#222" font-family="system-ui,sans-serif">${esc(raw.toUpperCase())}</text>`;
-    return `<span class="ms ms-${esc(k.replace(/[^a-z0-9]/g, ""))} ${cls || ""}" aria-label="${esc(raw)}"><svg viewBox="0 0 24 24">${inner}</svg>${/^[A-Z0-9]{1,6}$/.test(code) ? `<img src="${SYM_CDN}${code}.svg" alt="" loading="lazy" onerror="this.remove()">` : ""}</span>`;
+    return `<span class="ms ms-${esc(k.replace(/[^a-z0-9]/g, ""))} ${cls || ""}" aria-label="${esc(raw)}"><svg viewBox="0 0 24 24">${inner}</svg>${/^[A-Z0-9]{1,6}$/.test(code) ? `<img src="${SYM_CDN}${code}.svg" alt="" loading="lazy" onload="if(this.previousElementSibling)this.previousElementSibling.remove()" onerror="this.remove()">` : ""}</span>`;
   }
   /** Offizielles Set-Symbol (Scryfall); fehlt es, bleibt das Würfel-Symbol */
   const setIcon = (code) => `<span class="seti"><img src="https://svgs.scryfall.io/sets/${esc(String(code || "").toLowerCase())}.svg" alt="" loading="lazy" onerror="this.parentElement.innerHTML=window.App.FI.set"></span>`;

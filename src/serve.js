@@ -303,10 +303,12 @@ function resolveBatch() {
   })();
 }
 /** CDN-URL des gedruckten Kartenbilds, oder null (Sammelauflösung über Scryfall /cards/collection) */
+/** Scryfall-Bildlink in der gewünschten Größe; "art" = Artwork-Ausschnitt (gleicher Pfad wie das normale Bild, Ordner art_crop) */
+const pickUri = (uris, version) => version === "art" ? (uris.normal ? uris.normal.replace("/normal/", "/art_crop/") : null) : (uris[version] || uris.normal || null);
 async function cardImageUrl(grpId, version = "normal") {
   const key = grpId + ":" + version;
   if (urlCache.has(key)) return urlCache.get(key);
-  if (urlCache.has(grpId + ":normal")) return urlCache.get(grpId + ":normal");
+  if (urlCache.has(grpId + ":normal")) return pickUri({ normal: urlCache.get(grpId + ":normal") }, version);
   const failedAt = missing.get(grpId + ":normal");
   if (failedAt && Date.now() - failedAt < 6 * 3600 * 1000) return null;
   // Während einer Scryfall-Sperre nicht warten: sofort "nicht verfügbar" (503 + Retry-After), der Browser zeigt
@@ -317,7 +319,7 @@ async function cardImageUrl(grpId, version = "normal") {
     batchWaiting.get(grpId).push(resolve);
     if (!batchTimer) batchTimer = setTimeout(resolveBatch, 120);
   });
-  return uris ? (uris[version] || uris.normal || null) : null;
+  return uris ? pickUri(uris, version) : null;
 }
 /** Set-Namen von Scryfall (Code -> Name), einmalig im Speicher; bei Sperre oder Netzfehler leer */
 let setsJson = null, setsAt = 0;
@@ -361,7 +363,7 @@ function start(webDir, port, log) {
     const p = decodeURIComponent(url.pathname);
     const im = p.match(/^\/card-img\/(\d+)$/);
     if (im || p === "/card-back") {
-      const version = url.searchParams.get("v") === "large" ? "large" : url.searchParams.get("v") === "small" ? "small" : "normal";
+      const version = ["large", "small", "art"].includes(url.searchParams.get("v")) ? url.searchParams.get("v") : "normal";
       (im ? cardImageUrl(+im[1], version) : cardBackUrlGet()).then((target) => {
         if (!target) {
           const wait = Math.ceil(Math.max(0, blockedUntil - Date.now()) / 1000);
