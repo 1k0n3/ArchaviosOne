@@ -823,3 +823,4 @@ button.reset:hover { color: var(--gold-2); border-color: var(--gold); }
 /* Reset-Knopf: Platz bleibt reserviert, damit die Filter nicht springen */
 button.reset { display: inline-flex; visibility: hidden; }
 button.reset.show { visibility: visible; }
+button.reset { margin-right: 20px; }
