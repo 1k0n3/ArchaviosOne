@@ -347,13 +347,21 @@ window.App = (function () {
   }
   /** Oder-Farbfilter (Bibliothek, Deckbau, Deckansicht) als vorbereitete Prüffunktion: jede gewählte Farbe zählt,
    *  "0"/"c" ergänzt farblose Karten (keine Länder), "m" verlangt mindestens zwei Farben. sel: Set, cc: Farben der Karte */
+  /**
+   * Farbauswahl: Farben sind oder-verknüpft, „Land“ zählt als weitere Auswahl (nur Länder bzw.
+   * Länder zusätzlich zu den gewählten Farben), „Mehrfarbig“ schränkt die Treffer weiter ein.
+   */
   function colorMatcher(sel) {
     if (!sel.size) return () => true;
-    const pick = [...sel].filter((v) => v !== "0" && v !== "c" && v !== "m"), wantC = sel.has("0") || sel.has("c"), wantM = sel.has("m");
+    const pick = [...sel].filter((v) => v !== "0" && v !== "c" && v !== "m" && v !== "l");
+    const wantC = sel.has("0") || sel.has("c"), wantM = sel.has("m"), wantLand = sel.has("l");
     return (cc, isLand) => {
       const colorless = !cc.length && !isLand;
-      let ok = !pick.length || pick.some((v) => cc.includes(v));
-      if (wantC) ok = pick.length ? (ok || colorless) : colorless;
+      const gewaehlt = pick.length || wantC || wantLand;   // Auswahlen, die für sich Treffer liefern
+      let ok = !gewaehlt;
+      if (pick.length && pick.some((v) => cc.includes(v))) ok = true;
+      if (wantC && colorless) ok = true;
+      if (wantLand && isLand) ok = true;
       return ok && !(wantM && cc.length < 2);
     };
   }
@@ -415,12 +423,12 @@ window.App = (function () {
    *       sizeKey, sizeMin, sizeMax, onChange }. Liefert Steuerelemente, matcher() für die gemeinsamen Filter, view(), count(text). */
   function cardFilterBar(o) {
     const bar = $(".topbar .right.filters"), lib = $(".lib-bar"), grid = o.grid, gem = FI.gem;
-    const COLORS = [["1", "w", "Weiß"], ["2", "u", "Blau"], ["3", "b", "Schwarz"], ["4", "r", "Rot"], ["5", "g", "Grün"], ["m", "m", "Mehrfarbig"], ["0", "c", "Farblos"]];
+    const COLORS = [["1", "w", "Weiß"], ["2", "u", "Blau"], ["3", "b", "Schwarz"], ["4", "r", "Rot"], ["5", "g", "Grün"], ["m", "m", "Mehrfarbig"], ["0", "c", "Farblos"], ["l", "l", "Land"]];
     // Suche in der Titelzeile rechts; die Filter in einer eigenen Reihe darunter (auf dem Handy: Suche fixiert unter dem Titel, dann die Filter)
     const mobile = isMobile();
     const fbar = document.createElement("div"); fbar.className = "topbar filters-bar";
     fbar.innerHTML = `<div class="right filters"><div id="f-set"></div><div id="f-rar"></div><div id="f-type"></div><div id="f-cmc"></div>
-      <div class="seg colors" id="f-colors" title="${tr("Farbe")}">${COLORS.map(([v, k, t]) => `<button type="button" data-v="${v}" class="c${k}" title="${tr(t)}">${filterIcon(k)}</button>`).join("")}</div>
+      <div class="seg colors" id="f-colors" title="${tr("Farbe")}">${COLORS.map(([v, k, t]) => `<button type="button" data-v="${v}" class="c${k}" title="${tr(t)}">${k === "l" ? FI.land : filterIcon(k)}</button>`).join("")}</div>
       <div id="f-own"></div><div id="f-sort"></div><button type="button" class="reset" id="f-reset" title="${tr("Filter und Sortierung zurücksetzen")}">${FI.reset}</button></div>${mobile ? "" : `<div id="f-size"></div>`}`;
     if (mobile) { bar.innerHTML = ""; lib.innerHTML = `<div id="f-q"></div><span class="count" id="count"></span><div id="f-size"></div>`; lib.before(fbar); }   // Handy: Filter zuerst, die fixierte Suche zuletzt direkt über den Karten
     else { bar.innerHTML = `<span class="count" id="count"></span><div id="f-q"></div>`; bar.classList.add("search-col"); bar.closest(".topbar").after(fbar); lib.remove(); }   // Zähler, Suche, Zoom-Menü in der Titelzeile rechts
@@ -433,7 +441,7 @@ window.App = (function () {
     F.set = dropdown($("#f-set"), { icon: FI.set, title: tr("Set"), searchable: true, onChange: change, items: [{ v: "", label: tr("Alle Sets"), short: tr("Set"), icon: FI.set }, ...o.sets.map((x) => ({ v: x, label: x, short: x, title: setName(x), search: setName(x), icon: setIcon(x) }))] });
     $("#f-set").classList.add("sets");
     F.rar = dropdown($("#f-rar"), { title: tr("Seltenheit"), onChange: change, items: [{ v: "", label: tr("Alle Seltenheiten"), short: tr("Seltenheit"), icon: gem("#8d95a8") }, { v: "2", label: "Common", icon: gem("#1f242e") }, { v: "3", label: "Uncommon", icon: gem("#b9c4cc") }, { v: "4", label: "Rare", icon: gem("#e0b654") }, { v: "5", label: "Mythic", icon: gem("#e8632a") }, { v: "1", label: tr("Standardland"), icon: gem("#6e5a3c") }] });
-    F.type = dropdown($("#f-type"), { title: tr("Kartentyp"), onChange: change, items: [{ v: "", label: tr("Alle Typen"), short: tr("Typ"), icon: FI.all }, { v: "2", label: tr("Kreatur"), icon: FI.creature }, { v: "4", label: tr("Spontanzauber"), icon: FI.instant }, { v: "10", label: tr("Hexerei"), icon: FI.sorcery }, { v: "3", label: tr("Verzauberung"), icon: FI.enchantment }, { v: "1", label: tr("Artefakt"), icon: FI.artifact }, { v: "8", label: tr("Planeswalker"), icon: FI.planeswalker }, { v: "5", label: tr("Land"), icon: FI.land }, { v: "14", label: tr("Schlacht"), icon: FI.battle }, { v: "L", label: tr("Legendär"), icon: FI.trophy }] });
+    F.type = dropdown($("#f-type"), { title: tr("Kartentyp"), onChange: change, items: [{ v: "", label: tr("Alle Typen"), short: tr("Typ"), icon: FI.all }, { v: "2", label: tr("Kreatur"), icon: FI.creature }, { v: "4", label: tr("Spontanzauber"), icon: FI.instant }, { v: "10", label: tr("Hexerei"), icon: FI.sorcery }, { v: "3", label: tr("Verzauberung"), icon: FI.enchantment }, { v: "1", label: tr("Artefakt"), icon: FI.artifact }, { v: "8", label: tr("Planeswalker"), icon: FI.planeswalker }, { v: "14", label: tr("Schlacht"), icon: FI.battle }, { v: "L", label: tr("Legendär"), icon: FI.trophy }] });
     F.cmc = dropdown($("#f-cmc"), { title: tr("Manawert"), onChange: change, items: [{ v: "", label: tr("Jeder Manawert"), short: "", icon: FI.mana }, ...[0, 1, 2, 3, 4, 5, 6].map((n) => ({ v: String(n), label: String(n), short: "", icon: manaSymbol(String(n)) })), { v: "7", label: "7+", short: "", icon: manaSymbol("7") }, { v: "x", label: "X", short: "", icon: manaSymbol("x") }] });
     $("#f-cmc").classList.add("icon-only", "cmc");
     F.own = dropdown($("#f-own"), { title: tr("Besitz"), value: o.ownValue || "1", defaultValue: "1", onChange: change, items: [{ v: "1", label: tr("Im Besitz"), icon: FI.check }, { v: "", label: tr("Alle Karten"), short: tr("Alle"), icon: FI.all }, { v: "0", label: tr("Fehlende"), icon: FI.x }, ...(o.ownItems || [])] });
@@ -458,7 +466,7 @@ window.App = (function () {
         if (rar && String(c[4]) !== rar) return false;
         if (t === "L" ? !String(c[14] || "").includes("L") : (t && !String(c[6]).split(",").includes(t))) return false;
         if (m && (m === "x" ? !/x/i.test(String(c[10] || "")) : m === "7" ? c[8] < 7 : c[8] !== +m)) return false;
-        return col(String(c[5]).split(",").filter(Boolean));
+        return col(String(c[5]).split(",").filter(Boolean), String(c[6]).split(",").includes("5"));
       };
     };
     paintReset();

@@ -488,6 +488,9 @@ kbd { background: var(--panel-3); border: 1px solid var(--line-2); border-radius
 .seg.colors button.cb.on { background: #4a4550; color: #fff; } .seg.colors button.cr.on { background: #c8462d; color: #fff; }
 .seg.colors button.cg.on { background: #3f8f4a; color: #fff; } .seg.colors button.cc0.on { background: #9aa1ad; color: #1a1608; }
 .seg.colors button.cm.on { background: linear-gradient(135deg, #d9b24a, #b8862b); color: #1a1608; }
+.seg.colors button.cl.on { background: #7a5a33; color: #fff; }
+.seg.colors button.cl svg { width: 22px; height: 22px; vertical-align: middle; opacity: .55; }
+.seg.colors button.cl.on svg { opacity: 1; }
 /* Farbfilter mit den Symbolen aus dem Deckbau des Spiels: normal gedimmt, aktiv die leuchtende Variante */
 .seg.colors button .fico { width: 28px; height: 28px; object-fit: contain; vertical-align: middle; display: none; }
 .seg.colors button .fico.off { display: inline-block; opacity: .55; }
