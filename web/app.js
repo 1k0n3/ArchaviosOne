@@ -365,7 +365,7 @@ window.App = (function () {
   const SORT_ORDER = ["color", "indeck", "name", "cmc", "rarity", "set", "owned", "wins", "played", "decks"];
   const SORT_ITEMS = {
     color: () => ({ v: "color", label: tr("Farbe"), short: tr("Farbe"), icon: FI.set }),
-    indeck: () => ({ v: "indeck", label: tr("Im Deck zuerst"), short: tr("Im Deck"), icon: FI.deck }),
+    indeck: () => ({ v: "indeck", label: tr("Im Deck"), short: tr("Im Deck"), icon: FI.deck }),
     name: () => ({ v: "name", label: tr("Name A–Z"), short: tr("Name"), icon: FI.az }), cmc: () => ({ v: "cmc", label: tr("Manawert"), short: tr("Mana"), icon: FI.mana }),
     wins: () => ({ v: "wins", label: tr("Meiste Siege"), short: tr("Siege"), icon: FI.trophy }), played: () => ({ v: "played", label: tr("Meist gespielt"), short: tr("Gespielt"), icon: FI.play }),
     decks: () => ({ v: "decks", label: tr("Meist in Decks"), short: tr("Decks"), icon: FI.deck }), owned: () => ({ v: "owned", label: tr("Meiste Exemplare"), short: tr("Exemplare"), icon: FI.copies }),

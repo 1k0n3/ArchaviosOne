@@ -466,7 +466,6 @@ window.I18N = (function () {
     "Anzeigen": ["Show", "Afficher", "Mostrar", "Mostra", "Mostrar", "表示"],
     "Einklappen": ["Collapse", "Replier", "Plegar", "Comprimi", "Recolher", "折りたたむ"],
     "Im Deck": ["In deck", "Dans le deck", "En el mazo", "Nel mazzo", "No deck", "デッキ内"],
-    "Im Deck zuerst": ["In deck first", "Deck en premier", "En el mazo primero", "Prima nel mazzo", "No deck primeiro", "デッキ内を先頭に"],
     "Karten im Deck zuerst anzeigen": ["Show cards in the deck first", "Afficher d’abord les cartes du deck", "Mostrar primero las cartas del mazo", "Mostra prima le carte nel mazzo", "Mostrar primeiro as cartas do deck", "デッキ内のカードを先に表示"],
     "mehr": ["more", "plus", "más", "altro", "mais", "もっと"],
     "weniger": ["less", "moins", "menos", "meno", "menos", "閉じる"],

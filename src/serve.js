@@ -116,13 +116,14 @@ function ownedCounts(webDir) {
 function allCards(webDir) {
   if (cardsListJson) return cardsListJson;
   const d = openDb();
-  const rows = d.prepare(`select c.GrpId, c.ExpansionCode, c.CollectorNumber, c.Rarity, c.IsToken, c.IsRebalanced, c.ArtId, c.Colors, c.Types, c.OldSchoolManaText, c.IsPrimaryCard, c.DigitalReleaseSet, c.RawFrameDetail, c.AdditionalFrameDetails, c.ArtSize, c.Power, c.Toughness, c.AbilityIds, c.TypeTextId, c.SubtypeTextId,
+  const rows = d.prepare(`select c.GrpId, c.ExpansionCode, c.CollectorNumber, c.Rarity, c.IsToken, c.IsRebalanced, c.ArtId, c.Colors, c.Types, c.Supertypes, c.OldSchoolManaText, c.IsPrimaryCard, c.DigitalReleaseSet, c.RawFrameDetail, c.AdditionalFrameDetails, c.ArtSize, c.Power, c.Toughness, c.AbilityIds, c.TypeTextId, c.SubtypeTextId,
       (select Loc from Localizations_enUS l where l.LocId = c.TitleId and l.Formatted = 1 limit 1) as Name from Cards c`).all();
   const owned = ownedCounts(webDir);
   const loc = new Map(d.prepare("select LocId, Loc from Localizations_enUS where Formatted = 1").all().map((r) => [r.LocId, r.Loc]));
   const textOf = (r) => String(r.AbilityIds || "").split(",").filter(Boolean).map((p) => clean(loc.get(+p.split(":")[1]) || "")).filter(Boolean).join("\n");
   const typeOf = (r) => { const tt = clean(loc.get(r.TypeTextId) || ""), st = clean(loc.get(r.SubtypeTextId) || ""); return tt + (st ? " — " + st : ""); };
-  cardsList = rows.map((r) => { const m = mana(r.OldSchoolManaText); return [r.GrpId, clean(r.Name), r.ExpansionCode, r.CollectorNumber, r.Rarity, r.Colors || "", r.Types || "", r.ArtId || 0, m.cmc, owned.get(r.GrpId) || 0, m.cost, r.IsToken ? 1 : 0, r.IsRebalanced ? 1 : 0, r.IsPrimaryCard ? 1 : 0, require("./lib").frameFlags(r), r.Power || "", r.Toughness || "", textOf(r), typeOf(r)]; });
+  const legendId = require("./lib").legendaryTypeId(d);
+  cardsList = rows.map((r) => { const m = mana(r.OldSchoolManaText); r.Legendary = require("./lib").isLegendary(r, legendId); return [r.GrpId, clean(r.Name), r.ExpansionCode, r.CollectorNumber, r.Rarity, r.Colors || "", r.Types || "", r.ArtId || 0, m.cmc, owned.get(r.GrpId) || 0, m.cost, r.IsToken ? 1 : 0, r.IsRebalanced ? 1 : 0, r.IsPrimaryCard ? 1 : 0, require("./lib").frameFlags(r), r.Power || "", r.Toughness || "", textOf(r), typeOf(r)]; });
   cardsListJson = JSON.stringify({ generatedAt: new Date().toISOString(), cards: cardsList });
   return cardsListJson;
 }
@@ -158,7 +159,7 @@ function cardDetail(grpId, webDir) {
     grpId: c.GrpId, name: clean(loc(c.TitleId)), set: c.ExpansionCode, nr: c.CollectorNumber, rarity: c.Rarity, artId: c.ArtId, artist: c.ArtistCredit || "",
     cost: m.cost, cmc: m.cmc, colors: String(c.Colors || "").split(",").filter(Boolean).map(Number), typeLine, text: abilities, flavor: clean(loc(c.FlavorTextId)),
     power: c.Power || "", toughness: c.Toughness || "", isToken: !!c.IsToken, isRebalanced: !!c.IsRebalanced, digitalSet: c.DigitalReleaseSet || "",
-    flags: require("./lib").frameFlags(c), owned: owned.get(c.GrpId) || 0, printings, linked: String(c.LinkedFaceGrpIds || "").split(",").filter(Boolean).map(Number)
+    flags: require("./lib").frameFlags(Object.assign({}, c, { Legendary: require("./lib").isLegendary(c, require("./lib").legendaryTypeId(d)) })), owned: owned.get(c.GrpId) || 0, printings, linked: String(c.LinkedFaceGrpIds || "").split(",").filter(Boolean).map(Number)
   };
 }
 

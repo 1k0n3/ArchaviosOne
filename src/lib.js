@@ -7,12 +7,25 @@ const { DatabaseSync } = require("node:sqlite");
 const paths = require("./paths");
 
 
+/**
+ * Id des Supertyps "Legendary" in der Kartendatenbank. Die Enum-Namen liegen immer auf Englisch vor,
+ * die Suche über den Namen ist also unabhängig von der Spielsprache.
+ */
+function legendaryTypeId(db) {
+  try {
+    const r = db.prepare("select e.Value v from Enums e join Localizations_enUS l on l.LocId = e.LocId and l.Formatted = 1 where e.Type = 'SuperType' and l.Loc = 'Legendary'").get();
+    return r ? String(r.v) : "";
+  } catch (e) { return ""; }
+}
+/** Legendär laut Supertyp der Karte (nicht nach dem Rahmen des Drucks) */
+const isLegendary = (c, id) => !!id && String(c.Supertypes || "").split(",").includes(String(id));
+
 /** Kompakte Rahmen-Flags eines Drucks aus den Frame-Spalten der Datenbank */
 function frameFlags(c) {
   const raw = String(c.RawFrameDetail || "").toLowerCase(), add = String(c.AdditionalFrameDetails || "").toLowerCase();
   let f = "";
   if (c.IsToken) f += "T";
-  if (raw.includes("legendary")) f += "L";
+  if (c.Legendary || raw.includes("legendary")) f += "L";   // Supertyp (verlässlich), sonst der Rahmen
   if (raw.includes("pre-8ed") || add.includes("pre 8e")) f += "R";
   if (c.ArtSize > 0 || raw.includes("basic")) f += "F";
   if (add.includes("nyx")) f += "N";
@@ -56,7 +69,7 @@ function findCardDb(explicit) {
 function loadCards(dbPath) {
   const db = new DatabaseSync(dbPath, { readOnly: true });
   const rows = db.prepare(`
-    select c.GrpId, c.ExpansionCode, c.CollectorNumber, c.Rarity, c.IsToken, c.IsRebalanced, c.ArtId, c.Colors, c.Types, c.Power, c.Toughness, c.RawFrameDetail, c.AdditionalFrameDetails, c.ArtSize, c.AbilityIds, c.TypeTextId, c.SubtypeTextId, c.OldSchoolManaText,
+    select c.GrpId, c.ExpansionCode, c.CollectorNumber, c.Rarity, c.IsToken, c.IsRebalanced, c.ArtId, c.Colors, c.Types, c.Supertypes, c.Power, c.Toughness, c.RawFrameDetail, c.AdditionalFrameDetails, c.ArtSize, c.AbilityIds, c.TypeTextId, c.SubtypeTextId, c.OldSchoolManaText,
            (select Loc from Localizations_enUS l where l.LocId = c.TitleId and l.Formatted = 1 limit 1) as Name
     from Cards c
   `).all();
@@ -64,7 +77,9 @@ function loadCards(dbPath) {
   // Lokalisierungen einmal komplett laden (Regeltexte, Typzeilen)
   const loc = new Map(db.prepare("select LocId, Loc from Localizations_enUS where Formatted = 1").all().map((r) => [r.LocId, r.Loc]));
   const cards = new Map();
+  const legendId = legendaryTypeId(db);
   for (const r of rows) {
+    r.Legendary = isLegendary(r, legendId);
     r.Name = clean(r.Name);
     r.Text = String(r.AbilityIds || "").split(",").filter(Boolean).map((p) => clean(loc.get(+p.split(":")[1]) || "")).filter(Boolean).join("\n");
     const tt = clean(loc.get(r.TypeTextId) || ""), st = clean(loc.get(r.SubtypeTextId) || "");
@@ -231,7 +246,7 @@ function stampTime(d = new Date()) { return `${pad(d.getHours())}${pad(d.getMinu
 function stampFull(d = new Date()) { return `${stampDate(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
 
 module.exports = {
-  RARITY, COLLECTION_HEAD, frameFlags, manaCost,
+  RARITY, COLLECTION_HEAD, frameFlags, legendaryTypeId, isLegendary, manaCost,
   mtgaPid, findInstallDir, findDataDir: paths.findDataDir, findLogDir: paths.findLogDir, memoryScanSupported: paths.memoryScanSupported, findCardDb, loadCards, runScan, resolveAnchors, chooseBlock,
   snapshotFromBlock, toRows, csvLine, writeCollectionCsv, appendCsv, diffSnapshots, totalCards,
   stampDate, stampTime, stampFull
