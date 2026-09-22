@@ -1395,6 +1395,15 @@ h3.sub-fold { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; 
 .achs .ds-t { grid-column: 1 / -1; }
 .ach { padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.03); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
 .ach { position: relative; padding-right: 60px; min-height: 40px; justify-content: center; }
+/* Belohnung des Erfolgs (Titel, Hülle, Emote) links neben dem Erfolgssymbol */
+.ach .arew { position: absolute; right: 54px; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; display: inline-flex; }
+.ach .arew svg { width: 100%; height: 100%; }
+.ach .arew.offen { filter: drop-shadow(0 0 5px rgba(242,177,52,.75)); }
+.ach:has(.arew) { padding-right: 88px; }
+.qcard .qrew { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; display: inline-flex; }
+.qcard .qrew svg { width: 100%; height: 100%; }
+.qcard .qrew.offen { filter: drop-shadow(0 0 5px rgba(242,177,52,.75)); }
+.qcard.qach:has(.qrew) { padding-right: 46px; }
 .ach .aico { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 3px 6px rgba(0,0,0,.5)); }
 .ach.claim { border-color: rgba(242,177,52,.55); background: rgba(242,177,52,.06); }
 .ach em { font-style: normal; color: var(--gold-2); font-weight: 700; }

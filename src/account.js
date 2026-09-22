@@ -90,16 +90,18 @@ class AccountParser {
   }
   /**
    * Erfolge (Achievements_Core, Achievements_Colors): je Knoten Status, Fortschritt und Abschlussdatum.
-   * "…Reward"-Knoten und "---META_…" sind Technik und werden übersprungen.
+   * "---META_…" ist Technik. Der Knoten "<id>Reward" gehört zum Erfolg und sagt, ob die Belohnung
+   * noch abzuholen ist; er wandert als "reward" an den Erfolg.
    */
   achievements(graph, j) {
     const nodes = j.NodeStates || {};
     const list = [];
+    const zustand = (n) => n ? (n.Status || (n.StatusInternal === 2 ? "Completed" : n.StatusInternal === 1 ? "Available" : "Locked")) : null;
     for (const [id, v] of Object.entries(nodes)) {
       if (!v || /Reward$/.test(id) || /^---/.test(id)) continue;
-      const st = v.Status || (v.StatusInternal === 2 ? "Completed" : v.StatusInternal === 1 ? "Available" : "Locked");
+      const st = zustand(v);
       const done = (v.ProgressionHistoryStateDataState || {}).progressedDateTimeUTC || (v.ProgressionHistoryStateDataState || {}).ProgressedDateTimeUTCInternal || null;
-      list.push({ id, status: st, progress: v.ProgressNodeState && v.ProgressNodeState.CurrentProgress != null ? v.ProgressNodeState.CurrentProgress : null, completedAt: done && !/^0001-/.test(done) ? done : null });
+      list.push({ id, status: st, progress: v.ProgressNodeState && v.ProgressNodeState.CurrentProgress != null ? v.ProgressNodeState.CurrentProgress : null, completedAt: done && !/^0001-/.test(done) ? done : null, reward: zustand(nodes[id + "Reward"]) });
     }
     const a = this.state.achievements || (this.state.achievements = { groups: {} });
     a.groups[graph.replace(/^Achievements_/, "")] = { total: list.length, completed: list.filter((x) => x.status === "Completed").length, list };

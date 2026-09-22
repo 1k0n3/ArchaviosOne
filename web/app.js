@@ -966,6 +966,10 @@ window.App = (function () {
     if (!a) return manaSymbol(k);
     return `<img class="fico off" src="${esc(a)}" alt="" loading="eager" onerror="this.parentElement.classList.add('noico')"><img class="fico on" src="${esc(b || a)}" alt="" loading="eager">`;
   }
+  // Belohnungen der Erfolge: Titel (Krone), Kartenhülle (Medaillon), Emote (Sprechblase)
+  FI.rewTitle = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11.5" fill="#0e0b08"/><circle cx="12" cy="12" r="10.6" fill="none" stroke="rgba(242,177,52,.35)" stroke-width="1"/><path d="M5.6 15.6 4.4 7.9l4 2.9 3.6-4.7 3.6 4.7 4-2.9-1.2 7.7z" fill="#f2b134"/><rect x="5.6" y="16.6" width="12.8" height="2.1" rx="1" fill="#f2b134"/></svg>';
+  FI.rewSleeve = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11.5" fill="#0e0b08"/><circle cx="12" cy="12" r="9.2" fill="#f2b134"/><path d="M12 4.9c1.9 2.3 2.9 4.6 2.9 7.1s-1 4.8-2.9 7.1c-1.9-2.3-2.9-4.6-2.9-7.1s1-4.8 2.9-7.1z" fill="#0e0b08"/><path d="M12 8.2c.8 1.2 1.2 2.4 1.2 3.8s-.4 2.6-1.2 3.8c-.8-1.2-1.2-2.4-1.2-3.8s.4-2.6 1.2-3.8z" fill="#f2b134"/></svg>';
+  FI.rewEmote = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11.5" fill="#0e0b08"/><path d="M6.4 6.2h11.2c1 0 1.8.8 1.8 1.8v5.6c0 1-.8 1.8-1.8 1.8h-4.9L9 19.2v-3.8H6.4c-1 0-1.8-.8-1.8-1.8V8c0-1 .8-1.8 1.8-1.8z" fill="#f2b134"/><circle cx="8.9" cy="10.8" r="1.15" fill="#0e0b08"/><circle cx="12" cy="10.8" r="1.15" fill="#0e0b08"/><circle cx="15.1" cy="10.8" r="1.15" fill="#0e0b08"/></svg>';
   FI.grid = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>';
   FI.list = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>';
   FI.warn = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 2.5 20h19z"/><path d="M12 9v5M12 17h.01"/></svg>';

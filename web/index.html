@@ -83,6 +83,18 @@ App.load().then((D) => {
   const uiImg = (k, cls = "") => { const u = ui(k); return u ? `<img class="gi ${cls}" src="${A.esc(u)}" alt="" loading="eager" onerror="this.style.display='none'">` : ""; };
   const bar = (frac, cls = "") => `<div class="fbar ${cls}"><i style="width:${Math.round(Math.max(0, Math.min(1, frac || 0)) * 100)}%"></i></div>`;
   // Questfarbe aus dem Namen (Gilden und Einzelfarben), sonst allgemein
+  /**
+   * Belohnung eines Erfolgs: In Arena gibt Stufe I eine Kartenhülle, Stufe II ein Emote und Stufe III
+   * einen Titel. Erfolge ohne Stufe bekommen kein Symbol, dort ist die Belohnung nicht abzuleiten.
+   */
+  const REWARDS = { 1: ["sleeve", "Kartenhülle", FI.rewSleeve], 2: ["emote", "Emote", FI.rewEmote], 3: ["title", "Titel", FI.rewTitle] };
+  const rewardIcon = (x, cls = "arew") => {
+    const m = /Tier(\d)$/.exec(x.id || "");
+    const r = m && REWARDS[m[1]];
+    if (!r) return "";
+    const offen = x.reward && x.reward !== "Completed";   // Belohnung noch nicht abgeholt
+    return `<span class="${cls} rew-${r[0]}${offen ? " offen" : ""}" title="${A.esc(T(r[1]))}${offen ? " · " + A.esc(T("noch abzuholen")) : ""}">${r[2]}</span>`;
+  };
   const questIcon = (name) => {
     const n = String(name || "").toLowerCase();
     const guild = { azorius: "m", dimir: "m", rakdos: "m", gruul: "m", selesnya: "m", orzhov: "m", izzet: "m", golgari: "m", boros: "m", simic: "m" };
@@ -163,7 +175,7 @@ App.load().then((D) => {
       const done = q.goal && q.progress >= q.goal;
       return `<div class="qcard ${done ? "done" : ""}">${qMedal(q)}<div class="qt"><b>${A.esc(q.name)}</b>${bar(q.goal ? q.progress / q.goal : 0, "gold")}<span class="muted small">${q.progress} / ${q.goal}${done ? " · " + T("erledigt") : ""}${q.reward && q.reward.xp ? " · " + A.num(q.reward.xp) + " XP" : ""}</span></div></div>`;
     });
-    const achs = ai ? ai.open.filter((x) => ai.claimable.has(x.id) || ai.close.has(x.id)).slice(0, 6).map((x) => `<div class="qcard qach ${ai.claimable.has(x.id) ? "claim" : ""}">${uiImg(ai.claimable.has(x.id) ? "check" : "hourglass", "qico") || `<span class="qico ph">${FI.trophy}</span>`}<div class="qt"><b>${A.esc(ai.nice(x.id))}</b><span class="muted small">${T("Erfolg")} · ${T(x.group === "Colors" ? "Farben" : "Kern")} · <em>${ai.claimable.has(x.id) ? T("abholbar") : T("fast fertig")}</em></span></div></div>`) : [];
+    const achs = ai ? ai.open.filter((x) => ai.claimable.has(x.id) || ai.close.has(x.id)).slice(0, 6).map((x) => `<div class="qcard qach ${ai.claimable.has(x.id) ? "claim" : ""}">${uiImg(ai.claimable.has(x.id) ? "check" : "hourglass", "qico") || `<span class="qico ph">${FI.trophy}</span>`}${rewardIcon(x, "qrew")}<div class="qt"><b>${A.esc(ai.nice(x.id))}</b><span class="muted small">${T("Erfolg")} · ${T(x.group === "Colors" ? "Farben" : "Kern")} · <em>${ai.claimable.has(x.id) ? T("abholbar") : T("fast fertig")}</em></span></div></div>`) : [];
     if (!quests.length && !achs.length) { el.innerHTML = ""; return; }
     const daily = a.rewards && a.rewards.dailyReset ? hoursUntil(a.rewards.dailyReset) : null, weekly = a.rewards && a.rewards.weeklyReset ? hoursUntil(a.rewards.weeklyReset) : null;
     el.innerHTML = `<div class="qb-head"><h2>${T("Tagesquests")} <span class="cnt">${quests.length}</span></h2><span class="muted small">${[daily != null ? T("Tagesreset in {h} h", { h: daily }) : "", weekly != null ? T("Wochenreset in {h} h", { h: weekly }) : ""].filter(Boolean).join(" · ")}</span></div>
@@ -175,7 +187,7 @@ App.load().then((D) => {
     const a = D.account, el = A.$("#account");
     if (!a) { el.innerHTML = ""; return; }
     const ai = achInfo(a);
-    const achHtml = ai ? ai.open.map((x) => `<div class="ach ${ai.claimable.has(x.id) ? "claim" : ""}">${uiImg(x.group === "Colors" ? questIcon(ai.nice(x.id)) : "q_x", "aico")}<b>${A.esc(ai.nice(x.id))}</b><span class="muted small">${T(x.group === "Colors" ? "Farben" : "Kern")}${ai.claimable.has(x.id) ? ` · <em>${T("abholbar")}</em>` : ai.close.has(x.id) ? " · " + T("fast fertig") : ""}${x.progress != null ? " · " + T("Fortschritt {n}", { n: x.progress }) : ""}</span></div>`).join("") : "";
+    const achHtml = ai ? ai.open.map((x) => `<div class="ach ${ai.claimable.has(x.id) ? "claim" : ""}">${uiImg(x.group === "Colors" ? questIcon(ai.nice(x.id)) : "q_x", "aico")}${rewardIcon(x)}<b>${A.esc(ai.nice(x.id))}</b><span class="muted small">${T(x.group === "Colors" ? "Farben" : "Kern")}${ai.claimable.has(x.id) ? ` · <em>${T("abholbar")}</em>` : ai.close.has(x.id) ? " · " + T("fast fertig") : ""}${x.progress != null ? " · " + T("Fortschritt {n}", { n: x.progress }) : ""}</span></div>`).join("") : "";
     const boosters = false ? `<div class="quests"><div class="ds-t">${T("Booster")}</div><div class="quest"><b>${a.boosters.reduce((s, b) => s + b.count, 0)}</b><span class="muted small">${a.boosters.slice(0, 8).map((b) => A.esc(b.set) + " ×" + b.count).join(", ")}</span></div></div>` : "";
     if (!achHtml && !boosters) { el.innerHTML = ""; return; }
     el.innerHTML = `<h2 class="fold-h2" id="h-account">${T("Konto")} <span class="muted small" style="text-transform:none;letter-spacing:0">${ai ? T("Erfolge") + " " + ai.done + " / " + ai.total : ""}</span></h2>
