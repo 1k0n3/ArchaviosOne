@@ -12,3 +12,7 @@ npm-debug.log
 .idea/
 Thumbs.db
 .DS_Store
+
+# Übergabeordner des Design-Agenten und Notizen (nur lokal)
+design-sync/
+optimize.pdf
