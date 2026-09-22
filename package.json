@@ -1,0 +1,42 @@
+{
+  "name": "mtga-stats",
+  "version": "1.5.0",
+  "description": "Local MTG Arena companion: collection export, match recording with replays, deck export, a dashboard that reads card art straight from the game files and a built-in AI assistant that knows your collection, decks and matches.",
+  "license": "MIT",
+  "private": false,
+  "engines": {
+    "node": ">=22.13"
+  },
+  "os": [
+    "win32"
+  ],
+  "main": "src/lib.js",
+  "bin": {
+    "mtga-stats": "src/watch.js"
+  },
+  "scripts": {
+    "start": "node src/watch.js",
+    "watch": "node src/watch.js",
+    "serve": "node src/serve.js",
+    "export": "node src/export.js",
+    "decks": "node src/decks.js",
+    "matches": "node src/matches.js",
+    "build": "node src/webgen.js",
+    "test": "node --test \"tests/*.test.js\"",
+    "tray": "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File scripts/tray.ps1",
+    "autostart": "powershell -ExecutionPolicy Bypass -File scripts/install-autostart.ps1",
+    "app": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/open-app.ps1",
+    "shortcut": "powershell -ExecutionPolicy Bypass -File scripts/create-shortcut.ps1",
+    "sync": "node src/sync.js"
+  },
+  "keywords": [
+    "mtga",
+    "magic-the-gathering",
+    "arena",
+    "collection",
+    "tracker",
+    "replay",
+    "dashboard",
+    "ai-assistant"
+  ]
+}

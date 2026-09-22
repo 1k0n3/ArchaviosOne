@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTGA Stats · Replay</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0b0e18">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="replay.css">
+<script src="data.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<script>
+App.load().then((D) => {
+  // Handy: Replays sind fürs große Bild gedacht – nur Hinweis und zurück zur Liste
+  if (App.isMobile()) {
+    App.shell("replay.html", `<div class="topbar"><div><h1>${App.t("Replay")}</h1></div></div><div class="panel"><p class="muted">${App.t("Replays gibt es nur am PC – hier die Liste der Matches.")}</p><p><a class="btn primary" href="index.html">${App.t("Zur Übersicht")}</a></p></div>`);
+    return;
+  }
+  const A = App, T = A.t;
+  const id = A.param("id");
+  const I = {
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>',
+    prev: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 6v12l-8.5-6z"/></svg>',
+    next: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 6v12l8.5-6z"/></svg>',
+    first: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM18 6v12l-8.5-6z"/></svg>',
+    last: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 6v12l8.5-6z"/></svg>',
+    tprev: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 6v12l-8.5-6zM20 6v12l-8.5-6z"/></svg>',
+    tnext: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6v12l8.5-6zM13 6v12l8.5-6z"/></svg>',
+    full: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+    log: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>'
+  };
+  // Phasen als Symbole: Beginn, Hauptphase 1, Kampf, Hauptphase 2, Ende
+  const PHASES = [
+    ["Beginn", '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" stroke="currentColor" stroke-width="2"/></svg>'],
+    ["Hauptphase 1", '<svg viewBox="0 0 24 24"><path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="currentColor"/></svg>'],
+    ["Kampf", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20l7-7M13 11l7-7M14 4h6v6M4 14v6h6M8 16l2 2"/></svg>'],
+    ["Hauptphase 2", '<svg viewBox="0 0 24 24"><path d="M12 4l2.5 5.5L20 12l-5.5 2.5L12 20l-2.5-5.5L4 12l5.5-2.5z" fill="currentColor"/></svg>'],
+    ["Ende", '<svg viewBox="0 0 24 24"><path d="M14 3a9 9 0 1 0 7 14.5A8 8 0 0 1 14 3z" fill="currentColor"/></svg>']
+  ];
+  A.shell("matches.html", `<div id="rp"></div>`);
+  document.querySelector(".content").classList.add("replay-content");
+  const rp = A.$("#rp");
+  if (!id) { rp.innerHTML = `<h1>${T("Replay")}</h1><div class="empty">${T("Kein Match angegeben.")}</div>`; return; }
+  rp.innerHTML = `<div class="rp-head"><div><div class="vs">${A.skeleton.text("260px", 22)}</div><div class="meta">${A.skeleton.text("380px", 12)}</div></div></div>
+    <div class="stage"><div class="board sk-board"><div class="top"><div class="sk sk-medal"></div><div></div></div>
+      <div class="sk-field"><div class="sk-row-cards">${'<div class="sk sk-card sm"></div>'.repeat(5)}</div><div class="sk-row-cards big">${'<div class="sk sk-card"></div>'.repeat(4)}</div><div class="divider"></div><div class="sk-row-cards big">${'<div class="sk sk-card"></div>'.repeat(3)}</div><div class="sk-row-cards">${'<div class="sk sk-card sm"></div>'.repeat(6)}</div></div>
+      <div class="bottom"><div class="sk sk-medal"></div><div></div></div></div>
+      <div class="playerbar"><div class="sk sk-row" style="height:10px;margin:8px 0"></div><div class="sk sk-row" style="height:36px;width:60%"></div></div></div>`;
+  A.busy(true);
+  const s = document.createElement("script");
+  s.src = "matches/" + id + ".js?v=" + (D.format || 0);
+  s.onload = () => { A.busy(false); init(); };
+  s.onerror = () => { A.busy(false); rp.innerHTML = `<h1>${T("Replay")}</h1><div class="empty">${T("Match-Daten nicht gefunden ({f}).", { f: "matches/" + A.esc(id) + ".js" })}</div>`; };
+  document.head.appendChild(s);
+
+  function init() {
+    const M = window.MTGA_MATCH, match = M.match, frames = M.frames, dict = M.cards;
+    const me = match.mySeat, opp = me === 1 ? 2 : 1;
+    const pl = (seat) => match.players.find((p) => p.seat === seat) || { name: T("Spieler") + " " + seat };
+    const name = (g) => A.cardName(g, dict);
+    const who = (seat) => seat === me ? `<span class="who me">${A.esc(pl(me).name || T("Ich"))}</span>` : seat === opp ? `<span class="who opp">${A.esc(pl(opp).name || T("Gegner"))}</span>` : "";
+    const cmd = (match.myDeck.commander || []).map((c) => name(c.grpId)).join(", ");
+    let imgs = true;
+    try { imgs = localStorage.getItem("mtga-replay-imgs") !== "0"; } catch (e) {}
+    if (A.param("imgs") === "0") imgs = false;   // ?imgs=0: Textkarten (z. B. für Screenshots)
+
+    rp.innerHTML = `
+      <div class="rp-head">
+        <div><div class="vs"><span class="me">${A.esc(pl(me).name)}</span> <span class="muted">vs</span> <span class="opp">${A.esc(pl(opp).name)}</span> ${A.resultBadge(match.result)} <span class="muted small">${A.esc(match.reason)}</span></div>
+          <div class="meta">${A.fmtDate(match.start)} ${A.fmtTime(match.start)} · ${A.esc(A.eventLabel(match.eventId))} · ${A.esc(match.myDeck.name)}${cmd ? " · " + A.esc(cmd) : ""} · ${T("{n} Schritte", { n: frames.length })}</div></div>
+        <div class="right"><button class="ghost" id="b-deck">${T("Mein Deck")}</button><button class="ghost" id="b-oppdeck">${T("Gegnerkarten")}</button><a class="ghost" href="matches.html" style="padding:8px 12px">${T("← Matches")}</a></div>
+      </div>
+      <div class="stage" id="stage">
+        <div class="board" id="board"></div>
+        <div class="playerbar">
+          <div class="timeline" id="timeline"><div class="segs" id="segs"></div><div class="played" id="played"></div><div class="knob" id="knob"></div></div>
+          <div class="pb-row">
+            <button class="icon ghost" id="b-first" title="${T("Anfang (Pos1)")}">${I.first}</button>
+            <button class="icon ghost" id="b-tprev" title="${T("Voriger Zug (⇧T)")}">${I.tprev}</button>
+            <button class="icon ghost" id="b-prev" title="${T("Schritt zurück (←)")}">${I.prev}</button>
+            <button class="icon primary play" id="b-play" title="${T("Abspielen / Pause (Leertaste)")}">${I.play}</button>
+            <button class="icon ghost" id="b-next" title="${T("Schritt weiter (→)")}">${I.next}</button>
+            <button class="icon ghost" id="b-tnext" title="${T("Nächster Zug (T)")}">${I.tnext}</button>
+            <button class="icon ghost" id="b-last" title="${T("Ende (Ende)")}">${I.last}</button>
+            <div class="pos" id="pos"></div>
+            <div class="right">
+              <div class="seg" id="speed"><button data-v="2000">0.5×</button><button data-v="1000" class="on">1×</button><button data-v="500">2×</button><button data-v="200">5×</button></div><button class="ghost toggle" id="b-auto">Auto</button>
+              <button class="ghost" id="b-imgs">${imgs ? T("Bilder aus") : T("Bilder an")}</button>
+              <button class="icon ghost" id="b-log" title="${T("Protokoll (L)")}">${I.log}</button>
+              <button class="icon ghost" id="b-full" title="${T("Vollbild (F)")}">${I.full}</button>
+            </div>
+          </div>
+        </div>
+        <div class="logpanel" id="logpanel"><div class="lh">${T("Ereignisse")} ${A.xButton("b-log-x")}</div><div class="log" id="log"></div></div>
+        <div id="popup" class="popup hidden"></div>
+      </div>
+      <p class="muted small" style="margin-top:10px">${T("Tasten: {keys}. Klick auf Friedhof oder Exil öffnet die Karten, Klick auf eine Karte die Details. Gegnerhand bleibt verdeckt.", { keys: `<kbd>←</kbd> <kbd>→</kbd> ${T("Schritt")} · <kbd>${T("Leertaste")}</kbd> ${T("Abspielen")} · <kbd>T</kbd> / <kbd>⇧T</kbd> ${T("Zug vor/zurück")} · <kbd>L</kbd> ${T("Protokoll")} · <kbd>F</kbd> ${T("Vollbild")} · <kbd>Pos1</kbd>/<kbd>Ende</kbd>` })}</p>`;
+
+    let i = 0, timer = null, speed = 1000, prevLife = [null, null];
+    const boardEl = A.$("#board"), popup = A.$("#popup"), logPanel = A.$("#logpanel");
+
+    // ---- Zeitachse ----
+    const turnStarts = [];
+    frames.forEach((f, k) => { if (!turnStarts.length || frames[turnStarts[turnStarts.length - 1]].turn !== f.turn || frames[turnStarts[turnStarts.length - 1]].act !== f.act) turnStarts.push(k); });
+    A.$("#segs").innerHTML = turnStarts.map((st, k) => {
+      const end = k + 1 < turnStarts.length ? turnStarts[k + 1] : frames.length;
+      const f = frames[st];
+      return `<div class="seg ${f.act === me ? "me" : f.act === opp ? "opp" : ""}" style="flex:${end - st}" data-t="${f.turn ? "Z" + f.turn : ""}" title="${T("Zug")} ${f.turn} · ${f.act === me ? T("ich") : T("Gegner")}"></div>`;
+    }).join("");
+    const tl = A.$("#timeline");
+    tl.insertAdjacentHTML("beforeend", frames.map((f, k) => f.ev.some((e) => e.k === "dmg" || e.k === "dies" || e.k === "lose") ? `<div class="evmark" style="left:${(k / Math.max(1, frames.length - 1)) * 100}%"></div>` : "").join(""));
+    let scrubbing = false;
+    const scrub = (ev) => { const r = tl.getBoundingClientRect(); const p = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)); go(Math.round(p * (frames.length - 1))); };
+    tl.addEventListener("mousedown", (ev) => { scrubbing = true; scrub(ev); });
+    window.addEventListener("mousemove", (ev) => { if (scrubbing) scrub(ev); });
+    window.addEventListener("mouseup", () => { scrubbing = false; });
+
+    // ---- Ereignistexte ----
+    function evText(e) {
+      const g = e.g ? `<span class="g">${A.esc(name(e.g))}</span>` : "";
+      const tgt = e.t ? (typeof e.t === "string" ? who(+e.t.slice(1)) : `<span class="g">${A.esc(name(e.t))}</span>`) : "";
+      switch (e.k) {
+        case "turn": return T("Zug {v} · {who}", { v: e.v, who: who(e.s) });
+        case "land": return T("{who} spielt {g}", { who: who(e.s), g });
+        case "cast": return T("{who} wirkt {g}", { who: who(e.s), g });
+        case "resolve": return T("{g} wird verrechnet", { g });
+        case "draw": return T("{who} zieht {g}", { who: who(e.s), g: e.g ? g : T("eine Karte") });
+        case "dmg": return T("{src} verursacht {v} Schaden an {tgt}", { src: g || who(e.s), v: `<b>${e.v}</b>`, tgt });
+        case "life": return T("{who} Leben {v}", { who: who(e.s), v: `${e.v > 0 ? "+" : ""}${e.v}` }) + (e.l != null ? ` → <b>${e.l}</b>` : "") + (e.g ? " " + T("durch {g}", { g }) : "");
+        case "dies": return T("{g} stirbt", { g });
+        case "destroy": return T("{g} wird zerstört", { g });
+        case "sacrifice": return T("{who} opfert {g}", { who: who(e.s), g });
+        case "exile": return T("{g} wird ins Exil geschickt", { g });
+        case "discard": return T("{who} wirft {g} ab", { who: who(e.s), g: g || T("eine Karte") });
+        case "mill": return T("{who} mühlt {g}", { who: who(e.s), g: g || T("eine Karte") });
+        case "put": return T("{g} kommt {z}", { g: g || T("Karte"), z: e.z === "bf" ? T("ins Spiel") : e.z === "gy" ? T("auf den Friedhof") : e.z === "hand" ? T("auf die Hand") : e.z === "lib" ? T("in die Bibliothek") : e.z === "ex" ? T("ins Exil") : "" });
+        case "return": return T("{g} kehrt zurück", { g });
+        case "token": return T("{who} erzeugt {g}", { who: who(e.s), g });
+        case "cmdzone": return T("{g} geht in die Kommandozone", { g });
+        case "legend": return T("{g} (Legendenregel)", { g });
+        case "reveal": return T("{who} zeigt {g}", { who: who(e.s), g });
+        case "scry": return T("{who} hellsieht", { who: who(e.s) });
+        case "seek": return T("{who} sucht {g}", { who: who(e.s), g: g || T("eine Karte") });
+        case "surveil": return T("{who} durchforscht", { who: who(e.s) });
+        case "lose": return T("{who} verliert das Spiel", { who: who(e.s) });
+        default: return e.k;
+      }
+    }
+    const logEl = A.$("#log");
+    const logItems = [];
+    frames.forEach((f, fi) => { for (const e of f.ev) logItems.push({ fi, e }); });
+    logEl.innerHTML = logItems.map((x) => `<div class="e ${x.e.k === "turn" ? "turn" : ""}" data-fi="${x.fi}">${evText(x.e)}</div>`).join("");
+    logEl.addEventListener("click", (ev) => { const el = ev.target.closest(".e"); if (el) go(+el.dataset.fi); });
+    let logOpen = false;
+    try { logOpen = localStorage.getItem("mtga-replay-log") === "1"; } catch (e) {}
+    function setLog(v) {
+      logOpen = v; logPanel.classList.toggle("open", v);
+      try { localStorage.setItem("mtga-replay-log", v ? "1" : "0"); } catch (e) {}
+      if (v) requestAnimationFrame(() => { const c = A.$("#log .e.cur"); if (c) c.scrollIntoView({ block: "center" }); });
+    }
+
+    // ---- Karten: echte Kartenbilder, Fallback Artwork aus den Spieldaten ----
+    // Textkarten ("Bilder aus"): kleines Typ-Emblem statt Bild, der Regeltext bekommt den Platz
+    const TYPE_EMBLEM = (c) => c.isLand ? ["land", A.FI.land] : c.creature ? ["creature", A.FI.creature] : c.types.includes(8) ? ["pw", A.FI.planeswalker] : c.types.includes(4) ? ["instant", A.FI.instant] : c.types.includes(10) ? ["sorcery", A.FI.sorcery] : c.types.includes(3) ? ["ench", A.FI.enchantment] : c.types.includes(1) ? ["artifact", A.FI.artifact] : c.types.includes(14) ? ["battle", A.FI.battle] : ["other", A.FI.copies];
+    const textCard = (g) => { const c = A.card(g, dict); const [k, ic] = TYPE_EMBLEM(c); return `<div class="tcard f-${c.frame}"><div class="th"><span class="cp">${c.cost ? "" : c.colors.map((x) => A.manaSymbol(x)).join("")}</span><span class="n">${A.esc(c.name)}</span><span class="m">${A.manaHtml(c.cost)}</span></div><div class="tt"><span class="emb t-${k}">${ic}</span><span class="tl">${A.esc(c.typeLine || c.typeText)}</span></div><div class="tx">${c.text ? c.text.split("\n").map((l) => `<p>${A.ruleHtml(l)}</p>`).join("") : ""}</div></div>`; };
+    const cardImg = (g, v = "small") => { if (!imgs) return textCard(g); const c = A.card(g, dict); const src = `card-img/${g}?v=${v}`; return `<img class="cimg" src="${src}" alt="${A.esc(c.name)}" loading="eager" decoding="${A.loadedImgs.has(src) ? "sync" : "async"}"${A.loadedImgs.has(src) ? " data-known" : ""} data-art="${c.art || 0}" data-w="256"><div class="fallback"><div class="fart"></div><div class="fname">${A.esc(c.name)}</div></div>`; };
+    const isLand = (o) => o[6] == null && o[7] == null && o[12] == null;
+    /** Kampfwerte; in älteren Aufzeichnungen fehlt bei Stärke 0 der Wert (Goat 0/1), Widerstandskraft ist aber da. Fehlen beide, ist eine Kreatur 0/0 (Goblin Army vor den Marken) */
+    const ptOf = (o) => (o[6] == null && o[7] == null ? (A.card(o[1], dict).creature ? [0, 0] : [null, null]) : [o[6] == null ? 0 : o[6], o[7] == null ? 0 : o[7]]);
+    const info = (o) => { const [, , , , tapped, atk, , , , kind, , sick] = o, [p, t] = ptOf(o); return [p != null ? `${p}/${t}` : "", tapped ? T("getappt") : "", atk === 1 ? T("greift an") : atk === 2 ? T("blockt") : "", sick ? T("einsatzverzögert") : "", kind === 1 ? T("Token") : ""].filter(Boolean).join(" · "); };
+    function tileParts(o, size, count) {
+      const [iid, g, ctrl, owner, tapped, atk, , , dmg, kind, parent, sick, loy] = o, [p, t] = ptOf(o);
+      const cls = ["cc", size || "", tapped ? "tapped" : "", atk === 1 ? "attacking" : atk === 2 ? "blocking" : "", sick ? "sick" : "", count > 1 ? "stacked" : ""].filter(Boolean).join(" ");
+      const pt = p != null && t != null && (dmg || p !== undefined) ? `<span class="pt ${dmg ? "hurt" : ""}">${dmg ? (t - dmg) + "/" : ""}${p}/${t}</span>` : (loy != null ? `<span class="loy">${loy}</span>` : "");
+      const badges = `${kind === 1 ? '<span class="tok">TOKEN</span>' : ""}${atk === 1 ? '<span class="atk">⚔️</span>' : atk === 2 ? '<span class="blk">🛡️</span>' : ""}${pt}${count > 1 ? `<span class="cnt">×${count}</span>` : ""}`;
+      const layers = count > 1 ? `<div class="lay l2"></div><div class="lay l1"></div>` : "";
+      return { g, cls, pt: info(o), layers, badges };
+    }
+    const tileHtml = (x) => `<div class="${x.cls}" data-g="${x.g}" data-pt="${A.esc(x.pt)}">${x.layers}<div class="inner">${cardImg(x.g)}</div>${x.badges}</div>`;
+    const tile = (o, size, count) => tileHtml(tileParts(o, size, count));
+    /** Kachel-Eintrag für eine Reihe: gleiche Karte wird an Ort und Stelle aktualisiert (Klasse, Plaketten), das Bild bleibt */
+    const tileItem = (key, o, size, count) => { const parts = tileParts(o, size, count); return { key, parts, sig: parts.cls + "|" + parts.pt + "|" + parts.badges + "|" + (imgs ? 1 : 0), html: () => tileHtml(parts) }; };
+    /** Reihe abgleichen: vorhandene Elemente (data-key) behalten, nur Neues einfügen, Entferntes löschen */
+    function syncRow(row, items, emptyHtml) {
+      const old = new Map();
+      for (const ch of [...row.children]) { if (ch.dataset.key) old.set(ch.dataset.key, ch); else ch.remove(); }
+      let prev = null;
+      for (const it of items) {
+        let el = old.get(it.key);
+        if (el) old.delete(it.key);
+        if (el && el.__sig !== it.sig) {
+          if (it.parts && el.dataset.g === String(it.parts.g) && el.__imgs === imgs) {
+            const keep = ["ld", "fb"].filter((c) => el.classList.contains(c)).join(" ");
+            el.className = it.parts.cls + (keep ? " " + keep : "");
+            el.dataset.pt = it.parts.pt;
+            for (const ch of [...el.children]) if (!ch.classList.contains("inner")) ch.remove();
+            el.insertAdjacentHTML("afterbegin", it.parts.layers);
+            el.insertAdjacentHTML("beforeend", it.parts.badges);
+            el.__sig = it.sig;
+          } else { el.remove(); el = null; }
+        }
+        if (!el) {
+          const t = document.createElement("template");
+          t.innerHTML = it.html().trim();
+          el = t.content.firstElementChild;
+          el.dataset.key = it.key; el.__sig = it.sig; el.__imgs = imgs;
+        }
+        if (it.vars) { el.style.setProperty("--k", it.vars.k); el.style.setProperty("--n", it.vars.n); }
+        const ref = prev ? prev.nextSibling : row.firstChild;
+        if (ref !== el) row.insertBefore(el, ref);
+        prev = el;
+      }
+      for (const el of old.values()) el.remove();
+      if (!items.length && emptyHtml) row.insertAdjacentHTML("beforeend", emptyHtml);
+    }
+    const grpTile = (g, size, k, n) => `<div class="cc ${size || ""}" data-g="${g}"${k != null ? ` style="--k:${k};--n:${n}"` : ""}><div class="inner">${cardImg(g, size === "stackc" ? "normal" : "small")}</div></div>`;
+    const backs = (n, cls, from = 0, total = n) => Array.from({ length: n }, (_, k) => `<div class="cc back ${cls || ""}" style="--k:${from + k};--n:${total}"><img src="card-back" alt="" onerror="this.remove()"></div>`).join("");
+    /** Gleiche Länder (gleiche Karte, gleicher Tap-Zustand) als Stapel mit Zähler; ungetappte zuerst */
+    function grouped(list) {
+      const groups = new Map();
+      for (const o of list) { const key = `${o[1]}|${o[4]}|${o[5]}|${o[11]}`; if (!groups.has(key)) groups.set(key, { o, n: 0 }); groups.get(key).n++; }
+      return [...groups.values()].sort((a, b) => (a.o[4] ? 1 : 0) - (b.o[4] ? 1 : 0));
+    }
+    /** Bleibende Karten: gleiche Token (Karte, Tap, Angriff, Kampfwerte, Schaden) als Stapel, sonst einzeln; getappte ans Ende */
+    function permGroups(list) {
+      const groups = new Map(); const out = [];
+      for (const o of list) {
+        if (o[9] !== 1) { out.push({ o, n: 1 }); continue; }
+        const key = `t${o[1]}|${o[4]}|${o[5]}|${o[6]}|${o[7]}|${o[8]}|${o[11]}`;
+        if (!groups.has(key)) { const gr = { o, n: 0 }; groups.set(key, gr); out.push(gr); }
+        groups.get(key).n++;
+      }
+      return out.sort((a, b) => (a.o[4] ? 1 : 0) - (b.o[4] ? 1 : 0));
+    }
+    /** Reihen, die breiter als ihr Platz sind, werden durch Überlappung zusammengeschoben (nichts wird abgeschnitten) */
+    function fitRows() {
+      for (const row of A.$$(".perms, .lands, .hand .fan", boardEl)) {
+        const tiles = A.$$(":scope > .cc", row);
+        if (tiles.length < 2) continue;
+        tiles.forEach((t) => { t.style.marginLeft = ""; });
+        const box = row.classList.contains("fan") ? row.parentElement : row;
+        const over = row.scrollWidth - box.clientWidth + (row.classList.contains("fan") ? 16 : 0);
+        if (over <= 0) continue;
+        const ov = Math.min(tiles[0].offsetWidth * 0.82, over / (tiles.length - 1));
+        tiles.forEach((t, k) => { if (k) t.style.marginLeft = (parseFloat(getComputedStyle(t).marginLeft) || 0) - ov + "px"; });
+      }
+    }
+    function pile(label, list, count, kind, seat) {
+      const n = count != null ? count : list.length;
+      const top = list.length ? list[list.length - 1] : 0;
+      const layers = Math.min(6, Math.ceil(n / (kind === "lib" ? 15 : 3)));
+      let stack = "";
+      for (let k = layers; k >= 1; k--) stack += `<div class="layer ${kind}" style="transform:translate(${k * 2}px,${-k * 2}px)"></div>`;
+      const topCard = kind === "lib" ? (n ? `<div class="cc sm back" style="width:100%;height:100%;margin:0"></div>` : `<div class="cc sm empty"><div class="inner"></div></div>`) : (top ? grpTile(top, "sm") : `<div class="cc sm empty"><div class="inner"></div></div>`);
+      return `<div class="pile ${kind}" data-kind="${kind}" data-seat="${seat}" title="${label}${kind !== "lib" ? " öffnen" : ""}">${n ? stack : ""}${topCard}<div class="pcount">${n}</div><div class="plabel">${label}</div></div>`;
+    }
+    const ZI = {
+      hand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 20 5 8l5-1 2 8"/><path d="M12 15 11 5l5-.5 1 10"/><path d="M15 14l2-9 4 1-2 10"/><path d="M6 20h11"/></svg>',
+      lib: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M4 8v11a2 2 0 0 0 2 2h11"/><path d="M9 8h6M9 12h6"/></svg>',
+      gy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 20V9a5 5 0 0 1 10 0v11"/><path d="M5 20h14"/><path d="M12 8v6M9.5 10.5h5"/></svg>',
+      ex: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M6.5 6.5l11 11"/></svg>'
+    };
+    function medal(seat, f, isMe) {
+      const p = pl(seat);
+      const life = f.life[seat - 1];
+      const changed = prevLife[seat - 1] != null && prevLife[seat - 1] !== life;
+      const active = f.act === seat;
+      const zi = (kind, label, n, click) => `<${click ? "button type=\"button\"" : "span"} class="zi ${kind}" ${click ? `data-kind="${kind}" data-seat="${seat}"` : ""} title="${label}${click ? T(" öffnen") : ""}">${ZI[kind]}<b>${n}</b></${click ? "button" : "span"}>`;
+      return `<div class="medal ${isMe ? "me" : "opp"} ${active ? "active" : ""}">
+        <div class="ring"><div class="av">${A.esc((p.name || "?").slice(0, 1).toUpperCase())}</div><div class="life ${life != null && life <= 5 ? "low" : ""} ${changed ? "delta" : ""}">${life ?? "?"}</div></div>
+        <div class="pinfo"><div class="pname">${A.esc(p.name)}</div><span class="tag">${isMe ? T("Ich") : A.esc(p.platform || T("Gegner"))}${f.pri === seat ? " · " + T("Priorität") : ""}</span></div>
+        <div class="zones">${zi("hand", T("Hand"), f.hc[seat - 1])}${zi("lib", T("Bibliothek"), f.lib[seat - 1])}${zi("gy", T("Friedhof"), f.gy[seat - 1].length, true)}${zi("ex", T("Exil"), f.ex[seat - 1].length, true)}</div>
+      </div>`;
+    }
+    /** Phasenleiste links: Zug, aktiver Spieler, die fünf Phasen, Schritt */
+    function phaseBar(f) {
+      return `<div class="phasebar ${f.act === me ? "me" : f.act === opp ? "opp" : ""}">
+        <div class="turn"><span class="t">${T("Zug")}</span><span class="n">${f.turn || "–"}</span></div>
+        <div class="who">${f.act === me ? T("Ich") : f.act === opp ? T("Gegner") : "–"}</div>
+        <div class="ph">${PHASES.map(([ph, ic]) => `<span class="phi ${f.ph === ph ? "on" : ""}" title="${T(ph)}">${ic}</span>`).join("")}</div>
+        <div class="step" title="${A.esc(T(f.stp || ""))}">${A.esc(T(f.stp || ""))}</div>
+        <div class="game">${f.g > 1 ? T("Spiel") + " " + f.g : ""}</div>
+      </div>`;
+    }
+    /** Stapel: nur die Karte (Fähigkeiten zeigen ihre Quellkarte), Details erst per Klick */
+    function stackItem(x, f, k = 0) {
+      const [iid, g, ctrl, , , , , , , kind, parent, , , srcGrp] = x;
+      const isAbility = kind === 2;
+      const src = isAbility ? (f.bf.find((o) => o[0] === parent) || f.st.find((o) => o[0] === parent) || f.cmd.find((o) => o[0] === parent)) : null;
+      const cardG = isAbility ? (src ? src[1] : (srcGrp || 0)) : g;
+      const tileHtml = cardG ? grpTile(cardG, "stackc") : `<div class="cc stackc back"><img src="card-back" alt="" onerror="this.remove()"></div>`;
+      return `<div class="sitem ${isAbility ? "ability" : ""} ${k === 0 ? "top" : ""}" style="--k:${k}" title="${isAbility ? T("Fähigkeit") : T("Zauberspruch")} · ${ctrl === me ? T("ich") : T("Gegner")} · ${T("Klick für Details")}">${tileHtml}<div class="st">${isAbility ? T("Fähigkeit") : T("Zauber")} · ${ctrl === me ? T("ich") : T("Gegner")}</div></div>`;
+    }
+
+    let built = false;
+    const lastHtml = new Map();
+    const setHtml = (el, html) => { if (lastHtml.get(el) === html) return false; lastHtml.set(el, html); el.innerHTML = html; return true; };
+    function render() {
+      const f = frames[i];
+      if (!built) {
+        boardEl.innerHTML = `<div class="top"><div class="slot m-opp"></div><div class="hand opp"><div class="fan"></div></div></div>
+          <div class="field"><div class="slot ph"></div>
+            <div class="bf"><div class="lands opp"></div><div class="perms opp"></div><div class="divider"></div><div class="perms me"></div><div class="lands me"></div></div>
+            <div class="stack-col"><div class="slot st"></div><div class="slot tk"></div></div></div>
+          <div class="bottom"><div class="slot m-me"></div><div class="hand me"><div class="fan"></div></div></div>`;
+        lastHtml.clear();
+        built = true;
+      }
+      const q = (sel) => A.$(sel, boardEl);
+      const landItems = (seat) => grouped(f.bf.filter((o) => o[2] === seat && isLand(o))).map((gr) => tileItem(`L${gr.o[1]}|${gr.o[4]}|${gr.o[5]}|${gr.o[11]}`, gr.o, "sm", gr.n));
+      const permItems = (seat) => [
+        ...f.cmd.filter((o) => o[3] === seat).map((o) => tileItem("C" + o[0], o, "", 1)),
+        ...permGroups(f.bf.filter((o) => o[2] === seat && !isLand(o))).map((gr) => tileItem(gr.n > 1 ? `T${gr.o[1]}|${gr.o[4]}|${gr.o[5]}|${gr.o[6]}|${gr.o[7]}|${gr.o[8]}|${gr.o[11]}` : "P" + gr.o[0], gr.o, "", gr.n))
+      ];
+      const none = `<span class="zl center">${T("keine bleibenden Karten")}</span>`;
+      syncRow(q(".lands.opp"), landItems(opp));
+      syncRow(q(".perms.opp"), permItems(opp), none);
+      syncRow(q(".perms.me"), permItems(me), none);
+      syncRow(q(".lands.me"), landItems(me));
+      // Hände: eigene Karten bleiben erhalten (nur Fächerposition ändert sich), Gegnerhand nur bei anderer Anzahl neu
+      const myHand = f.h[me - 1].filter(Boolean), myHc = f.hc[me - 1];
+      const seen = new Map();
+      const handItems = myHand.map((g, k) => { const c = (seen.get(g) || 0) + 1; seen.set(g, c); return { key: `H${g}#${c}`, sig: "h" + g + (imgs ? 1 : 0), vars: { k, n: myHc }, html: () => grpTile(g, "hand", k, myHc) }; });
+      for (let k = myHand.length; k < myHc; k++) handItems.push({ key: "HB" + k, sig: "hb", vars: { k, n: myHc }, html: () => backs(1, "me", k, myHc) });
+      syncRow(q(".hand.me .fan"), handItems);
+      setHtml(q(".hand.opp .fan"), backs(f.hc[opp - 1], "opp"));
+      // Embleme, Phasenleiste, Stapel, Ticker: nur bei Änderung neu
+      const bindZones = (slot) => A.$$(".zi[data-kind]", slot).forEach((el) => el.addEventListener("click", () => openPile(el.dataset.kind, +el.dataset.seat)));
+      if (setHtml(q(".slot.m-opp"), medal(opp, f, false))) bindZones(q(".slot.m-opp"));
+      if (setHtml(q(".slot.m-me"), medal(me, f, true))) bindZones(q(".slot.m-me"));
+      setHtml(q(".slot.ph"), phaseBar(f));
+      const stackHtml = f.st.length ? `<div class="stack" style="--n:${f.st.length}"><div class="stitle">${T("Stapel · {n}", { n: f.st.length })}${f.st.length > 1 ? " · " + T("oben wird zuerst verrechnet") : ""}</div><div class="sitems">${[...f.st].reverse().map((x, k) => stackItem(x, f, k)).join("")}</div></div>`
+        : `<div class="turninfo"><div class="big">${f.act === me ? T("Dein Zug") : f.act === opp ? T("Zug des Gegners") : "–"}</div><div class="phase">${A.esc(T(f.ph || ""))}${f.stp ? " · " + A.esc(T(f.stp)) : ""}</div><div class="muted small">${T("Zug")} ${f.turn}${f.g > 1 ? " · " + T("Spiel") + " " + f.g : ""}</div></div>`;
+      setHtml(q(".slot.st"), stackHtml);
+      setHtml(q(".slot.tk"), f.ev.length ? `<div class="ticker">${f.ev.map(evText).join(" · ")}</div>` : "");
+      prevLife = [...f.life];
+      boardEl.classList.toggle("noimgs", !imgs);
+      fitRows();
+      A.Art.bind(boardEl);
+      A.bindCardImages(boardEl);
+      A.hoverPreview(boardEl, dict);
+      A.cardLinks(boardEl, dict);
+      A.$("#pos").innerHTML = T("Schritt {i} / {n} · Zug {t} · {who} am Zug", { i: `<b>${i + 1}</b>`, n: frames.length, t: `<b>${f.turn}</b>`, who: f.act === me ? T("ich") : f.act === opp ? T("Gegner") : "–" }) + (f.g > 1 ? ` · ${T("Spiel")} ${f.g}` : "");
+      const pct = (i / Math.max(1, frames.length - 1)) * 100;
+      A.$("#knob").style.left = pct + "%";
+      A.$("#played").style.width = pct + "%";
+      A.$$("#log .e").forEach((el) => el.classList.toggle("cur", +el.dataset.fi === i));
+      if (logOpen) { const c = A.$("#log .e.cur"); if (c) c.scrollIntoView({ block: "nearest" }); }
+      if (!popup.classList.contains("hidden") && popup.dataset.kind && popup.dataset.kind !== "deck") openPile(popup.dataset.kind, +popup.dataset.seat);
+    }
+
+    function showPopup(title, list, kind) {
+      popup.dataset.kind = kind;
+      popup.innerHTML = `<div class="ph">${title} <span class="muted small">(${list.length})</span>${A.xButton("p-close")}</div><div class="cards">${list.map(([g, q]) => A.cardTile(g, { qty: q, dict, compact: true })).join("") || `<span class="muted">${T("leer")}</span>`}</div>`;
+      popup.classList.remove("hidden");
+      A.Art.bind(popup);
+      A.hoverPreview(popup, dict);
+      A.cardLinks(popup, dict);
+      A.$(".p-close", popup).onclick = closePopup;
+    }
+    function openPile(kind, seat) {
+      if (kind === "lib") return;
+      const f = frames[i];
+      const list = (kind === "gy" ? f.gy[seat - 1] : f.ex[seat - 1]).map((g) => [g, 1]);
+      popup.dataset.seat = seat;
+      showPopup((kind === "gy" ? T("Friedhof") : T("Exil")) + " · " + A.esc(pl(seat).name), list, kind);
+    }
+    function closePopup() { popup.classList.add("hidden"); delete popup.dataset.kind; }
+    A.$("#b-deck").onclick = () => showPopup(T("Mein Deck") + " · " + A.esc(match.myDeck.name), [...(match.myDeck.commander || []), ...(match.myDeck.cards || [])].map((c) => [c.grpId, c.qty]), "deck");
+    A.$("#b-oppdeck").onclick = () => showPopup(T("Gesehene Karten") + " · " + A.esc(pl(opp).name), (match.opponentCards || []).filter((c) => !A.card(c.grpId, dict).token).map((c) => [c.grpId, c.count]), "deck");
+
+    function go(n) { i = Math.max(0, Math.min(frames.length - 1, n)); render(); }
+    function setPlaying(on) {
+      if (timer) { clearInterval(timer); timer = null; }
+      A.$("#b-play").innerHTML = on ? I.pause : I.play;
+      if (on) timer = setInterval(() => { if (i >= frames.length - 1) { setPlaying(false); return; } go(i + 1); }, speed);
+    }
+    const nextTurn = () => { const t = frames[i].turn; const n = frames.findIndex((f, k) => k > i && f.turn > t); go(n < 0 ? frames.length - 1 : n); };
+    const prevTurn = () => { const t = frames[i].turn; let n = i; while (n > 0 && frames[n - 1].turn >= t) n--; if (n === i && n > 0) { const t2 = frames[n - 1].turn; while (n > 0 && frames[n - 1].turn >= t2) n--; } go(n); };
+    A.$("#b-first").onclick = () => go(0);
+    A.$("#b-prev").onclick = () => go(i - 1);
+    A.$("#b-next").onclick = () => go(i + 1);
+    A.$("#b-last").onclick = () => go(frames.length - 1);
+    // ?step=N springt direkt zu einem Schritt (z. B. für Screenshots mit vollem Spielfeld)
+    { const st = parseInt(A.param("step") || "", 10); if (st > 0) go(st - 1); }
+    A.$("#b-tnext").onclick = nextTurn;
+    A.$("#b-tprev").onclick = prevTurn;
+    A.$("#b-play").onclick = () => setPlaying(!timer);
+    A.$$("#speed button").forEach((b) => b.addEventListener("click", () => { speed = +b.dataset.v; A.$$("#speed button").forEach((x) => x.classList.toggle("on", x === b)); if (timer) setPlaying(true); }));
+    A.$("#b-imgs").onclick = () => { imgs = !imgs; try { localStorage.setItem("mtga-replay-imgs", imgs ? "1" : "0"); } catch (e) {} A.$("#b-imgs").textContent = imgs ? T("Bilder aus") : T("Bilder an"); built = false; render(); };
+    A.$("#b-log").onclick = () => setLog(!logOpen);
+    A.$(".b-log-x").onclick = () => setLog(false);
+    A.$("#b-full").onclick = () => { const st = A.$("#stage"); if (document.fullscreenElement) document.exitFullscreen(); else st.requestFullscreen && st.requestFullscreen(); };
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") return;
+      if (e.key === "ArrowRight") go(i + 1); else if (e.key === "ArrowLeft") go(i - 1);
+      else if (e.key === " ") { e.preventDefault(); setPlaying(!timer); } else if (e.key === "Home") go(0); else if (e.key === "End") go(frames.length - 1);
+      else if (e.key === "t") nextTurn(); else if (e.key === "T") prevTurn();
+      else if (e.key.toLowerCase() === "l") setLog(!logOpen);
+      else if (e.key.toLowerCase() === "f") A.$("#b-full").click();
+      else if (e.key === "Escape") { closePopup(); setLog(false); A.closeModal(); }
+    });
+    document.addEventListener("fullscreenchange", () => {
+      const host = document.fullscreenElement || document.body;
+      for (const sel of [".modal", ".card-preview", ".tooltip", ".busy"]) { const el = document.querySelector(sel); if (el && el.parentElement !== host) host.appendChild(el); }
+      fitRows();
+    });
+    window.addEventListener("resize", A.debounce(fitRows, 120));
+    setLog(logOpen);
+    // Startschritt per URL (?step=120), sonst Anfang
+    i = Math.max(0, Math.min(frames.length - 1, parseInt(A.param("step") || "0", 10) || 0));
+    render();
+    // Autoplay: Wiedergabe startet von selbst (im Browser merkbar, Knopf "Auto" in der Leiste)
+    let auto = true; try { auto = localStorage.getItem("mtga-autoplay") !== "0"; } catch (e) { /* ohne Speicher */ }
+    const paintAuto = () => { A.$("#b-auto").classList.toggle("on", auto); A.$("#b-auto").title = auto ? T("Autoplay an – Replays starten von selbst") : T("Autoplay aus"); };
+    A.$("#b-auto").addEventListener("click", () => { auto = !auto; try { localStorage.setItem("mtga-autoplay", auto ? "1" : "0"); } catch (e) { /* ignorieren */ } paintAuto(); if (auto && !timer) setPlaying(true); });
+    paintAuto();
+    if (auto && i < frames.length - 1) setTimeout(() => { if (!timer) setPlaying(true); }, 800);
+  }
+});
+</script>
+</body>
+</html>

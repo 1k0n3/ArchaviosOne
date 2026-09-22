@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTGA Stats · Bibliothek</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0b0e18">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="app.css">
+<script src="data.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<script>
+App.load().then(async (D) => {
+  const A = App, FI = A.FI, T = A.t;
+  A.shell("library.html", `
+    <div class="topbar"><div><h1>${T("Kartenbibliothek")}</h1><div class="sub" id="sub">${T("Alle Karten des Spiels mit Besitzstand")}</div></div>
+      <div class="right filters"></div></div>
+    <div class="lib-bar"></div>
+    <div class="cards lib" id="grid">${Array.from({ length: 36 }, () => '<div class="c sk"></div>').join("")}</div>
+    <div class="empty" id="more"></div>
+  `);
+  let all = [];
+  try {
+    const [cards] = await Promise.all([A.getJson("api/cards", 60000), A.loadSets()]);
+    all = cards.cards;
+  } catch (e) {
+    A.$("#grid").innerHTML = "";
+    A.$(".lib-bar").textContent = T("Bibliothek nicht verfügbar. Läuft der Watcher (Server)?");
+    return;
+  }
+  // [grpId, name, set, nr, rarity, colors, types, artId, cmc, owned, cost, isToken, isRebalanced, isPrimary, frameFlags, power, toughness, text, typeLine]
+  const base = all.filter((c) => !c[11] && c[13]);
+  const sets = [...new Set(base.map((c) => c[2]))].sort();
+  const RAR = { 1: "Standardland", 2: "Common", 3: "Uncommon", 4: "Rare", 5: "Mythic", 0: "Token" };
+
+  // Nutzung aus den lokalen Daten (über alle Drucke, nach Kartennamen): Siege, gespielte Matches, Decks
+  const use = new Map();
+  const u = (name) => { if (!use.has(name)) use.set(name, { w: 0, played: 0, casts: 0, decks: 0, m: new Set() }); return use.get(name); };
+  for (const m of D.matches || []) for (const [g, n] of m.played || []) {
+    const x = u(A.cardName(g));
+    if (!x.m.has(m.matchId)) { x.m.add(m.matchId); x.played++; if (m.result === "Sieg") x.w++; }
+    x.casts += n;
+  }
+  for (const d of D.decks || []) { const names = new Set(); for (const z of Object.values(d.zones || {})) for (const [g] of z) names.add(A.cardName(g)); for (const n of names) u(n).decks++; }
+  const useOf = (c) => use.get(c[1]) || { w: 0, played: 0, casts: 0, decks: 0 };
+
+  // Filterleiste (gemeinsam mit dem Deckbau): Suche, Set, Seltenheit, Typ, Manawert, Farben, Besitz, Sortierung, Ansicht
+  const params = new URLSearchParams(location.search);
+  const F = A.cardFilterBar({ key: "lib", grid: A.$("#grid"), sets, searchPlaceholder: T("Name suchen"), searchValue: params.get("q") || "", ownValue: params.get("own") || "1", sortValue: params.get("sort") || "name",
+    sort: ["name", "wins", "played", "decks", "owned", "cmc", "rarity", "set"], onChange: () => render() });
+  let page = 0;
+  const PAGE = 120;
+
+  // Kartendaten für Kacheln in das globale Wörterbuch einspeisen
+  const dict = {};
+  for (const c of all) dict[c[0]] = [c[1], c[2], c[3], RAR[c[4]] || "", c[11], c[7], c[5], c[6], c[14] || "", c[15] || "", c[16] || "", c[17] || "", c[18] || "", c[10] || ""];
+
+  function filtered() {
+    const own = F.own.value, s = F.sort.value, ok = F.matcher();
+    let list = base.filter((c) => ok(c) && !(own === "1" && !c[9]) && !(own === "0" && c[9]));
+    const byName = (a, b) => a[1].localeCompare(b[1], "en");
+    // Bei Nutzungs-Sortierung nur ein Druck je Kartenname (der mit den meisten Exemplaren)
+    if (s === "wins" || s === "played" || s === "decks") {
+      const best = new Map();
+      for (const c of list) { const p = best.get(c[1]); if (!p || c[9] > p[9]) best.set(c[1], c); }
+      list = [...best.values()];
+    }
+    list.sort((a, b) => {
+      if (s === "wins") { const x = useOf(a), y = useOf(b); return (y.w - x.w) || (y.played - x.played) || byName(a, b); }
+      if (s === "played") { const x = useOf(a), y = useOf(b); return (y.played - x.played) || (y.casts - x.casts) || byName(a, b); }
+      if (s === "decks") { const x = useOf(a), y = useOf(b); return (y.decks - x.decks) || (y.played - x.played) || byName(a, b); }
+      if (s === "set") return a[2].localeCompare(b[2]) || String(a[3]).localeCompare(String(b[3]), undefined, { numeric: true });
+      if (s === "cmc") return (a[8] - b[8]) || byName(a, b);
+      if (s === "rarity") return (b[4] - a[4]) || byName(a, b);
+      if (s === "owned") return (b[9] - a[9]) || byName(a, b);
+      return byName(a, b);
+    });
+    return list;
+  }
+  let current = [];
+  function render() {
+    current = filtered(); page = 0;
+    const owned = current.filter((c) => c[9]).length, copies = current.reduce((s, c) => s + c[9], 0);
+    // Zähler je nach Besitzfilter: nur was aussagekräftig ist (Anzahl verschiedener Karten, Mehrfach-Exemplare, Anteil)
+    const nf = (x) => Number(x).toLocaleString(window.I18N && I18N.lang === "de" ? "de-DE" : undefined);
+    const own = F.own.value, n = current.length;
+    F.count(own === "1" ? T("{n} Karten im Besitz · {c} inkl. Duplikate", { n: nf(n), c: nf(copies) })
+      : own === "0" ? T("{n} Karten fehlen dir", { n: nf(n) })
+      : T("{n} Karten · {o} im Besitz ({p} %)", { n: nf(n), o: nf(owned), p: n ? Math.round(100 * owned / n) : 0 }));
+    A.$("#grid").innerHTML = "";
+    const p = new URLSearchParams();
+    if (F.q.value) p.set("q", F.q.value); if (F.own.value !== "1") p.set("own", F.own.value); if (F.sort.value !== "name") p.set("sort", F.sort.value);
+    history.replaceState(null, "", location.pathname + (p.toString() ? "?" + p : ""));
+    more();
+  }
+  function more() {
+    const slice = current.slice(page * PAGE, (page + 1) * PAGE);
+    page++;
+    const s = F.sort.value;
+    const sx = (c) => { const x = useOf(c); if (s === "wins") return x.played ? `<span class="sx" title="${T("{w} Siege in {n} Matches", { w: x.w, n: x.played })}">${FI.trophy}${x.w}</span>` : ""; if (s === "played") return x.played ? `<span class="sx" title="${T("{n} Matches, {c}× gewirkt", { n: x.played, c: x.casts })}">${FI.play}${x.played}</span>` : ""; if (s === "decks") return x.decks ? `<span class="sx" title="${T("in {n} Decks", { n: x.decks })}">${FI.deck}${x.decks}</span>` : ""; return ""; };
+    A.$("#grid").insertAdjacentHTML("beforeend", slice.map((c) => F.view() === "list" ? A.cardRow(c, { cls: c[9] ? "" : "missing", extra: sx(c) }) : A.cardTile(c[0], { dict, qty: 0, extra: `${A.ownHtml(c[9])}<span class="cost">${A.esc(c[10])}</span>${sx(c)}`, cls: c[9] ? "" : "missing" })).join(""));
+    A.Art.bind(A.$("#grid"));
+    A.hoverPreview(A.$("#grid"), dict);
+    A.cardLinks(A.$("#grid"), dict);
+    A.$("#more").innerHTML = page * PAGE < current.length ? `<button id="b-more">${T("Weitere {n} Karten laden ({r} übrig)", { n: Math.min(PAGE, current.length - page * PAGE), r: current.length - page * PAGE })}</button>` : (current.length ? "" : T("Keine Karten gefunden"));
+    const b = A.$("#b-more"); if (b) b.addEventListener("click", more);
+  }
+  // automatisch nachladen beim Scrollen
+  const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting) && page * PAGE < current.length) more(); });
+  io.observe(A.$("#more"));
+  render();
+});
+</script>
+</body>
+</html>

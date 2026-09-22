@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>be.a16.mtga.Stats</id>
+  <name>MTGA Stats</name>
+  <summary>Companion for Magic: The Gathering Arena</summary>
+  <developer id="be.a16">
+    <name>MTGA Stats</name>
+  </developer>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>MTGA Stats records every Arena match automatically, replays it turn by turn and shows which decks win. Everything runs locally; an optional account on the companion website adds sync and shareable deck pages.</p>
+    <p>On Linux and the Steam Deck the companion finds Arena in the Steam/Proton prefix (or Wine, Lutris, Bottles) and reads the game's own log. Matches, replays, decks, account data and the full card library are available; owned-card counts are Windows-only.</p>
+    <p>Unofficial fan content permitted under the Fan Content Policy of Wizards of the Coast. Not produced by or endorsed by Wizards of the Coast.</p>
+  </description>
+  <launchable type="desktop-id">be.a16.mtga.Stats.desktop</launchable>
+  <url type="homepage">https://mtga.a16.be</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Dashboard with rank, win rate, mastery and quests</caption>
+      <image>https://mtga.a16.be/static/screenshot-dashboard.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Match replay with battlefield, stack and log</caption>
+      <image>https://mtga.a16.be/static/screenshot-replay.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Deck view with mana curve and card grid</caption>
+      <image>https://mtga.a16.be/static/screenshot-decks.png</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="1.5.0" date="2026-09-22">
+      <description><p>Built-in AI assistant that knows your collection, decks and matches: waits out per-minute limits instead of failing, needs fewer requests per question. Updates take effect without a manual restart. Replays show power and toughness of 0-power creatures again.</p></description>
+    </release>
+    <release version="1.2.1" date="2026-09-20">
+      <description><p>First Linux and Steam Deck release: automatic Arena detection in Steam/Proton, matches, replays, decks, account data and card library.</p></description>
+    </release>
+  </releases>
+</component>

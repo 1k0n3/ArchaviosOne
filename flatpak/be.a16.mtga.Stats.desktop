@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=MTGA Stats
+Comment=Companion für Magic: The Gathering Arena – Matches, Replays, Decks und Statistik
+Comment[en]=Companion for Magic: The Gathering Arena – matches, replays, decks and stats
+Exec=mtga-stats dashboard
+Icon=be.a16.mtga.Stats
+Terminal=false
+Categories=Game;Utility;
+Keywords=MTG;Arena;Magic;Tracker;Decks;

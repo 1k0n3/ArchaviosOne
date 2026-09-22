@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Steuerung von MTGA Stats auf macOS/Linux/Steam Deck (auch aus Flatpak und Homebrew heraus):
+#   mtga-stats start | stop | restart | run | status | dashboard | log | account
+# Einstellungen und Daten: im Tool-Ordner, wenn er beschreibbar ist (ZIP-Installation), sonst unter
+# ~/.config/mtga-stats/watch-config.json und ~/.local/share/mtga-stats (Flatpak, Homebrew) – oder MTGA_STATS_CONFIG.
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+APP_DIR="${MTGA_STATS_HOME:-$HOME/.mtga-stats}"
+PIDFILE="$APP_DIR/watcher.pid"
+mkdir -p "$APP_DIR"
+NODE="$(cat "$APP_DIR/node-path" 2>/dev/null || command -v node || true)"
+[ -n "$NODE" ] && [ -x "$NODE" ] || NODE="$(command -v node || true)"
+[ -n "$NODE" ] || { echo "Node.js nicht gefunden – bitte ./install.sh ausführen oder Node.js 22+ installieren." >&2; exit 1; }
+
+# Einstellungsdatei: Umgebungsvariable, sonst Tool-Ordner (wenn beschreibbar), sonst XDG-Konfigordner
+if [ -z "${MTGA_STATS_CONFIG:-}" ]; then
+  if [ -w "$ROOT" ]; then MTGA_STATS_CONFIG="$ROOT/watch-config.json"; else MTGA_STATS_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/mtga-stats/watch-config.json"; fi
+fi
+export MTGA_STATS_CONFIG
+if [ ! -f "$MTGA_STATS_CONFIG" ]; then
+  mkdir -p "$(dirname "$MTGA_STATS_CONFIG")"
+  DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/mtga-stats"
+  if [ -w "$ROOT" ] && [ "$MTGA_STATS_CONFIG" = "$ROOT/watch-config.json" ]; then DATA_DIR="$ROOT/out"; fi
+  printf '{\n  "_hinweis": "Einstellungen von MTGA Stats (siehe watch-config.json im Projekt fuer alle Schluessel)",\n  "outDir": "%s",\n  "webPort": 8765\n}\n' "$DATA_DIR" > "$MTGA_STATS_CONFIG"
+fi
+PORT="$("$NODE" -e "try{const c=JSON.parse(require('fs').readFileSync(process.env.MTGA_STATS_CONFIG,'utf8').replace(/^﻿/,''));console.log(c.webPort||8765)}catch(e){console.log(8765)}")"
+URL="http://localhost:$PORT/"
+OS="$(uname -s)"
+LOGDIR="$("$NODE" -e "console.log(require('$ROOT/src/paths.js').outDir())")"
+
+running() { [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; }
+managed() {
+  if [ "$OS" = "Darwin" ]; then launchctl print "gui/$(id -u)/de.mtga-stats.watcher" >/dev/null 2>&1 || launchctl print "gui/$(id -u)/homebrew.mxcl.mtga-stats" >/dev/null 2>&1
+  else systemctl --user is-active --quiet mtga-stats.service 2>/dev/null; fi
+}
+open_url() {
+  if [ "$OS" = "Darwin" ]; then
+    if [ -d "/Applications/Google Chrome.app" ]; then open -na "Google Chrome" --args --app="$URL" --user-data-dir="$APP_DIR/chrome-profile"; else open "$URL"; fi
+  else
+    for b in google-chrome google-chrome-stable chromium chromium-browser; do if command -v "$b" >/dev/null 2>&1; then "$b" --app="$URL" --user-data-dir="$APP_DIR/chrome-profile" >/dev/null 2>&1 & return 0; fi; done
+    xdg-open "$URL" >/dev/null 2>&1 &
+  fi
+}
+case "${1:-status}" in
+  run) cd "$ROOT"; exec "$NODE" src/watch.js ;;
+  start)
+    if managed; then echo "Watcher läuft als Hintergrunddienst."; exit 0; fi
+    if running; then echo "Watcher läuft bereits (PID $(cat "$PIDFILE"))."; exit 0; fi
+    cd "$ROOT"
+    nohup "$NODE" src/watch.js >> "$APP_DIR/watcher.out.log" 2>&1 &
+    echo $! > "$PIDFILE"; echo "Watcher gestartet (PID $!). Dashboard: $URL" ;;
+  stop)
+    if [ "$OS" = "Darwin" ] && managed; then launchctl bootout "gui/$(id -u)/de.mtga-stats.watcher" 2>/dev/null || brew services stop mtga-stats; echo "Hintergrunddienst gestoppt."; exit 0; fi
+    if [ "$OS" != "Darwin" ] && managed; then systemctl --user stop mtga-stats.service; echo "Dienst gestoppt."; exit 0; fi
+    if running; then kill "$(cat "$PIDFILE")" && rm -f "$PIDFILE" && echo "Watcher gestoppt."; else echo "Watcher läuft nicht."; fi ;;
+  restart) "$0" stop || true; sleep 1; if [ "$OS" = "Darwin" ]; then launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/de.mtga-stats.watcher.plist" 2>/dev/null || "$0" start; else systemctl --user start mtga-stats.service 2>/dev/null || "$0" start; fi ;;
+  status)
+    if managed || running; then echo "Watcher: läuft · Dashboard $URL"; else echo "Watcher: gestoppt"; fi
+    echo "Einstellungen: $MTGA_STATS_CONFIG · Daten: $LOGDIR"
+    "$NODE" -e "const p=require('$ROOT/src/paths.js'); console.log('Arena: '+(p.mtgaPid()?'läuft':'nicht gestartet')+' · Log: '+p.findLogFile()+' · Spieldaten: '+(p.findDataDir()||'nicht gefunden'))" ;;
+  dashboard)
+    if ! managed && ! running; then "$0" start; sleep 2; fi
+    open_url ;;
+  log) tail -n 40 -f "$LOGDIR/watch.log" ;;
+  account) cd "$ROOT" && "$NODE" src/account.js --save ;;
+  *) echo "Verwendung: mtga-stats start|stop|restart|run|status|dashboard|log|account"; exit 1 ;;
+esac

@@ -1,0 +1,60 @@
+# Flatpak-Manifest für MTGA Stats (Linux, Steam Deck). Bauen und installieren:
+#   flatpak install -y flathub org.flatpak.Builder org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
+#   flatpak run org.flatpak.Builder --user --install --force-clean build-dir flatpak/be.a16.mtga.Stats.yml
+#   flatpak run be.a16.mtga.Stats            (startet den Watcher und öffnet das Dashboard)
+# Node.js wird als offizielles Binärpaket mitgeliefert (kein Netz zur Laufzeit nötig außer für Website-Sync und Kartenbilder).
+app-id: be.a16.mtga.Stats
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: mtga-stats
+finish-args:
+  - --share=network                      # lokaler Dashboard-Server, Kartenbilder von Scryfall, Website-Sync
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --filesystem=home                    # Player.log und Spieldaten im Steam/Proton-Präfix, Wine, Lutris
+  - --filesystem=/run/media              # Steam-Bibliothek auf der SD-Karte (Steam Deck)
+  - --filesystem=/mnt
+  - --env=MTGA_STATS_HOME=/var/data
+  - --env=PATH=/app/node/bin:/app/bin:/usr/bin
+modules:
+  - name: node
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/node && cp -a . /app/node
+    sources:
+      - type: archive
+        only-arches: [x86_64]
+        url: https://nodejs.org/dist/v26.9.0/node-v26.9.0-linux-x64.tar.xz
+        sha256: c6ecd8efc1c1d395265891675319da7a7b3785c6be174bd78933cf4f057624d1
+      - type: archive
+        only-arches: [aarch64]
+        url: https://nodejs.org/dist/v26.9.0/node-v26.9.0-linux-arm64.tar.xz
+        sha256: 686d07ed3bc5d68d9f7bd4939b7e8849a87d0664ac19c8c5474474f44cc956db
+  - name: mtga-stats
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/share/mtga-stats
+      - cp -a src web assets scripts/unix package.json watch-config.json LICENSE /app/share/mtga-stats/
+      - mkdir -p /app/share/mtga-stats/scripts && mv /app/share/mtga-stats/unix /app/share/mtga-stats/scripts/unix
+      - chmod +x /app/share/mtga-stats/scripts/unix/mtga-stats
+      - install -Dm755 flatpak/mtga-stats.sh /app/bin/mtga-stats
+      - install -Dm644 flatpak/be.a16.mtga.Stats.desktop /app/share/applications/be.a16.mtga.Stats.desktop
+      - install -Dm644 flatpak/be.a16.mtga.Stats.metainfo.xml /app/share/metainfo/be.a16.mtga.Stats.metainfo.xml
+      - install -Dm644 assets/icon-512.png /app/share/icons/hicolor/512x512/apps/be.a16.mtga.Stats.png
+    sources:
+      # Quelle ist der ausgecheckte Stand dieses Repositorys (für Flathub später: type git mit Adresse und Tag)
+      - type: dir
+        path: ..
+        skip:
+          - .git
+          - .flatpak-builder
+          - build-dir
+          - out
+          - out-preview
+          - dist
+          - extension
+          - node_modules
+          - hosting
+          - server

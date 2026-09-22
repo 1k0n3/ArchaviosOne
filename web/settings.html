@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTGA Stats · Einstellungen</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#100d0b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="app.css">
+<script src="data.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<script>
+App.load().then(async (D) => {
+  const A = App, T = A.t, FI = A.FI, $ = A.$, esc = A.esc;
+
+  A.shell("settings.html", `
+    <div class="topbar"><div><h1>${T("Einstellungen")}</h1><div class="sub">${T("Assistent, Anzeige und Begleitprogramm")}</div></div></div>
+    <div class="set-tabs" id="set-tabs">
+      <button type="button" class="set-tab" data-tab="ki">${T("KI-Assistent")}</button>
+      <button type="button" class="set-tab" data-tab="anzeige">${T("Anzeige")}</button>
+      <button type="button" class="set-tab" data-tab="konto">${T("Konto")}</button>
+      <button type="button" class="set-tab" data-tab="companion">${T("Begleitprogramm")}</button>
+      <button type="button" class="set-tab" data-tab="info">${T("Info")}</button>
+    </div>
+    <div class="settings">
+      <section class="panel set-block" data-pane="ki">
+        <h3>${T("KI-Assistent")}</h3>
+        <p class="muted small set-intro">${T("Modell verknüpfen: Anbieter wählen, verbinden, Modell auswählen. Der Zugangsschlüssel bleibt auf diesem Rechner.")}</p>
+        <div class="asst-set open" id="asst-set"></div>
+      </section>
+      <section class="panel set-block" data-pane="anzeige">
+        <h3>${T("Anzeige")}</h3>
+        <div class="set-row"><div><div class="lbl">${T("Sprache")}</div><div class="hint">${T("Gilt für das ganze Dashboard.")}</div></div>
+          <select id="set-lang">${window.I18N ? Object.entries(I18N.LANGS).map(([k, v]) => `<option value="${k}" ${k === I18N.lang ? "selected" : ""}>${esc(v)}</option>`).join("") : ""}</select></div>
+        <div class="set-row"><div><div class="lbl">${T("Gespeicherte Ansichten zurücksetzen")}</div><div class="hint">${T("Kachelgröße, Listen- oder Rasteransicht, eingeklappte Bereiche und ausgeblendete Hinweise.")}</div></div>
+          <button type="button" class="ghost small" id="set-reset-view">${T("Zurücksetzen")}</button></div>
+      </section>
+      <section class="panel set-block" data-pane="konto" id="sync-block">
+        <h3>${T("Konto")}</h3>
+        <p class="muted small set-intro">${T("Verbinde dieses Gerät mit deinem Konto auf der Website. Danach landen Decks, Matches, Sammlung und der Zugang des Assistenten dort und du kannst deine Daten überall öffnen.")}</p>
+        <div id="sync-body"><div class="muted small">${T("Wird geladen …")}</div></div>
+      </section>
+      <section class="panel set-block" id="watch-block" data-pane="companion">
+        <h3>${T("Begleitprogramm")}</h3>
+        <p class="muted small set-intro" id="watch-note">${T("Wird geladen …")}</p>
+        <div id="watch-fields"></div>
+      </section>
+      <section class="panel set-block" data-pane="info">
+        <h3>${T("Info")}</h3>
+        <div id="set-info" class="set-info"></div>
+      </section>
+    </div>`);
+
+  // ---- Reiter: gemeinsamer Baustein, gleiche Logik wie auf der Website ------------------------
+  const tabs = A.settingsTabs();
+  const showTab = tabs.show;
+
+  // ---- Assistent: dieselbe Oberfläche wie im Assistenten-Fenster, nur hier eingebettet ----------
+  if (window.Assistant) window.Assistant.settingsInto($("#asst-set"));
+  else $("#asst-set").innerHTML = `<div class="muted small">${T("Der Assistent braucht den lokalen Server.")}</div>`;
+
+  // ---- Anzeige ---------------------------------------------------------------------------------
+  $("#set-lang") && $("#set-lang").addEventListener("change", (ev) => window.I18N && I18N.set(ev.target.value));
+  A.enhanceSelects(document.querySelector(".settings"));
+  $("#set-reset-view").addEventListener("click", () => {
+    if (!confirm(T("Alle gespeicherten Ansichtseinstellungen zurücksetzen?"))) return;
+    try { for (const k of Object.keys(localStorage)) if (/^mtga-(view|tile|deck-tile|fold|builder-hint|builder-tile)/.test(k)) localStorage.removeItem(k); } catch (e) { /* ohne Speicher */ }
+    location.reload();
+  });
+
+  // ---- Website: verbinden, trennen, abgleichen – ohne Umweg über das Tray-Menü -----------------
+  async function renderSync() {
+    const box = $("#sync-body");
+    if (!box) return;
+    let st = null;
+    try { st = await A.getJson("api/sync/state", 15000); } catch (e) { $("#sync-block").remove(); for (const b of A.$$(".set-tab")) if (b.dataset.tab === "konto") b.remove(); return; }
+    const when = st.lastFlushAt ? A.fmtDate(st.lastFlushAt) + " " + A.fmtTime(st.lastFlushAt) : "–";
+    box.innerHTML = st.connected
+      ? `<div class="set-row"><div><div class="lbl">${T("Verbunden als {n}", { n: A.esc((st.user && (st.user.displayName || st.user.handle)) || "?") })}</div>
+           <div class="hint">${A.esc(st.url)} · ${T("zuletzt abgeglichen: {t}", { t: when })} · ${T("{n} in der Warteschlange", { n: st.queued })}${st.lastError ? " · " + A.esc(st.lastError) : ""}</div></div>
+           <div class="sync-btns"><button type="button" class="ghost small" id="sync-now">${T("Jetzt abgleichen")}</button><button type="button" class="ghost small danger" id="sync-off">${T("Trennen")}</button></div></div>`
+      : `<div class="set-row"><div><div class="lbl">${T("Nicht verbunden")}</div>
+           <div class="hint">${T("Melde dich mit deinem Konto an. Es öffnet sich die Website, dort bestätigst du dieses Gerät.")}</div></div>
+           <button type="button" class="primary small" id="sync-login">${T("Mit Konto anmelden")}</button></div>
+         <div class="set-row"><div style="flex:1"><label class="asst-lbl">${T("Oder Verbindungscode eintragen")}</label>
+           <input type="text" id="sync-code" maxlength="12" spellcheck="false" autocomplete="off" placeholder="ABCD1234" style="max-width:220px"></div>
+           <button type="button" class="ghost small" id="sync-on">${T("Verbinden")}</button></div>`;
+    const msg = (t, bad) => { const el = document.createElement("div"); el.className = "hint" + (bad ? " bad" : ""); el.textContent = t; box.appendChild(el); };
+    const on2 = null;
+    const on = $("#sync-on"), off = $("#sync-off"), now = $("#sync-now"), login = $("#sync-login");
+    if (login) login.addEventListener("click", async () => {
+      try {
+        const j = await A.getJson("api/sync/login", 15000);
+        if (j.error) throw new Error(j.error);
+        const w = window.open(j.url, "mtga-login", "width=520,height=760");
+        const done = (e) => { if (e.data !== "mtga-sync-connected") return; window.removeEventListener("message", done); renderSync(); };
+        window.addEventListener("message", done);
+        const poll = setInterval(async () => { if (w && w.closed) { clearInterval(poll); await renderSync(); } }, 900);
+      } catch (e) { msg(String(e.message || e), true); }
+    });
+    if (on) on.addEventListener("click", async () => {
+      on.disabled = true;
+      try {
+        const r = await fetch("api/sync/connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: $("#sync-code").value }) });
+        const j = await r.json();
+        if (j.error) throw new Error(j.error);
+        await renderSync();
+      } catch (e) { on.disabled = false; msg(String(e.message || e), true); }
+    });
+    if (off) off.addEventListener("click", async () => {
+      if (!confirm(T("Verbindung zur Website wirklich trennen?"))) return;
+      await fetch("api/sync/disconnect", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      await renderSync();
+    });
+    if (now) now.addEventListener("click", async () => {
+      now.disabled = true; now.textContent = T("Wird abgeglichen …");
+      try { await fetch("api/sync/now", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); } catch (e) { /* Meldung steht im Stand */ }
+      await renderSync();
+    });
+  }
+  renderSync();
+
+  // ---- Begleitprogramm: watch-config.json über den lokalen Server ------------------------------
+  const GROUPS = { dashboard: T("Dashboard und Server"), scan: T("Sammlung erfassen"), export: T("Export"), sync: T("Website-Sync") };
+  const row = (f, v) => `<div class="set-row" data-key="${f.key}">
+      <div><div class="lbl">${esc(T(f.label))}</div>${f.hint ? `<div class="hint">${esc(T(f.hint))}</div>` : ""}</div>
+      ${f.type === "bool"
+        ? `<label class="switch"><input type="checkbox" ${v ? "checked" : ""}><span></span></label>`
+        : `<input type="number" class="num" value="${esc(String(v))}" min="${f.min}" max="${f.max}" step="1">`}
+    </div>`;
+  let info = null;
+  try {
+    info = await A.getJson("api/settings", 15000);
+  } catch (e) {
+    $("#watch-note").textContent = T("Nicht erreichbar – diese Einstellungen gibt es nur im lokalen Dashboard.");
+    $("#watch-block").classList.add("off");
+    const inf = $("#set-info"); if (inf) inf.closest(".set-block").remove();
+    for (const b of A.$$(".set-tab")) if (b.dataset.tab === "info" || b.dataset.tab === "companion") b.remove();
+    showTab(location.hash.slice(1) || "ki");
+  }
+  if (info) {
+    const byGroup = {};
+    for (const f of info.fields) (byGroup[f.group] = byGroup[f.group] || []).push(f);
+    $("#watch-fields").innerHTML = Object.entries(byGroup).map(([g, list]) =>
+      `<div class="set-group"><div class="set-group-t">${esc(GROUPS[g] || g)}</div>${list.map((f) => row(f, info.config[f.key])).join("")}</div>`).join("");
+    A.enhanceSelects($("#watch-fields"));
+    $("#watch-note").innerHTML = T("Änderungen gelten, sobald der Watcher neu startet (Tray-Menü: stoppen, dann starten).") + ` <span class="muted">${esc(info.file)}</span>`;
+
+    const save = A.debounce(async (key, value, el) => {
+      try {
+        const r = await fetch("api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [key]: value }) });
+        const j = await r.json();
+        if (j.error) throw new Error(j.error);
+        el.classList.add("saved");
+        setTimeout(() => el.classList.remove("saved"), 1200);
+      } catch (e) {
+        el.classList.add("bad");
+        $("#watch-note").textContent = String(e.message || e);
+        setTimeout(() => el.classList.remove("bad"), 2000);
+      }
+    }, 400);
+    $("#watch-fields").addEventListener("change", (ev) => {
+      const r = ev.target.closest(".set-row");
+      if (!r) return;
+      const key = r.dataset.key;
+      save(key, ev.target.type === "checkbox" ? ev.target.checked : +ev.target.value, r);
+    });
+
+    const yn = (b) => b ? T("ja") : T("nein");
+    const st = A.stats(D.matches || []);
+    $("#set-info").innerHTML = [
+      [T("Version"), info.version], [T("Node"), info.node], [T("System"), info.platform],
+      [T("Speicher-Scan möglich"), yn(info.memoryScan)],
+      [T("Einstellungsdatei"), info.file], [T("Ausgabeordner"), info.outDir],
+      [T("Arena-Protokoll"), info.logDir || "–"], [T("Arena-Installation"), info.installDir || "–"],
+      [T("Website-Sync"), info.syncUrl || T("nicht verbunden")],
+      [T("Daten"), T("{d} Decks · {m} Matches", { d: (D.decks || []).length, m: st.n })]
+    ].map(([k, v]) => `<div class="set-info-row"><span>${esc(k)}</span><b>${esc(String(v))}</b></div>`).join("");
+  }
+});
+</script>
+</body>
+</html>

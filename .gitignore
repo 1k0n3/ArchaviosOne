@@ -1,0 +1,14 @@
+# generated data (collection, matches, dashboard build)
+out/
+# Vorschau-Konto für Screenshots (scripts/preview-data.js)
+out-preview/
+# local settings (copy of watch-config.json with personal paths)
+watch-config.local.json
+# node
+node_modules/
+npm-debug.log
+# editors / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

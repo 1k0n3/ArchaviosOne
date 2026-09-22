@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTGA Stats · Deckbau</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#100d0b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="app.css">
+<script src="data.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<script>
+// Deckbau: Kartenpool (alle Karten des Spiels, Filter wie in der Bibliothek) links, Deck rechts wie in Arena.
+// Decks werden im Browser gespeichert (localStorage), Export im Arena-Importformat, Alternativen aus der eigenen Sammlung.
+App.load().then(async (D) => {
+  const A = App, FI = A.FI, T = A.t;
+  const FORMATS = {
+    standard: { label: "Standard", min: 60, copies: 4, side: 15, cmd: false },
+    alchemy: { label: "Alchemy", min: 60, copies: 4, side: 15, cmd: false },
+    explorer: { label: "Explorer", min: 60, copies: 4, side: 15, cmd: false },
+    historic: { label: "Historic", min: 60, copies: 4, side: 15, cmd: false },
+    timeless: { label: "Timeless", min: 60, copies: 4, side: 15, cmd: false },
+    brawl: { label: "Brawl", min: 60, max: 60, copies: 1, side: 0, cmd: true },
+    hbrawl: { label: "Historic Brawl", min: 100, max: 100, copies: 1, side: 0, cmd: true },
+    limited: { label: "Limited", min: 40, copies: 99, side: 99, cmd: false }
+  };
+  A.shell("builder.html", `
+    <div class="topbar"><div><h1>${T("Deckbau")}</h1><div class="sub" id="sub">${T("Deck von null bauen – aus allen Karten des Spiels")}</div></div>
+      <div class="right filters"></div></div>
+    <div class="builder">
+      <section class="pool">
+        <div class="lib-bar"></div>
+        <div class="cards lib" id="grid">${Array.from({ length: 24 }, () => '<div class="c sk"></div>').join("")}</div>
+        <div class="empty" id="more"></div>
+      </section>
+      <aside class="deckpanel" id="deckpanel"></aside>
+    </div>
+    <div class="modal alt-modal hidden" id="alt"></div>
+  `);
+  // Handy: Deckbox als fixierte Leiste direkt unter dem Body (die Einblend-Animation des Inhalts würde sonst den Bezugsrahmen bilden)
+  if (A.isMobile()) document.body.appendChild(A.$("#deckpanel"));
+
+  // ---- Kartenpool laden ------------------------------------------------------------------------------
+  let all = [];
+  try { const [cards] = await Promise.all([A.getJson("api/cards", 60000), A.loadSets()]); all = cards.cards; }
+  catch (e) { A.$("#grid").innerHTML = ""; A.$(".lib-bar").textContent = T("Bibliothek nicht verfügbar. Läuft der Watcher (Server)?"); return; }
+  // [grpId, name, set, nr, rarity, colors, types, artId, cmc, owned, cost, isToken, isRebalanced, isPrimary, frameFlags, power, toughness, text, typeLine]
+  const RAR = { 1: "Standardland", 2: "Common", 3: "Uncommon", 4: "Rare", 5: "Mythic", 0: "Token" };
+  const byId = new Map(all.map((c) => [c[0], c]));
+  // Kartendaten in das globale Wörterbuch, damit Kacheln, Statistik und Vorschau überall funktionieren
+  for (const c of all) D.cards[c[0]] = [c[1], c[2], c[3], RAR[c[4]] || "", c[11], c[7], c[5], c[6], c[14] || "", c[15] || "", c[16] || "", c[17] || "", c[18] || "", c[10] || ""];
+  const base = all.filter((c) => !c[11] && c[13]);
+  const sets = [...new Set(base.map((c) => c[2]))].sort();
+  const isBasic = (c) => c[4] === 1;
+  const isLand = (c) => String(c[6]).split(",").includes("5");
+  const colorsOf = (c) => String(c[5]).split(",").filter(Boolean);
+  // Farbidentität: Kartenfarben plus Manasymbole im Regeltext (Näherung für Brawl/Commander)
+  const identityOf = (c) => { const s = new Set(colorsOf(c)); for (const m of String(c[17] || "").matchAll(/\{([WUBRG])(?:\/[WUBRGP])?\}/g)) s.add({ W: "1", U: "2", B: "3", R: "4", G: "5" }[m[1]]); return s; };
+  const ownedOf = (c) => c[9] || 0;
+  // Nutzung (Siege, Matches) je Kartenname aus den lokalen Daten
+  const use = new Map();
+  for (const m of D.matches || []) for (const [g] of m.played || []) { const n = A.cardName(g); if (!use.has(n)) use.set(n, { w: 0, p: 0 }); const x = use.get(n); x.p++; if (m.result === "Sieg") x.w++; }
+  const useOf = (c) => use.get(c[1]) || { w: 0, p: 0 };
+
+  // ---- Deck-Zustand (im Browser gespeichert) ----------------------------------------------------------
+  const ASST_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l1.9 4.9L19 9.8l-4.4 2.5L13.4 18 12 13.6 10.6 18 9.4 12.3 5 9.8l5.1-1.9z"/><path d="M18.5 3.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg>';
+  const KEY = "mtga-builder";
+  const loadAll = () => { try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (e) { return []; } };
+  const saveAll = (list) => { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (e) { /* ohne Speicher */ } };
+  const newDeck = () => ({ id: "b" + Date.now().toString(36), name: T("Neues Deck"), format: "standard", cmd: [], main: {}, side: {}, updated: Date.now() });
+  const CUR = "mtga-builder-cur";   // welches Deck offen ist; der Assistent nutzt denselben Schlüssel
+  const curId = () => { try { return localStorage.getItem(CUR) || ""; } catch (e) { return ""; } };
+  const setCur = (id) => { try { localStorage.setItem(CUR, id); } catch (e) { /* ohne Speicher */ } };
+  let decks = loadAll(), deck = decks.find((d) => d.id === curId()) || decks[0] || newDeck();
+  if (!decks.length) decks.push(deck);
+  const persist = () => { deck.updated = Date.now(); if (!decks.includes(deck)) decks.push(deck); saveAll(decks); setCur(deck.id); };
+  const fmt = () => FORMATS[deck.format] || FORMATS.standard;
+  // Kartenzahl wie in Arena: bei Brawl zählt der Commander mit (99 + 1 = 100)
+  const mainCount = () => Object.values(deck.main).reduce((s, q) => s + q, 0) + (fmt().cmd ? deck.cmd.length : 0);
+  const sideCount = () => Object.values(deck.side).reduce((s, q) => s + q, 0);
+  const countOfName = (name) => { let n = 0; for (const [g, q] of Object.entries(deck.main)) if (byId.get(+g) && byId.get(+g)[1] === name) n += q; for (const g of deck.cmd) if (byId.get(g) && byId.get(g)[1] === name) n++; return n; };
+  const deckIdentity = () => { const s = new Set(); if (fmt().cmd && deck.cmd.length) { for (const g of deck.cmd) for (const x of identityOf(byId.get(g))) s.add(x); return s; } for (const g of Object.keys(deck.main)) for (const x of colorsOf(byId.get(+g) || [])) s.add(x); return s; };
+
+  // Commander-Formate: legendäre Kreatur oder Planeswalker; „Partner“ (auch Friends forever) erlaubt einen zweiten Commander
+  const cmdEligible = (c) => String(c[14] || "").includes("L") && /(^|,)(2|8)(,|$)/.test(String(c[6]));
+  const hasPartner = (g) => /\bPartner\b|Friends forever/.test(String((byId.get(g) || [])[17] || ""));
+  function add(g, zone = "main") {
+    const c = byId.get(g); if (!c) return;
+    const f = fmt();
+    // Ohne Commander ist die erste Wahl der Commander – alles andere wartet, bis er steht
+    if (f.cmd && !deck.cmd.length && zone !== "cmd") { if (cmdEligible(c)) zone = "cmd"; else { toast(T("Zuerst den Commander wählen: eine legendäre Kreatur oder einen Planeswalker")); return; } }
+    if (zone === "cmd") {
+      if (!f.cmd || !cmdEligible(c)) return;
+      // zweiter Commander nur, wenn beide Partner haben; sonst ersetzt der neue den bisherigen
+      if (!deck.cmd.includes(g)) deck.cmd = deck.cmd.length && deck.cmd.every(hasPartner) && hasPartner(g) ? [...deck.cmd, g].slice(-2) : [g];
+      delete deck.main[g];
+    }
+    else {
+      const tgt = zone === "side" ? deck.side : deck.main;
+      if (!isBasic(c) && countOfName(c[1]) >= f.copies && zone === "main") { toast(T("Höchstens {n}× erlaubt ({f})", { n: f.copies, f: f.label })); return; }
+      tgt[g] = (tgt[g] || 0) + 1;
+    }
+    persist(); renderDeck(); flashTile(g);
+  }
+  function remove(g, zone = "main") {
+    if (zone === "cmd") deck.cmd = deck.cmd.filter((x) => x !== g);
+    else { const tgt = zone === "side" ? deck.side : deck.main; if (tgt[g] > 1) tgt[g]--; else delete tgt[g]; }
+    persist(); renderDeck();
+  }
+  const toast = (text) => { const el = document.createElement("div"); el.className = "toast small"; el.textContent = text; document.body.appendChild(el); setTimeout(() => el.remove(), 2200); };
+  const flashTile = (g) => { const el = A.$(`#grid .c[data-g="${g}"]`); if (el) { el.classList.add("added"); setTimeout(() => el.classList.remove("added"), 350); } };
+
+  // ---- Export / Import ----------------------------------------------------------------------------------
+  const line = (g, q) => { const c = byId.get(+g); return c ? `${q} ${c[1]} (${c[2]}) ${c[3]}` : ""; };
+  const groupLines = (obj) => Object.entries(obj).map(([g, q]) => line(g, q)).filter(Boolean).join("\n");
+  const exportText = () => [deck.cmd.length ? "Commander\n" + deck.cmd.map((g) => line(g, 1)).join("\n") : "", "Deck\n" + groupLines(deck.main), sideCount() ? "Sideboard\n" + groupLines(deck.side) : ""].filter(Boolean).join("\n\n");
+  function importText(text) {
+    let zone = "main"; const out = { cmd: [], main: {}, side: {} }; let missing = 0;
+    const byKey = new Map(base.map((c) => [`${c[2]}|${String(c[3]).toLowerCase()}`, c]));
+    const byName = new Map(); for (const c of base) { const p = byName.get(c[1]); if (!p || ownedOf(c) > ownedOf(p)) byName.set(c[1].toLowerCase(), c); }
+    for (const raw of text.split(/\r?\n/)) {
+      const l = raw.trim(); if (!l) continue;
+      const h = l.toLowerCase();
+      if (h === "commander") { zone = "cmd"; continue; } if (h === "deck" || h === "main" || h === "maindeck") { zone = "main"; continue; } if (h === "sideboard" || h === "companion") { zone = "side"; continue; }
+      const m = l.match(/^(\d+)\s+(.+?)(?:\s+\(([A-Za-z0-9]+)\)\s+([\w★-]+))?\s*$/); if (!m) continue;
+      const q = +m[1]; const c = (m[3] && byKey.get(`${m[3].toUpperCase()}|${m[4].toLowerCase()}`)) || byName.get(m[2].toLowerCase()) || byName.get(m[2].split(" // ")[0].toLowerCase());
+      if (!c) { missing++; continue; }
+      if (zone === "cmd") out.cmd.push(c[0]); else out[zone][c[0]] = (out[zone][c[0]] || 0) + q;
+    }
+    return { ...out, missing };
+  }
+  const fromExisting = (d) => { const out = { cmd: (d.zones.CommandZone || []).map(([g]) => g).filter((g) => byId.has(g)), main: {}, side: {} }; for (const [g, q] of d.zones.MainDeck || []) if (byId.has(g)) out.main[g] = q; for (const [g, q] of d.zones.Sideboard || []) if (byId.has(g)) out.side[g] = q; return out; };
+  // Arena-Deck als Deckbau-Deck (Format aus Commander/Kartenzahl bzw. Arena-Format geraten); merkt sich die Herkunft in src
+  const arenaToBuilder = (d) => { const r = fromExisting(d); return { ...newDeck(), src: d.id, name: d.name, cmd: r.cmd, main: r.main, side: r.side, format: r.cmd.length ? (Object.values(r.main).reduce((s, q) => s + q, 0) > 70 ? "hbrawl" : "brawl") : (/alchemy/i.test(d.format || "") ? "alchemy" : /historic/i.test(d.format || "") ? "historic" : "standard") }; };
+  // „Bearbeiten“ aus der Deckansicht: builder.html?deck=<Arena-ID> – beim ersten Mal übernehmen, danach das übernommene Deck öffnen
+  { const want = A.param("deck"); const src = want && (D.decks || []).find((x) => x.id === want); if (src) { let ex = decks.find((x) => x.src === src.id); if (!ex) { ex = arenaToBuilder(src); decks.push(ex); } deck = ex; persist(); } }
+
+  // ---- Deck-Panel ---------------------------------------------------------------------------------------
+  const TYPE_GROUPS = [["Kreaturen", (c) => c[6].split(",").includes("2")], ["Planeswalker", (c) => c[6].split(",").includes("8")], ["Spontanzauber", (c) => c[6].split(",").includes("4")], ["Hexereien", (c) => c[6].split(",").includes("10")], ["Verzauberungen", (c) => c[6].split(",").includes("3")], ["Artefakte", (c) => c[6].split(",").includes("1")], ["Schlachten", (c) => c[6].split(",").includes("14")], ["Länder", isLand], ["Sonstiges", () => true]];
+  function problems() {
+    const f = fmt(), n = mainCount(), out = [];
+    if (n < f.min) out.push(T("Noch {n} Karten bis {m}", { n: f.min - n, m: f.min }));
+    if (f.max && n > f.max) out.push(T("{n} Karten zu viel (maximal {m})", { n: n - f.max, m: f.max }));
+    if (f.cmd && !deck.cmd.length) out.push(T("Kein Commander gewählt"));
+    if (sideCount() > f.side) out.push(T("Sideboard zu groß (maximal {m})", { m: f.side }));
+    if (f.cmd && deck.cmd.length) { const id = deckIdentity(); const off = Object.keys(deck.main).filter((g) => [...identityOf(byId.get(+g))].some((x) => !id.has(x))); if (off.length) out.push(T("{n} Karten außerhalb der Farbidentität", { n: off.length })); }
+    const missing = Object.entries(deck.main).filter(([g, q]) => !isBasic(byId.get(+g)) && q > ownedOf(byId.get(+g))).length;   // Standardländer sind in Arena unbegrenzt if (missing) out.push(T("{n} Karten nicht (ausreichend) im Besitz", { n: missing }));
+    return out;
+  }
+  const MARK_LABEL = { gut: "gut", pruefen: "prüfen", raus: "raus" };
+  const row = (g, q, zone) => { const c = byId.get(g); const short = q > ownedOf(c) && !isBasic(c); const nt = (deck.notes || {})[g] || null; return `<div class="drow ${short ? "short" : ""}${nt && nt.mark ? " mk mk-" + nt.mark : ""}" data-g="${g}" data-zone="${zone}" data-pv-anchor="left" ${nt && nt.text ? `title="${A.esc(nt.text)}"` : ""}><span class="q">${zone === "cmd" ? "★" : q}</span><span class="n">${nt && nt.mark ? `<i class="mkdot" title="${A.esc(MARK_LABEL[nt.mark] || nt.mark)}"></i>` : ""}${A.esc(c[1])}${nt && nt.text ? `<em class="mknote">${A.esc(nt.text)}</em>` : ""}</span><span class="cost">${A.manaHtml ? A.manaHtml(c[10]) : A.esc(c[10])}</span><button type="button" class="alt" title="${T("Alternativen")}">${FI.search}</button><button type="button" class="minus" title="${T("Entfernen")}">${FI.x}</button></div>`; };
+  function renderDeck() {
+    if (cmdKey !== null && applyCmdColors()) renderPool();   // Commander geändert: Kartenpool nach seinen Farben filtern
+    const f = fmt(), n = mainCount(), st = A.deckStats({ zones: { CommandZone: deck.cmd.map((g) => [g, 1]), MainDeck: Object.entries(deck.main).map(([g, q]) => [+g, q]) } });
+    const groups = TYPE_GROUPS.map(([t]) => [t, []]);
+    for (const [g, q] of Object.entries(deck.main)) { const c = byId.get(+g); if (!c) continue; const gi = TYPE_GROUPS.findIndex(([, fn]) => fn(c)); groups[gi][1].push([+g, q]); }
+    for (const grp of groups) grp[1].sort((a, b) => (byId.get(a[0])[8] - byId.get(b[0])[8]) || byId.get(a[0])[1].localeCompare(byId.get(b[0])[1]));
+    const probs = problems();
+    const panel = A.$("#deckpanel"), wasOpen = panel.classList.contains("open"), keepScroll = panel.scrollTop;
+    // Hinweisblock lässt sich mit X ausblenden; taucht wieder auf, sobald sich die Hinweise ändern
+    const hintKey = (deck.id || "") + ":" + probs.join("|");
+    let hintHidden = false; try { hintHidden = localStorage.getItem("mtga-builder-hint-x") === hintKey; } catch (e) { /* ohne Speicher */ }
+    const hintX = `<button type="button" class="dp-x" title="${T("Ausblenden")}">${FI.x}</button>`;
+    const ok = n >= f.min && (!f.max || n <= f.max);
+    panel.innerHTML = `
+      <div class="dp-handle" id="dp-handle"><div class="cnt ${ok ? "ok" : ""}">${n}<i>/${f.max || f.min}</i></div><div class="hx"><div class="nm">${A.esc(deck.name)}</div><div class="hs">${A.esc(f.label)} · ${T("{n} Länder", { n: st.lands })} · Ø ${st.avgCmc.toFixed(1)} · <span class="${probs.length ? "bad" : "good"}">${probs.length ? probs.length + " " + T("Hinweise") : T("regelkonform")}</span></div><div class="mini-bar"><i style="width:${Math.min(100, Math.round(100 * n / (f.max || f.min)))}%"></i></div></div><span class="chev">${FI.chevron}</span></div>
+      <div class="dp-head"><input class="dp-name" id="dp-name" value="${A.esc(deck.name)}" maxlength="60" spellcheck="false" title="${T("Deckname")}"><button type="button" class="icon-btn" id="dp-new" title="${T("Neues Deck")}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button><button type="button" class="icon-btn ghost" id="dp-dup" title="${T("Deck duplizieren")}">${FI.copies}</button><button type="button" class="icon-btn ghost" id="dp-imp" title="${T("Aus Arena-Text einfügen …")}">${FI.download}</button>
+        <div id="dp-format"></div><div id="dp-menu"></div><button type="button" class="icon-btn ghost danger" id="dp-del" title="${T("Dieses Deck löschen")}">${FI.x}</button></div>
+      <div class="dp-import hidden" id="dp-import"><textarea id="dp-imp-text" placeholder="${T("Deckliste im Arena-Format einfügen (z. B. „4 Lightning Bolt (M21) 199“)")}" spellcheck="false"></textarea><div class="row"><button class="primary small" id="dp-imp-ok">${FI.check} ${T("Importieren")}</button><button class="ghost small" id="dp-imp-cancel">${T("Abbrechen")}</button></div></div>
+      ${hintHidden ? "" : probs.length ? `<div class="dp-probs">${probs.map((p) => `<div>${FI.warn} ${A.esc(p)}</div>`).join("")}${hintX}</div>` : `<div class="dp-ok">${FI.check} <span>${T("Deck ist regelkonform")}</span>${hintX}</div>`}
+      <div class="dp-meta"><span class="cnt ${n >= f.min && (!f.max || n <= f.max) ? "ok" : ""}">${n}${f.max ? "/" + f.max : "/" + f.min}</span><span class="pips">${[...deckIdentity()].map((c) => A.manaSymbol({ 1: "w", 2: "u", 3: "b", 4: "r", 5: "g" }[c])).join("")}</span><span class="muted small">${T("{n} Länder", { n: st.lands })} · Ø ${st.avgCmc.toFixed(1)}</span></div>
+      <div class="dp-curve">${st.curve.map((v, i) => `<div class="bar" style="--h:${Math.round(100 * v / Math.max(1, ...st.curve))}%" title="${T("{n} Karten mit Manawert {v}", { n: v, v: i === 7 ? "7+" : i })}"><b>${v || ""}</b><i></i><span>${i === 7 ? "7+" : i}</span></div>`).join("")}</div>
+      <div class="dp-colors" title="${T("Manaverteilung")}">${A.colorBarHtml(st.colors)}</div>
+      ${D.site || !window.Assistant ? "" : `<button type="button" class="dp-asst" id="dp-asst">${ASST_ICON} ${T("Assistent fragen")}</button>`}
+      <div class="dp-list">
+        ${f.cmd ? `<div class="dp-sec">${T("Commander")} <span>${deck.cmd.length}</span></div>${deck.cmd.map((g) => row(g, 1, "cmd")).join("") || `<div class="muted small dp-hint">${T("Zuerst den Commander wählen: Klick auf eine legendäre Kreatur oder einen Planeswalker im Pool")}</div>`}` : ""}
+        ${groups.filter(([, l]) => l.length).map(([t, l]) => `<div class="dp-sec">${T(t)} <span>${l.reduce((s, [, q]) => s + q, 0)}</span></div>${l.map(([g, q]) => row(g, q, "main")).join("")}`).join("") || `<div class="muted small dp-hint">${T("Karten links anklicken, um sie ins Deck zu legen. Rechtsklick entfernt.")}</div>`}
+        ${sideCount() ? `<div class="dp-sec">${T("Sideboard")} <span>${sideCount()}</span></div>${Object.entries(deck.side).map(([g, q]) => row(+g, q, "side")).join("")}` : ""}
+      </div>
+      <div class="dp-actions"><div class="main"><button class="primary small" id="dp-copy">${FI.copies} ${T("Für Arena kopieren")}</button><button class="small" id="dp-fix" title="${T("Alternativen aus deiner Sammlung für fehlende Karten")}">${FI.search} ${T("Alternativen suchen")}</button></div><button class="ghost sub" id="dp-save" title="${T("als TXT speichern")}">${FI.download} <span>${T("als TXT speichern")}</span></button></div>`;
+    { const hx = A.$(".dp-x", panel); if (hx) hx.addEventListener("click", () => { try { localStorage.setItem("mtga-builder-hint-x", hintKey); } catch (e) { /* ignorieren */ } renderDeck(); }); }
+    A.$("#dp-name").addEventListener("change", (ev) => { deck.name = ev.target.value.trim() || T("Neues Deck"); persist(); });
+    { const ab = A.$("#dp-asst"); if (ab) ab.addEventListener("click", () => window.Assistant && window.Assistant.open(true)); }
+    A.hoverPreview(A.$("#deckpanel"));   // Kartenbild neben der Zeile beim Überfahren
+    A.dropdown(A.$("#dp-format"), { title: T("Format"), value: deck.format, defaultValue: deck.format, onChange: (v) => { deck.format = v; persist(); renderDeck(); renderPool(); }, items: Object.entries(FORMATS).map(([v, x]) => ({ v, label: x.label, icon: x.cmd ? FI.deck : FI.set })) });
+    // Deckwahl: durchsuchbare Liste der eigenen Entwürfe und der Arena-Decks, dazu Neu/Duplizieren/Einfügen/Löschen
+    // Ein Menü für alles, gefiltert nach dem gewählten Format: eigene Entwürfe, dann Arena-Decks (Precons eingeklappt)
+    const cnt = (d) => Object.values(d.main || {}).reduce((s, q) => s + q, 0) + (d.cmd || []).length;
+    const arenaTotal = (d) => (d.zones.MainDeck || []).reduce((s, [, q]) => s + q, 0) + (d.zones.CommandZone || []).length;
+    const arenaFmt = (d) => { const s = String(d.format || ""), n = arenaTotal(d); if (/brawl/i.test(s)) return n >= 90 ? "hbrawl" : "brawl"; if (/limited|draft|sealed/i.test(s)) return "limited"; if (/alchemy/i.test(s)) return "alchemy"; if (/explorer/i.test(s)) return "explorer"; if (/timeless/i.test(s)) return "timeless"; if (/historic|gladiator/i.test(s)) return "historic"; return "standard"; };
+    const mine = decks.filter((d) => d.format === deck.format);
+    const arena = (D.decks || []).filter((d) => arenaFmt(d) === deck.format), isPrecon = (d) => /precon/i.test(d.name || "");
+    const own = arena.filter((d) => !isPrecon(d)), precons = arena.filter(isPrecon);
+    const arenaItem = (d, cls) => ({ v: "arena:" + d.id, label: `${T("Arena")}: ${d.name}${d.archived ? " (" + T("Archiv") + ")" : ""} · ${arenaTotal(d)}`, icon: FI.set, title: T("Als neuen Entwurf aus Arena übernehmen"), search: d.name, cls });
+    A.dropdown(A.$("#dp-menu"), { title: T("Decks"), value: "", defaultValue: "", searchable: mine.length + arena.length > 6, onChange: (v) => menu(v), items: [
+      { v: "", label: T("Decks"), short: `${T("Decks")} (${mine.length}${arena.length ? " + " + arena.length : ""})`, icon: FI.deck },
+      ...mine.map((d) => ({ v: "open:" + d.id, label: `${d.name} · ${cnt(d)}`, icon: d === deck ? FI.check : FI.play, title: d === deck ? T("Aktuell geöffnet") : T("Öffnen"), search: d.name })),
+      ...own.map((d) => arenaItem(d, "")),
+      ...(precons.length ? [{ v: "precons", label: T("Precons ({n}) einblenden", { n: precons.length }), icon: FI.chevron, cls: "toggle", keepOpen: true, onClick: (el, b) => { const m = el.querySelector(".dd-menu"); const on = m.classList.toggle("show-precons"); b.querySelector("span").textContent = T(on ? "Precons ({n}) ausblenden" : "Precons ({n}) einblenden", { n: precons.length }); } }] : []),
+      ...precons.map((d) => arenaItem(d, "precon"))] });
+    // Handy: Deckliste als Leiste unten, Tippen klappt sie auf
+    A.$("#dp-handle").addEventListener("click", () => {
+      const open = !panel.classList.contains("open");
+      if (!open) { panel.dataset.scroll = String(panel.scrollTop); panel.scrollTop = 0; }   // Scrollposition merken, Griff sichtbar
+      panel.classList.toggle("open", open);
+      if (open) setTimeout(() => { panel.scrollTop = +(panel.dataset.scroll || 0); }, 30);
+    });
+    panel.classList.toggle("open", wasOpen);
+    if (wasOpen) panel.scrollTop = keepScroll;   // Neuaufbau (Karte hinzugefügt) behält die Scrollposition
+    A.$("#dp-new").addEventListener("click", () => menu("new"));
+    A.$("#dp-dup").addEventListener("click", () => menu("dup"));
+    A.$("#dp-del").addEventListener("click", () => menu("delete"));
+    A.$("#dp-imp").addEventListener("click", () => { const p = A.$("#dp-import"); p.classList.toggle("hidden"); if (!p.classList.contains("hidden")) A.$("#dp-imp-text").focus(); });
+    A.$("#dp-imp-cancel").addEventListener("click", () => A.$("#dp-import").classList.add("hidden"));
+    A.$("#dp-imp-ok").addEventListener("click", () => { const t = A.$("#dp-imp-text").value; if (t.trim()) importFromText(t); });
+    A.$("#dp-copy").addEventListener("click", (ev) => { navigator.clipboard.writeText(exportText()); ev.currentTarget.innerHTML = FI.check + " " + T("Kopiert"); });
+    A.$("#dp-save").addEventListener("click", () => { const u = URL.createObjectURL(new Blob([exportText()], { type: "text/plain;charset=utf-8" })); const l = document.createElement("a"); l.href = u; l.download = deck.name.replace(/[\/:*?"<>|]+/g, "_") + ".txt"; l.click(); setTimeout(() => URL.revokeObjectURL(u), 1000); });
+    A.$("#dp-fix").addEventListener("click", () => showAlternatives(null));
+    A.$$(".drow").forEach((r) => {
+      const g = +r.dataset.g, zone = r.dataset.zone;
+      A.$(".minus", r).addEventListener("click", (ev) => { ev.stopPropagation(); remove(g, zone); });
+      A.$(".alt", r).addEventListener("click", (ev) => { ev.stopPropagation(); showAlternatives(g); });
+      r.addEventListener("click", () => A.showCard(g));
+      r.addEventListener("contextmenu", (ev) => { ev.preventDefault(); remove(g, zone); });
+    });
+    A.$("#sub").textContent = T("{n} Decks gespeichert · gespeichert im Browser", { n: decks.length });
+    markPool();
+  }
+  /** Import aus dem Textfeld (Arena-Format) als neuer Entwurf */
+  function importFromText(t) {
+    const r = importText(t);
+    deck = { ...newDeck(), name: T("Importiert"), cmd: r.cmd, main: r.main, side: r.side, format: r.cmd.length ? (Object.values(r.main).reduce((s, q) => s + q, 0) > 70 ? "hbrawl" : "brawl") : deck.format };
+    decks.push(deck);
+    if (r.missing) toast(T("{n} Zeilen nicht erkannt", { n: r.missing }));
+    persist(); renderDeck();
+  }
+  function menu(v) {
+    if (v === "new") { deck = newDeck(); decks.push(deck); }
+    else if (v === "dup") { deck = { ...deck, id: "b" + Date.now().toString(36), name: deck.name + " (2)", main: { ...deck.main }, side: { ...deck.side }, cmd: [...deck.cmd] }; decks.push(deck); }
+    else if (v === "delete") { if (!confirm(T("Deck „{n}“ wirklich löschen?", { n: deck.name }))) { renderDeck(); return; } decks = decks.filter((d) => d !== deck); deck = decks[0] || newDeck(); if (!decks.length) decks.push(deck); }
+    else if (v === "import") { A.$("#dp-imp").click(); return; }
+    else if (v.startsWith("arena:")) { const d = (D.decks || []).find((x) => x.id === v.slice(6)); if (d) { deck = arenaToBuilder(d); decks.push(deck); } }
+    else if (v.startsWith("open:")) { deck = decks.find((d) => d.id === v.slice(5)) || deck; }
+    persist(); renderDeck();
+  }
+
+  // ---- Alternativen (Optimierung mit vorhandenen Karten) ---------------------------------------------------
+  const KEYWORDS = ["flying", "trample", "lifelink", "deathtouch", "haste", "vigilance", "menace", "reach", "flash", "ward", "hexproof", "indestructible", "first strike", "double strike", "defender", "draw a card", "draw two", "destroy target", "exile target", "counter target", "gain life", "+1/+1 counter", "create a", "token", "search your library", "return target", "deals damage", "sacrifice", "discard", "mill", "scry", "surveil", "treasure", "equip", "enchant", "flashback", "graveyard", "each opponent", "target player"];
+  const kw = (c) => new Set(KEYWORDS.filter((k) => String(c[17] || "").toLowerCase().includes(k)));
+  function alternatives(g, limit = 10) {
+    const t = byId.get(g); if (!t) return [];
+    const id = deckIdentity(), tk = kw(t), tTypes = String(t[6]).split(","), tPrim = tTypes[0];
+    const seen = new Set(); const out = [];
+    for (const c of base) {
+      if (c[1] === t[1] || !ownedOf(c) || seen.has(c[1])) continue;
+      const types = String(c[6]).split(","); if (!types.includes(tPrim)) continue;
+      if (id.size && [...identityOf(c)].some((x) => !id.has(x))) continue;
+      const dc = Math.abs(c[8] - t[8]); if (dc > 2) continue;
+      seen.add(c[1]);
+      const ck = kw(c); let shared = 0; for (const k of tk) if (ck.has(k)) shared++;
+      const u = useOf(c);
+      let score = 10 - dc * 3 + shared * 4 - Math.abs(ck.size - tk.size) + (colorsOf(c).join() === colorsOf(t).join() ? 3 : 0) + Math.min(6, u.w * 2 + u.p * 0.5) + (c[4] === t[4] ? 1 : 0);
+      if (types.includes("2") && t[15] !== "" && c[15] !== "") score -= Math.abs((+c[15] || 0) - (+t[15] || 0)) + Math.abs((+c[16] || 0) - (+t[16] || 0));
+      if (countOfName(c[1]) >= fmt().copies && !isBasic(c)) score -= 6;
+      out.push({ c, score, shared, u });
+    }
+    return out.sort((a, b) => b.score - a.score).slice(0, limit);
+  }
+  // Alternativen als Fenster: links die fehlende Karte, rechts die passenden Karten aus der Sammlung; Klick auf eine
+  // Alternative ersetzt die fehlenden Exemplare und aktualisiert das Fenster (erledigte Karten verschwinden)
+  function showAlternatives(g) {
+    const panel = A.$("#alt");
+    const targets = g != null ? [g] : Object.entries(deck.main).filter(([x, q]) => q > ownedOf(byId.get(+x)) && !isBasic(byId.get(+x))).map(([x]) => +x);
+    if (!targets.length) { toast(T("Alle Karten im Besitz – nichts zu ersetzen.")); panel.classList.add("hidden"); return; }
+    panel.classList.remove("hidden");
+    const row = (tg) => {
+      const t = byId.get(tg), alts = alternatives(tg, g != null ? 12 : 8), missing = Math.max(0, (deck.main[tg] || 1) - ownedOf(t));
+      return `<div class="alt-row"><div class="alt-target"><div class="alt-lbl missing">${T("Fehlt")} · ${missing}×</div>${A.cardTile(tg, { qty: deck.main[tg] || 1, compact: false })}<div class="alt-name">${A.esc(t[1])}</div></div>
+        <div class="alt-alts"><div class="alt-lbl">${T("Alternativen aus deiner Sammlung")} · ${alts.length}</div><div class="cards alt-cards">${alts.map((x) => A.cardTile(x.c[0], { qty: 0, extra: `<span class="own has">${ownedOf(x.c)}×</span><span class="rep">${FI.check} ${T("Ersetzen")}</span>` }).replace(/^<div /, `<div data-alt-for="${tg}" data-alt="${x.c[0]}" title="${T("Ersetzen")}: ${A.esc(t[1])} → ${A.esc(x.c[1])}" `)).join("") || `<div class="muted small alt-none">${T("Keine passende Karte in der Sammlung")}</div>`}</div></div></div>`;
+    };
+    panel.innerHTML = `<div class="m-box wide alt-box">${A.xButton("alt-x")}<div class="alt-head"><h3>${FI.swords} ${g != null ? T("Alternativen zu {n}", { n: A.esc(byId.get(g)[1]) }) : T("Fehlende Karten ersetzen")}</h3><span class="muted small">${T("aus deiner Sammlung · gleicher Typ, passende Farben, ähnlicher Manawert, ähnliche Fähigkeiten")}</span></div><div class="alt-list">${targets.map(row).join("")}</div></div>`;
+    const close = () => panel.classList.add("hidden");
+    A.$(".x-btn.alt-x", panel).addEventListener("click", close);
+    panel.onclick = (ev) => { if (ev.target === panel) close(); };
+    A.bindCardImages(panel); A.Art.bind(panel); A.hoverPreview(panel);
+    A.$$("[data-alt]", panel).forEach((el) => el.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const from = +el.dataset.altFor, to = +el.dataset.alt; const q = deck.main[from] || 0; const need = Math.max(1, q - ownedOf(byId.get(from)));
+      deck.main[from] = q - need; if (deck.main[from] <= 0) delete deck.main[from]; deck.main[to] = (deck.main[to] || 0) + need;
+      persist(); renderDeck(); toast(T("{a} → {b}", { a: byId.get(from)[1], b: byId.get(to)[1] }));
+      showAlternatives(g);   // Fenster neu aufbauen: erledigte Karten verschwinden, ohne Rest schließt es sich
+    }));
+  }
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") A.$("#alt").classList.add("hidden"); });
+
+  // ---- Pool: Filter, Sortierung, Kacheln --------------------------------------------------------------------
+  // Filterleiste (gemeinsam mit der Bibliothek): Suche auch im Regeltext, Besitz zusätzlich "passend zur Farbidentität"
+  const F = A.cardFilterBar({ key: "builder", grid: A.$("#grid"), sets, searchPlaceholder: T("Name oder Regeltext suchen"), textSearch: true, sizeKey: "mtga-builder-tile", sizeMin: 80, sizeMax: 200,
+    ownItems: [{ v: "id", label: T("Passend zur Farbidentität"), short: T("Identität"), icon: FI.deck }], sort: ["name", "cmc", "wins", "rarity", "set", "owned"], onChange: () => renderPool() });
+  let page = 0, current = [];
+  // Commander gesetzt oder gewechselt: Farbfilter auf seine Farbidentität plus Farblos stellen (ohne Commander: Filter frei)
+  let cmdKey = null, cmdPick = false;
+  const applyCmdColors = () => {
+    let changed = false;
+    // Commander-Wahl: ohne Commander zeigt der Pool nur mögliche Commander (Typfilter „Legendär“, dazu Kreatur/Planeswalker)
+    const pick = !!fmt().cmd && !deck.cmd.length;
+    if (pick !== cmdPick) { cmdPick = pick; if (pick) F.type.value = "L"; else if (F.type.value === "L") F.type.value = ""; changed = true; }
+    const key = fmt().cmd ? deck.cmd.join(",") : "";
+    if (key !== cmdKey) { const first = cmdKey === null; cmdKey = key; if (key || !first) { F.setColors(key ? [...deckIdentity(), "0"] : []); changed = true; } }
+    return changed;
+  };
+  const PAGE = 100;
+
+  function filtered() {
+    const own = F.own.value, s = F.sort.value, id = deckIdentity(), ok = F.matcher();
+    // ein Druck je Kartenname (der mit den meisten Exemplaren, sonst der neueste)
+    const best = new Map();
+    for (const c of base) {
+      if (!ok(c)) continue;
+      if (cmdPick && !cmdEligible(c)) continue;
+      if (own === "1" && !ownedOf(c)) continue;
+      if (own === "0" && ownedOf(c)) continue;
+      if (own === "id" && id.size && [...identityOf(c)].some((x) => !id.has(x))) continue;
+      const p = best.get(c[1]); if (!p || ownedOf(c) > ownedOf(p) || (ownedOf(c) === ownedOf(p) && c[0] > p[0])) best.set(c[1], c);
+    }
+    const list = [...best.values()];
+    const byName = (a, b) => a[1].localeCompare(b[1], "en");
+    list.sort((a, b) => {
+      if (s === "cmc") return (a[8] - b[8]) || byName(a, b);
+      if (s === "wins") { const x = useOf(a), y = useOf(b); return (y.w - x.w) || (y.p - x.p) || byName(a, b); }
+      if (s === "rarity") return (b[4] - a[4]) || byName(a, b);
+      if (s === "set") return a[2].localeCompare(b[2]) || String(a[3]).localeCompare(String(b[3]), undefined, { numeric: true });
+      if (s === "owned") return (ownedOf(b) - ownedOf(a)) || byName(a, b);
+      return byName(a, b);
+    });
+    return list;
+  }
+  function renderPool() {
+    applyCmdColors();
+    current = filtered(); page = 0;
+    F.count(T("{n} Karten", { n: current.length }));
+    A.$("#grid").innerHTML = "";
+    more();
+  }
+  function more() {
+    const slice = current.slice(page * PAGE, (page + 1) * PAGE); page++;
+    const f = fmt();
+    A.$("#grid").insertAdjacentHTML("beforeend", slice.map((c) => F.view() === "list" ? A.cardRow(c, { cls: ownedOf(c) ? "" : "missing", extra: A.qtyHtml(c[0]) }) : A.cardTile(c[0], { qty: 0, extra: `${A.ownHtml(ownedOf(c))}${A.qtyHtml(c[0])}${f.cmd && cmdEligible(c) ? `<button type="button" class="mkcmd" data-g="${c[0]}" title="${T("Als Commander")}"><img src="https://svgs.scryfall.io/sets/cmd.svg" alt="" loading="lazy" onerror="this.replaceWith('★')"></button>` : ""}` })).join(""));
+    A.Art.bind(A.$("#grid")); A.hoverPreview(A.$("#grid"));
+    A.$("#more").innerHTML = page * PAGE < current.length ? `<button id="b-more">${T("Weitere {n} Karten laden ({r} übrig)", { n: Math.min(PAGE, current.length - page * PAGE), r: current.length - page * PAGE })}</button>` : (current.length ? "" : T("Keine Karten gefunden"));
+    const b = A.$("#b-more"); if (b) b.addEventListener("click", more);
+    markPool();
+  }
+  function markPool() {
+    A.$$("#grid .c[data-g], #grid .c-row[data-g]").forEach((el) => { const g = +el.dataset.g; const q = (deck.main[g] || 0) + (deck.side[g] || 0) + (deck.cmd.includes(g) ? 1 : 0); el.classList.toggle("indeck-on", q > 0); const m = A.$(".q-n", el); if (m) m.textContent = q; });
+  }
+  // Klick = ins Deck, Rechtsklick = raus, Shift+Klick = Sideboard, Strg/Alt+Klick = Kartendetails
+  A.$("#grid").addEventListener("click", (ev) => {
+    const cmd = ev.target.closest(".mkcmd"); if (cmd) { ev.stopPropagation(); add(+cmd.dataset.g, "cmd"); return; }
+    // Zähler auf Kachel und Zeile: − nimmt ein Exemplar raus (Hauptdeck, sonst Sideboard, sonst Commander), + legt eines dazu
+    const qb = ev.target.closest(".q-m, .q-p"); if (qb) { ev.stopPropagation(); const g = +qb.closest(".qty").dataset.g; if (qb.classList.contains("q-p")) add(g, "main"); else if (deck.main[g]) remove(g, "main"); else if (deck.side[g]) remove(g, "side"); else if (deck.cmd.includes(g)) remove(g, "cmd"); return; }
+    if (A.$("#grid").dataset.lp) { delete A.$("#grid").dataset.lp; return; }   // Klick nach langem Drücken ignorieren
+    const el = ev.target.closest(".c[data-g], .c-row[data-g]"); if (!el) return;
+    const g = +el.dataset.g;
+    if (ev.ctrlKey || ev.altKey || ev.metaKey) { A.showCard(g); return; }
+    add(g, ev.shiftKey ? "side" : "main");
+  });
+  // Handy: langes Drücken öffnet die Kartendetails (Rechtsklick gibt es dort nicht)
+  A.longPress(A.$("#grid"), ".c[data-g], .c-row[data-g]", (el) => { A.$("#grid").dataset.lp = "1"; A.showCard(+el.dataset.g); });
+  A.$("#grid").addEventListener("contextmenu", (ev) => { if (A.isMobile()) { ev.preventDefault(); return; } const el = ev.target.closest(".c[data-g], .c-row[data-g]"); if (!el) return; ev.preventDefault(); const g = +el.dataset.g; if (deck.side[g] && ev.shiftKey) remove(g, "side"); else if (deck.main[g]) remove(g, "main"); else if (deck.side[g]) remove(g, "side"); });
+  // Der Assistent ändert dieselben Decks im Speicher: danach neu zeichnen
+  window.addEventListener("mtga-deck-changed", () => {
+    decks = loadAll();
+    // Wurde das offene Deck von außen entfernt (auch beim Rückgängigmachen), auf ein leeres wechseln
+    deck = decks.find((d) => d.id === curId()) || decks[0] || newDeck();
+    if (!decks.length) decks.push(deck);
+    renderDeck();
+  });
+  const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting) && page * PAGE < current.length) more(); });
+  io.observe(A.$("#more"));
+
+  renderDeck();
+  renderPool();
+});
+</script>
+</body>
+</html>

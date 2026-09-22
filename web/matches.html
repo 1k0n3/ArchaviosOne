@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTGA Stats · Matches</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0b0e18">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="app.css">
+<script src="data.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<script>
+App.load().then((D) => {
+  const A = App, T = A.t;
+  if (A.isMobile()) { A.shell("matches.html", `<div class="topbar"><div><h1>${T("Matches")}</h1></div></div><div class="empty">${T("Die Match-Liste ist für große Bildschirme gedacht. Die letzten Matches findest du in der Übersicht.")}</div><p><a class="btn-replay" href="index.html">${T("Übersicht")}</a></p>`); return; }
+  A.shell("matches.html", `
+    <div class="topbar"><div><h1>${T("Matches")}</h1><div class="sub" id="count"></div></div>
+      <div class="right filters search-col"><div id="f-opp"></div></div></div>
+    <div class="topbar filters-bar"><div class="right filters"><div id="f-result"></div><div id="f-deck"></div></div></div>
+    <div class="panel" style="padding:6px 8px"><table id="tbl"><thead><tr><th>${T("Wann")}</th><th>${T("Ergebnis")}</th><th>${T("Deck")}</th><th>${T("Gegner")}</th><th>${T("Event")}</th><th>${T("Züge")}</th><th>${T("Dauer")}</th><th>${T("Beginn")}</th><th>${T("Gegnerkarten")}</th><th></th></tr></thead><tbody></tbody></table></div>
+  `);
+  let result = "";
+  const FI = A.FI, rerender = () => render();
+  const fOpp = A.searchBox(A.$("#f-opp"), { placeholder: T("Gegner suchen"), onInput: A.debounce(rerender, 150) });
+  A.dropdown(A.$("#f-result"), { title: T("Ergebnis"), onChange: (v) => { result = v; render(); }, items: [{ v: "", label: T("Alle Ergebnisse"), short: T("Alle"), icon: FI.swords }, { v: "Sieg", label: T("Nur Siege"), short: T("Siege"), icon: FI.trophy }, { v: "Niederlage", label: T("Nur Niederlagen"), short: T("Niederlagen"), icon: FI.x }] });
+  const fDeck = A.dropdown(A.$("#f-deck"), { title: T("Deck"), searchable: true, value: A.param("deck") || "", onChange: rerender, items: [{ v: "", label: T("Alle Decks"), short: T("Deck"), icon: FI.deck }, ...[...new Set(D.matches.map(A.deckLabel))].sort().map((d) => ({ v: d, label: d, icon: FI.deck }))] });
+
+  function oppCards(m) {
+    const cards = (m.opponentCards || []).map((c) => ({ c, k: A.card(c.grpId) })).filter((x) => !x.k.token).sort((a, b) => a.k.name.localeCompare(b.k.name));
+    if (!cards.length) return { cell: `<span class="muted">${T("keine")}</span>`, row: "" };
+    const text = cards.map((x) => `${x.c.count} ${x.k.name} (${x.k.set}) ${x.k.nr}`).join("\n");
+    return {
+      cell: `<button type="button" class="opp-toggle" data-opp="${m.matchId}">${T("{n} Karten", { n: cards.length })}${FI.chevron}</button>`,
+      row: `<tr class="opp-row" data-opp="${m.matchId}"><td colspan="10"><div class="opp-head">${T("Gegnerkarten")} · ${A.esc(m.opponent)}<button class="ghost small" onclick="navigator.clipboard.writeText(${JSON.stringify(text).replace(/"/g, "&quot;")});this.textContent='${T("Kopiert ✓")}'">${T("Als Text kopieren")}</button></div>
+        <div class="cards">${cards.map((x) => A.cardTile(x.c.grpId, { qty: x.c.count, compact: true })).join("")}</div></td></tr>`
+    };
+  }
+  function render() {
+    const q = fOpp.value.trim().toLowerCase();
+    const list = D.matches.filter((m) => (!result || m.result === result) && (!fDeck.value || A.deckLabel(m) === fDeck.value) && (!q || (m.opponent || "").toLowerCase().includes(q))).sort((a, b) => b.start - a.start);
+    const s = A.stats(list);
+    A.$("#count").textContent = `${T("{n} Matches", { n: s.n })} · ${T("{w} Siege · {l} Niederlagen", { w: s.w, l: s.l })} · ${Math.round(s.rate * 100)} % ${T("Winrate")}`;
+    A.$("#tbl tbody").innerHTML = list.map((m) => { const oc = oppCards(m); return `<tr>
+      <td>${A.fmtDate(m.start)}<div class="muted small">${A.fmtTime(m.start)}</div></td>
+      <td>${A.resultBadge(m.result)}<div class="muted small">${A.esc(m.reason)}</div></td>
+      <td>${A.deckCell(m)}</td>
+      <td><b>${A.esc(m.opponent)}</b><div class="muted small">${A.esc(m.opponentPlatform)}</div></td>
+      <td>${A.esc(A.eventLabel(m.eventId))}<div class="muted small">${A.esc(m.format)}</div></td>
+      <td>${m.turns}</td><td>${A.fmtDur(m.durationSec)}</td><td>${m.onPlay === null ? "" : (m.onPlay ? T("ich") : T("Gegner"))}</td>
+      <td>${oc.cell}</td>
+      <td>${A.replayLink(m.matchId)}</td></tr>${oc.row}`; }).join("") || `<tr><td colspan="10" class="empty">${T("Keine Matches")}</td></tr>`;
+    A.$$(".opp-toggle").forEach((b) => b.addEventListener("click", () => {
+      const row = A.$(`tr.opp-row[data-opp="${b.dataset.opp}"]`); const on = !row.classList.contains("on");
+      row.classList.toggle("on", on); b.closest("tr").classList.toggle("opp-open", on);
+      if (on) A.bindCardImages(row);
+    }));
+    A.Art.bind(A.$("#tbl"));
+  }
+  render();
+});
+</script>
+</body>
+</html>

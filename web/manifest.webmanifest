@@ -1,0 +1,15 @@
+{
+  "name": "MTGA Stats",
+  "short_name": "MTGA Stats",
+  "description": "Lokales Dashboard für MTG Arena: Sammlung, Decks, Matches und Replays.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#100d0b",
+  "theme_color": "#100d0b",
+  "lang": "de",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

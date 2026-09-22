@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Tests (Node ${{ matrix.node }}, Windows)
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Syntax check
+        run: |
+          Get-ChildItem src, web -Include *.js -Recurse | ForEach-Object { node --check $_.FullName }
+      - name: PowerShell parse check
+        run: |
+          Get-ChildItem scripts -Filter *.ps1 | ForEach-Object {
+            $errors = $null
+            [System.Management.Automation.PSParser]::Tokenize((Get-Content $_.FullName -Raw), [ref]$errors) | Out-Null
+            if ($errors.Count) { throw "$($_.Name): $($errors[0].Message)" }
+          }
+      - name: Unit tests
+        run: npm test
