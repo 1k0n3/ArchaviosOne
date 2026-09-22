@@ -348,20 +348,19 @@ window.App = (function () {
   /** Oder-Farbfilter (Bibliothek, Deckbau, Deckansicht) als vorbereitete Prüffunktion: jede gewählte Farbe zählt,
    *  "0"/"c" ergänzt farblose Karten (keine Länder), "m" verlangt mindestens zwei Farben. sel: Set, cc: Farben der Karte */
   /**
-   * Farbauswahl: Farben sind oder-verknüpft, „Land“ zählt als weitere Auswahl (nur Länder bzw.
-   * Länder zusätzlich zu den gewählten Farben), „Mehrfarbig“ schränkt die Treffer weiter ein.
+   * Farbauswahl: Farben sind oder-verknüpft; „Land“ schränkt zusätzlich auf Länder ein (Farben gelten
+   * dann innerhalb der Länder), „Mehrfarbig“ verlangt mindestens zwei Farben.
    */
   function colorMatcher(sel) {
     if (!sel.size) return () => true;
     const pick = [...sel].filter((v) => v !== "0" && v !== "c" && v !== "m" && v !== "l");
     const wantC = sel.has("0") || sel.has("c"), wantM = sel.has("m"), wantLand = sel.has("l");
     return (cc, isLand) => {
-      const colorless = !cc.length && !isLand;
-      const gewaehlt = pick.length || wantC || wantLand;   // Auswahlen, die für sich Treffer liefern
-      let ok = !gewaehlt;
-      if (pick.length && pick.some((v) => cc.includes(v))) ok = true;
-      if (wantC && colorless) ok = true;
-      if (wantLand && isLand) ok = true;
+      if (wantLand && !isLand) return false;
+      // Länder gelten sonst nicht als farblos; ist „Land“ gewählt, zählt ein Land ohne Farben doch dazu
+      const colorless = !cc.length && (!isLand || wantLand);
+      let ok = !pick.length || pick.some((v) => cc.includes(v));
+      if (wantC) ok = pick.length ? (ok || colorless) : colorless;
       return ok && !(wantM && cc.length < 2);
     };
   }
