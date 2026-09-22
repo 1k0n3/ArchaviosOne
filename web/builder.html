@@ -90,7 +90,8 @@ App.load().then(async (D) => {
   const deckIdentity = () => { const s = new Set(); if (fmt().cmd && deck.cmd.length) { for (const g of deck.cmd) for (const x of identityOf(byId.get(g))) s.add(x); return s; } for (const g of Object.keys(deck.main)) for (const x of colorsOf(byId.get(+g) || [])) s.add(x); return s; };
 
   // Commander-Formate: legendäre Kreatur oder Planeswalker; „Partner“ (auch Friends forever) erlaubt einen zweiten Commander
-  const cmdEligible = (c) => String(c[14] || "").includes("L") && /(^|,)(2|8)(,|$)/.test(String(c[6]));
+  // Legendär kommt aus den Kartendaten (Supertyp oder Typzeile), nicht aus dem Rahmen des Drucks
+  const cmdEligible = (c) => A.isLegendary(c) && /(^|,)(2|8)(,|$)/.test(String(c[6]));
   const hasPartner = (g) => /\bPartner\b|Friends forever/.test(String((byId.get(g) || [])[17] || ""));
   function add(g, zone = "main") {
     const c = byId.get(g); if (!c) return;

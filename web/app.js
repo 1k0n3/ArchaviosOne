@@ -99,6 +99,14 @@ window.App = (function () {
   const COLOR_NAMES = { 1: "w", 2: "u", 3: "b", 4: "r", 5: "g" };
   const TYPE_NAMES = { 1: "Artefakt", 2: "Kreatur", 3: "Verzauberung", 4: "Spontanzauber", 5: "Land", 8: "Planeswalker", 10: "Hexerei", 11: "Stammes", 14: "Schlacht" };
   const RARITY_KEY = { Common: "c", Uncommon: "u", Rare: "r", Mythic: "m", Standardland: "c", Token: "t" };
+  /**
+   * Legendär steht in den Kartendaten, nicht im Bild: Kennung "L" (Supertyp aus der Kartendatenbank)
+   * oder das Wort in der Typzeile, in den Sprachen, die das Spiel ausliefert.
+   */
+  const LEGEND_RE = /legend|légend|leggend|lendár|伝説/i;
+  const legendaryOf = (flags, typeLine) => String(flags || "").includes("L") || LEGEND_RE.test(String(typeLine || ""));
+  /** Zeile der Kartenliste (api/cards): [… , 14 = Kennungen, 18 = Typzeile] */
+  const isLegendary = (c) => legendaryOf(c[14], c[18]);
   // Seiten mit eigenen Kartendaten (Bibliothek, Deckbau, Replay) geben ein dict mit; die Verweise merken
   // wir uns, damit auch später erzeugte Teile (z. B. Textkarten) die Karte noch finden
   const dicts = [];
@@ -116,7 +124,7 @@ window.App = (function () {
     const style = flags.includes("R") ? "retro" : flags.includes("M") ? "archive" : flags.includes("F") ? "fullart" : flags.includes("N") ? "nyx" : "std";
     const pt = d[9] !== undefined && d[9] !== "" && d[10] !== "" ? `${d[9]}/${d[10]}` : "";
     const typeText = types.map((x) => TYPE_NAMES[x] ? tr(TYPE_NAMES[x]) : "").filter(Boolean).join(" ");
-    return { name: d[0], set: d[1], nr: d[2], rarity: d[3], token: !!d[4], art: d[5] || 0, colors, types, frame, isLand, creature: types.includes(2), flags, style, legendary: flags.includes("L"), pt, typeText, typeLine: d[12] || typeText, text: d[11] || "", cost: d[13] || "", rar: RARITY_KEY[d[3]] || "c" };
+    return { name: d[0], set: d[1], nr: d[2], rarity: d[3], token: !!d[4], art: d[5] || 0, colors, types, frame, isLand, creature: types.includes(2), flags, style, legendary: legendaryOf(flags, d[12] || typeText), pt, typeText, typeLine: d[12] || typeText, text: d[11] || "", cost: d[13] || "", rar: RARITY_KEY[d[3]] || "c" };
   }
   const cardName = (g, dict) => card(g, dict).name;
   const artOf = (g, dict) => card(g, dict).art;
@@ -463,7 +471,7 @@ window.App = (function () {
         if (q && !c[1].toLowerCase().includes(q) && !(text && (String(c[17] || "").toLowerCase().includes(q) || String(c[18] || "").toLowerCase().includes(q)))) return false;
         if (set && c[2] !== set) return false;
         if (rar && String(c[4]) !== rar) return false;
-        if (t === "L" ? !String(c[14] || "").includes("L") : (t && !String(c[6]).split(",").includes(t))) return false;
+        if (t === "L" ? !isLegendary(c) : (t && !String(c[6]).split(",").includes(t))) return false;
         if (m && (m === "x" ? !/x/i.test(String(c[10] || "")) : m === "7" ? c[8] < 7 : c[8] !== +m)) return false;
         return col(String(c[5]).split(",").filter(Boolean), String(c[6]).split(",").includes("5"));
       };
@@ -1059,7 +1067,7 @@ window.App = (function () {
         if (!cc.rarity) cc.rarity = typeof d.rarity === "number" ? (RAR_NAME[d.rarity] || "") : (d.rarity || "");
         if (!cc.colors.length && (d.colors || []).length) cc.colors = d.colors.map((x) => ({ 1: "w", 2: "u", 3: "b", 4: "r", 5: "g" })[x]).filter(Boolean);
         if (!cc.typeLine && d.typeLine) cc.typeLine = d.typeLine;
-        if (d.flags && !cc.flags) { cc.flags = d.flags; cc.legendary = d.flags.includes("L"); }
+        if (d.flags && !cc.flags) { cc.flags = d.flags; cc.legendary = legendaryOf(d.flags, d.typeLine || cc.typeLine); }
         const land = /(^|\s)(Land|Ländereien?)(\s|—|$)/i.test(d.typeLine || "");
         cc.isLand = cc.isLand || land;
         if (cc.frame === "c") cc.frame = cc.colors.length > 1 ? "m" : cc.colors.length === 1 ? cc.colors[0] : cc.isLand ? "l" : "c";
@@ -1131,5 +1139,5 @@ window.App = (function () {
     setInterval(check, 20000);
   })();
 
-  return { load, get DATA() { return DATA; }, $, $$, esc, num, card, cardName, artOf, artCanvas, cardTile, cardHtml, textCard, cardUsage, cardSorter, get ohneBilder() { return ohneBilder; }, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, filterIcon, uiIcon, zoomMenu, cardRow, longPress, openMenu, colorMatch, cardFilterBar, qtyHtml, ownHtml, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, selectToDropdown, enhanceSelects, settingsTabs, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, colorBarHtml, cmcOf, loadedImgs, t: tr, isMobile, foldable, get LOGO() { return logoSvg(); } };
+  return { load, get DATA() { return DATA; }, $, $$, esc, num, card, cardName, artOf, artCanvas, cardTile, cardHtml, textCard, cardUsage, cardSorter, isLegendary, get ohneBilder() { return ohneBilder; }, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, filterIcon, uiIcon, zoomMenu, cardRow, longPress, openMenu, colorMatch, cardFilterBar, qtyHtml, ownHtml, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, selectToDropdown, enhanceSelects, settingsTabs, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, colorBarHtml, cmcOf, loadedImgs, t: tr, isMobile, foldable, get LOGO() { return logoSvg(); } };
 })();
