@@ -172,12 +172,12 @@ App.load().then(async (D) => {
     const hintX = `<button type="button" class="dp-x" title="${T("Ausblenden")}">${FI.x}</button>`;
     const ok = n >= f.min && (!f.max || n <= f.max);
     panel.innerHTML = `
-      <div class="dp-handle" id="dp-handle"><div class="cnt ${ok ? "ok" : ""}">${n}<i>/${f.max || f.min}</i></div><div class="hx"><div class="nm">${A.esc(deck.name)}</div><div class="hs">${A.esc(f.label)} · ${T("{n} Länder", { n: st.lands })} · Ø ${st.avgCmc.toFixed(1)} · <span class="${probs.length ? "bad" : "good"}">${probs.length ? probs.length + " " + T("Hinweise") : T("regelkonform")}</span></div><div class="mini-bar"><i style="width:${Math.min(100, Math.round(100 * n / (f.max || f.min)))}%"></i></div></div><span class="chev">${FI.chevron}</span></div>
+      <div class="dp-handle" id="dp-handle"><div class="cnt ${ok ? "ok" : ""}">${n}<i>/${f.max || f.min}</i></div><div class="hx"><div class="nm">${A.esc(deck.name)}</div><div class="hs">${A.esc(f.label)} · ${T("{n} Länder", { n: st.lands })} · Ø ${A.num(st.avgCmc, 1)} · <span class="${probs.length ? "bad" : "good"}">${probs.length ? probs.length + " " + T("Hinweise") : T("regelkonform")}</span></div><div class="mini-bar"><i style="width:${Math.min(100, Math.round(100 * n / (f.max || f.min)))}%"></i></div></div><span class="chev">${FI.chevron}</span></div>
       <div class="dp-head"><input class="dp-name" id="dp-name" value="${A.esc(deck.name)}" maxlength="60" spellcheck="false" title="${T("Deckname")}"><button type="button" class="icon-btn" id="dp-new" title="${T("Neues Deck")}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button><button type="button" class="icon-btn ghost" id="dp-dup" title="${T("Deck duplizieren")}">${FI.copies}</button><button type="button" class="icon-btn ghost" id="dp-imp" title="${T("Aus Arena-Text einfügen …")}">${FI.download}</button>
         <div id="dp-format"></div><div id="dp-menu"></div><button type="button" class="icon-btn ghost danger" id="dp-del" title="${T("Dieses Deck löschen")}">${FI.x}</button></div>
       <div class="dp-import hidden" id="dp-import"><textarea id="dp-imp-text" placeholder="${T("Deckliste im Arena-Format einfügen (z. B. „4 Lightning Bolt (M21) 199“)")}" spellcheck="false"></textarea><div class="row"><button class="primary small" id="dp-imp-ok">${FI.check} ${T("Importieren")}</button><button class="ghost small" id="dp-imp-cancel">${T("Abbrechen")}</button></div></div>
       ${hintHidden ? "" : probs.length ? `<div class="dp-probs">${probs.map((p) => `<div>${FI.warn} ${A.esc(p)}</div>`).join("")}${hintX}</div>` : `<div class="dp-ok">${FI.check} <span>${T("Deck ist regelkonform")}</span>${hintX}</div>`}
-      <div class="dp-meta"><span class="cnt ${n >= f.min && (!f.max || n <= f.max) ? "ok" : ""}">${n}${f.max ? "/" + f.max : "/" + f.min}</span><span class="pips">${[...deckIdentity()].map((c) => A.manaSymbol({ 1: "w", 2: "u", 3: "b", 4: "r", 5: "g" }[c])).join("")}</span><span class="muted small">${T("{n} Länder", { n: st.lands })} · Ø ${st.avgCmc.toFixed(1)}</span></div>
+      <div class="dp-meta"><span class="cnt ${n >= f.min && (!f.max || n <= f.max) ? "ok" : ""}">${n}${f.max ? "/" + f.max : "/" + f.min}</span><span class="pips">${[...deckIdentity()].map((c) => A.manaSymbol({ 1: "w", 2: "u", 3: "b", 4: "r", 5: "g" }[c])).join("")}</span><span class="muted small">${T("{n} Länder", { n: st.lands })} · Ø ${A.num(st.avgCmc, 1)}</span></div>
       <div class="dp-curve">${st.curve.map((v, i) => `<div class="bar" style="--h:${Math.round(100 * v / Math.max(1, ...st.curve))}%" title="${T("{n} Karten mit Manawert {v}", { n: v, v: i === 7 ? "7+" : i })}"><b>${v || ""}</b><i></i><span>${i === 7 ? "7+" : i}</span></div>`).join("")}</div>
       <div class="dp-colors" title="${T("Manaverteilung")}">${A.colorBarHtml(st.colors)}</div>
       ${D.site || !window.Assistant ? "" : `<button type="button" class="dp-asst" id="dp-asst">${ASST_ICON} ${T("Assistent fragen")}</button>`}
@@ -305,7 +305,7 @@ App.load().then(async (D) => {
   // ---- Pool: Filter, Sortierung, Kacheln --------------------------------------------------------------------
   // Filterleiste (gemeinsam mit der Bibliothek): Suche auch im Regeltext, Besitz zusätzlich "passend zur Farbidentität"
   const F = A.cardFilterBar({ key: "builder", grid: A.$("#grid"), sets, searchPlaceholder: T("Name oder Regeltext suchen"), textSearch: true, sizeKey: "mtga-builder-tile", sizeMin: 80, sizeMax: 200,
-    ownItems: [{ v: "id", label: T("Passend zur Farbidentität"), short: T("Identität"), icon: FI.deck }], sort: ["name", "cmc", "wins", "rarity", "set", "owned"], onChange: () => renderPool() });
+    ownItems: [{ v: "id", label: T("Passend zur Farbidentität"), short: T("Identität"), icon: FI.deck }], sort: ["color", "indeck", "name", "cmc", "wins", "rarity", "set", "owned"], sortDefault: "color", onChange: () => renderPool() });
   let page = 0, current = [];
   // Commander gesetzt oder gewechselt: Farbfilter auf seine Farbidentität plus Farblos stellen (ohne Commander: Filter frei)
   let cmdKey = null, cmdPick = false;
@@ -334,14 +334,24 @@ App.load().then(async (D) => {
     }
     const list = [...best.values()];
     const byName = (a, b) => a[1].localeCompare(b[1], "en");
+    // Farbreihenfolge wie in Arena: Weiß, Blau, Schwarz, Rot, Grün, mehrfarbig, farblos, Länder
+    const colorKey = (c) => { if (String(c[6]).split(",").includes("5")) return 90; const cc = String(c[5] || "").split(",").filter(Boolean); return cc.length === 1 ? +cc[0] : cc.length > 1 ? 10 + cc.length : 80; };
     list.sort((a, b) => {
+      if (s === "color") return (colorKey(a) - colorKey(b)) || String(a[5]).localeCompare(String(b[5])) || (a[8] - b[8]) || byName(a, b);
       if (s === "cmc") return (a[8] - b[8]) || byName(a, b);
       if (s === "wins") { const x = useOf(a), y = useOf(b); return (y.w - x.w) || (y.p - x.p) || byName(a, b); }
       if (s === "rarity") return (b[4] - a[4]) || byName(a, b);
       if (s === "set") return a[2].localeCompare(b[2]) || String(a[3]).localeCompare(String(b[3]), undefined, { numeric: true });
       if (s === "owned") return (ownedOf(b) - ownedOf(a)) || byName(a, b);
+      if (s === "indeck") return (colorKey(a) - colorKey(b)) || String(a[5]).localeCompare(String(b[5])) || (a[8] - b[8]) || byName(a, b);
       return byName(a, b);
     });
+    if (s === "indeck") {
+      // Druckunabhängig über den Namen: im Pool steht oft ein anderer Druck als im Deck
+      const names = new Set([...Object.keys(deck.main), ...Object.keys(deck.side), ...deck.cmd].map((g) => (byId.get(+g) || [])[1]).filter(Boolean));
+      const top = list.filter((c) => names.has(c[1]));
+      return top.concat(list.filter((c) => !names.has(c[1])));
+    }
     return list;
   }
   function renderPool() {

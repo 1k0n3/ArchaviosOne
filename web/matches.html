@@ -24,8 +24,7 @@ App.load().then((D) => {
   if (A.isMobile()) { A.shell("matches.html", `<div class="topbar"><div><h1>${T("Matches")}</h1></div></div><div class="empty">${T("Die Match-Liste ist für große Bildschirme gedacht. Die letzten Matches findest du in der Übersicht.")}</div><p><a class="btn-replay" href="index.html">${T("Übersicht")}</a></p>`); return; }
   A.shell("matches.html", `
     <div class="topbar"><div><h1>${T("Matches")}</h1><div class="sub" id="count"></div></div>
-      <div class="right filters search-col"><div id="f-opp"></div></div></div>
-    <div class="topbar filters-bar"><div class="right filters"><div id="f-result"></div><div id="f-deck"></div></div></div>
+      <div class="right filters search-col"><div id="f-result"></div><div id="f-deck"></div><div id="f-opp"></div></div></div>
     <div class="panel" style="padding:6px 8px"><table id="tbl"><thead><tr><th>${T("Wann")}</th><th>${T("Ergebnis")}</th><th>${T("Deck")}</th><th>${T("Gegner")}</th><th>${T("Event")}</th><th>${T("Züge")}</th><th>${T("Dauer")}</th><th>${T("Beginn")}</th><th>${T("Gegnerkarten")}</th><th></th></tr></thead><tbody></tbody></table></div>
   `);
   let result = "";

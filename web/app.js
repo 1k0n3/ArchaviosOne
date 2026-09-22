@@ -6,6 +6,8 @@ window.App = (function () {
   const $$ = (sel, root) => [...(root || document).querySelectorAll(sel)];
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const pad = (n) => String(n).padStart(2, "0");
+  /** Zahl in der Schreibweise der UI-Sprache (de: 63,4 und 12.480); d = feste Nachkommastellen */
+  const num = (x, d) => Number(x || 0).toLocaleString(window.I18N ? window.I18N.lang : undefined, d == null ? undefined : { minimumFractionDigits: d, maximumFractionDigits: d });
   let DATA = window.MTGA_DATA || null;
   // Übersetzung (web/i18n.js); ohne Modul bleiben die deutschen Texte, Platzhalter werden trotzdem ersetzt
   const tr = window.I18N ? window.I18N.t : (k, vars) => { let s = k; if (vars) for (const x of Object.keys(vars)) s = s.split("{" + x + "}").join(vars[x]); return s; };
@@ -357,6 +359,8 @@ window.App = (function () {
   }
   const colorMatch = (sel, cc, isLand) => colorMatcher(sel)(cc, isLand);
   const SORT_ITEMS = {
+    color: () => ({ v: "color", label: tr("Farbe und Manawert"), short: tr("Farbe"), icon: FI.set }),
+    indeck: () => ({ v: "indeck", label: tr("Im Deck zuerst"), short: tr("Im Deck"), icon: FI.deck }),
     name: () => ({ v: "name", label: tr("Name A–Z"), short: tr("Name"), icon: FI.az }), cmc: () => ({ v: "cmc", label: tr("Manawert"), short: tr("Mana"), icon: FI.mana }),
     wins: () => ({ v: "wins", label: tr("Meiste Siege"), short: tr("Siege"), icon: FI.trophy }), played: () => ({ v: "played", label: tr("Meist gespielt"), short: tr("Gespielt"), icon: FI.play }),
     decks: () => ({ v: "decks", label: tr("Meist in Decks"), short: tr("Decks"), icon: FI.deck }), owned: () => ({ v: "owned", label: tr("Meiste Exemplare"), short: tr("Exemplare"), icon: FI.copies }),
@@ -380,7 +384,7 @@ window.App = (function () {
     else { bar.innerHTML = `<span class="count" id="count"></span><div id="f-q"></div>`; bar.classList.add("search-col"); bar.closest(".topbar").after(fbar); lib.remove(); }   // Zähler, Suche, Zoom-Menü in der Titelzeile rechts
     const colors = new Set(), F = { colors };
     let view = "grid"; try { view = localStorage.getItem("mtga-view:" + o.key) || "grid"; } catch (e) { /* ohne Speicher */ }
-    const active = () => !!(F.q.value || F.set.value || F.rar.value || F.type.value || F.cmc.value || colors.size || F.own.value !== "1" || F.sort.value !== "name");
+    const active = () => !!(F.q.value || F.set.value || F.rar.value || F.type.value || F.cmc.value || colors.size || F.own.value !== "1" || F.sort.value !== (o.sortDefault || "name"));
     const paintReset = () => $("#f-reset").classList.toggle("show", active());
     const change = () => { paintReset(); o.onChange(); };
     F.q = searchBox($("#f-q"), { placeholder: o.searchPlaceholder || tr("Name suchen"), value: o.searchValue || "", onInput: debounce(change, 160) });
@@ -391,13 +395,13 @@ window.App = (function () {
     F.cmc = dropdown($("#f-cmc"), { title: tr("Manawert"), onChange: change, items: [{ v: "", label: tr("Jeder Manawert"), short: "", icon: FI.mana }, ...[0, 1, 2, 3, 4, 5, 6].map((n) => ({ v: String(n), label: String(n), short: "", icon: manaSymbol(String(n)) })), { v: "7", label: "7+", short: "", icon: manaSymbol("7") }, { v: "x", label: "X", short: "", icon: manaSymbol("x") }] });
     $("#f-cmc").classList.add("icon-only", "cmc");
     F.own = dropdown($("#f-own"), { title: tr("Besitz"), value: o.ownValue || "1", defaultValue: "1", onChange: change, items: [{ v: "1", label: tr("Im Besitz"), icon: FI.check }, { v: "", label: tr("Alle Karten"), short: tr("Alle"), icon: FI.all }, { v: "0", label: tr("Fehlende"), icon: FI.x }, ...(o.ownItems || [])] });
-    F.sort = dropdown($("#f-sort"), { title: tr("Sortierung"), value: o.sortValue || "name", defaultValue: "name", onChange: change, items: o.sort.map((k) => SORT_ITEMS[k]()) });
+    F.sort = dropdown($("#f-sort"), { title: tr("Sortierung"), value: o.sortValue || o.sortDefault || "name", defaultValue: o.sortDefault || "name", onChange: change, items: o.sort.map((k) => SORT_ITEMS[k]()) });
     $$("#f-colors button").forEach((b) => b.addEventListener("click", () => { const v = b.dataset.v; if (colors.has(v)) colors.delete(v); else colors.add(v); b.classList.toggle("on", colors.has(v)); change(); }));
     F.setColors = (vals) => { colors.clear(); for (const v of vals) colors.add(v); $$("#f-colors button").forEach((b) => b.classList.toggle("on", colors.has(b.dataset.v))); paintReset(); };
-    $("#f-reset").addEventListener("click", () => { F.set.value = ""; F.rar.value = ""; F.type.value = ""; F.cmc.value = ""; F.own.value = "1"; F.sort.value = "name"; F.setColors([]); F.q.value = ""; F.q.dispatchEvent(new Event("input")); });
+    $("#f-reset").addEventListener("click", () => { F.set.value = ""; F.rar.value = ""; F.type.value = ""; F.cmc.value = ""; F.own.value = "1"; F.sort.value = (o.sortDefault || "name"); F.setColors([]); F.q.value = ""; F.q.dispatchEvent(new Event("input")); });
     sizeSlider($("#f-size"), grid, o.sizeKey || "mtga-tile-w", o.sizeMin || 90, o.sizeMax || 220);
     grid.classList.toggle("listview", view === "list");
-    zoomMenu(mobile ? lib : bar, $("#f-size"), mobile ? $("#count") : null, { view, onView: (v) => { view = v; try { localStorage.setItem("mtga-view:" + o.key, v); } catch (e) { /* ignorieren */ } grid.classList.toggle("listview", v === "list"); o.onChange(); } });
+    zoomMenu(mobile ? lib : fbar, $("#f-size"), mobile ? $("#count") : null, { view, onView: (v) => { view = v; try { localStorage.setItem("mtga-view:" + o.key, v); } catch (e) { /* ignorieren */ } grid.classList.toggle("listview", v === "list"); o.onChange(); } });
     if (mobile) $(".right.filters", fbar).append($("#f-set"), $("#f-own"), $("#f-sort"), $("#f-type"), $("#f-rar"), $("#f-cmc"), $("#f-colors"), $("#f-reset"));
     F.view = () => view;
     F.count = (t) => { $("#count").textContent = t; };
@@ -503,7 +507,7 @@ window.App = (function () {
     return `<div class="deck-facts-head fold-head" data-fold="deck-facts">${tr("Statistik")}<span class="fold-chev">${FI.chevron}</span></div><div class="deck-facts">
       <div class="df-left">
         <div class="ds-block colors"><div class="ds-t">${tr("Farben")}</div>${colorBarHtml(st.colors)}</div>
-        <div class="tiles stat-rows fact-tiles">${tile(tr("Kreaturen"), st.creatures, FI.creature)}${tile(tr("Zauber"), st.spells, FI.instant)}${tile(tr("Andere"), st.others, FI.artifact)}${tile(tr("Länder"), st.lands, FI.land)}${tile(tr("Nichtländer"), st.nonLand, FI.copies)}${tile(tr("Ø Manawert"), st.avgCmc.toFixed(1), FI.mana)}</div>
+        <div class="tiles stat-rows fact-tiles">${tile(tr("Kreaturen"), st.creatures, FI.creature)}${tile(tr("Zauber"), st.spells, FI.instant)}${tile(tr("Andere"), st.others, FI.artifact)}${tile(tr("Länder"), st.lands, FI.land)}${tile(tr("Nichtländer"), st.nonLand, FI.copies)}${tile(tr("Ø Manawert"), num(st.avgCmc, 1), FI.mana)}</div>
       </div>
       <div class="ds-block curve"><div class="ds-t">${tr("Manakurve")}</div><div class="curve">${curve}</div></div>
     </div>`;
@@ -734,8 +738,13 @@ window.App = (function () {
     if (!show) { tip.style.display = "none"; return; }
     tip.innerHTML = html;
     tip.style.display = "block";
-    tip.style.left = Math.min(ev.clientX + 16, window.innerWidth - tip.offsetWidth - 8) + "px";
-    tip.style.top = Math.min(ev.clientY + 16, window.innerHeight - tip.offsetHeight - 8) + "px";
+    // Standard rechts unterhalb des Zeigers; stößt der Tooltip an den Rand, wechselt er auf die andere Seite
+    const tw = tip.offsetWidth, th = tip.offsetHeight, gap = 16;
+    let x = ev.clientX + gap, y = ev.clientY + gap;
+    if (x + tw > window.innerWidth - 8) x = ev.clientX - tw - gap;
+    if (y + th > window.innerHeight - 8) y = ev.clientY - th - gap;
+    tip.style.left = Math.max(8, x) + "px";
+    tip.style.top = Math.max(8, y) + "px";
   }
 
   // ---- Diagramme ---------------------------------------------------------------------------------
@@ -814,7 +823,7 @@ window.App = (function () {
       const [t1, t2] = opts.twoLine ? String(r.label).split(" · ") : [r.label];
       const text = `<span class="t1">${esc(t1)}</span>${t2 ? `<span class="t2">${esc(t2)}</span>` : ""}`;
       const label = opts.link ? `<a href="${opts.link(r)}">${text}</a>` : text;
-      const art = r.tile != null ? `<div class="art">${artCanvas(artOf(r.tile))}</div>` : "";
+      const art = r.tile != null ? `<div class="art">${artOf(r.tile) ? artCanvas(artOf(r.tile)) : (r.tile ? `<img src="card-img/${r.tile}?v=art" alt="" loading="lazy" onerror="this.remove()">` : "")}</div>` : "";
       return `<div class="bar-row ${t2 ? "two" : ""}" data-tip="${esc(r.tipHtml || "")}"><div class="lbl">${art}<span class="t">${label}</span> <span class="muted small">(${n})</span></div><div class="bar-track"><div class="w" style="width:${wp}%"></div><div class="l" style="width:${lp}%"></div></div><div><b>${pct} %</b></div></div>`;
     }).join("") || `<div class="empty">${tr("Keine Daten")}</div>`;
     $$(".bar-row", el).forEach((row, i) => {
@@ -1071,5 +1080,5 @@ window.App = (function () {
     setInterval(check, 20000);
   })();
 
-  return { load, get DATA() { return DATA; }, $, $$, esc, card, cardName, artOf, artCanvas, cardTile, cardHtml, textCard, get ohneBilder() { return ohneBilder; }, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, filterIcon, uiIcon, zoomMenu, cardRow, longPress, openMenu, colorMatch, cardFilterBar, qtyHtml, ownHtml, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, selectToDropdown, enhanceSelects, settingsTabs, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, colorBarHtml, cmcOf, loadedImgs, t: tr, isMobile, foldable, get LOGO() { return logoSvg(); } };
+  return { load, get DATA() { return DATA; }, $, $$, esc, num, card, cardName, artOf, artCanvas, cardTile, cardHtml, textCard, get ohneBilder() { return ohneBilder; }, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, filterIcon, uiIcon, zoomMenu, cardRow, longPress, openMenu, colorMatch, cardFilterBar, qtyHtml, ownHtml, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, selectToDropdown, enhanceSelects, settingsTabs, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, colorBarHtml, cmcOf, loadedImgs, t: tr, isMobile, foldable, get LOGO() { return logoSvg(); } };
 })();

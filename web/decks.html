@@ -24,8 +24,7 @@ App.load().then((D) => {
   const ZONES = [["CommandZone", T("Commander")], ["Companions", T("Companion")], ["MainDeck", T("Deck")], ["Sideboard", T("Sideboard")]];
   A.shell("decks.html", `
     <div class="topbar"><div><h1>${T("Decks")}</h1><div class="sub" id="count"></div></div>
-      <div class="right filters search-col"><div id="f-q"></div></div></div>
-    <div class="topbar filters-bar"><div class="right filters"><div id="f-format"></div><div id="f-played"></div></div></div>
+      <div class="right filters search-col"><div id="f-format"></div><div id="f-played"></div><div id="f-q"></div></div></div>
     <div id="detail"></div>
     <div class="deck-grid" id="list"></div>
   `);
@@ -33,7 +32,7 @@ App.load().then((D) => {
   const FI = A.FI, relist = () => renderList();
   const fQ = A.searchBox(A.$("#f-q"), { placeholder: T("Deck oder Karte suchen"), onInput: A.debounce(relist, 150) });
   // Handy: Suche als fixierte Leiste unter den Filtern, direkt über den Decks
-  if (A.isMobile()) { const lb = document.createElement("div"); lb.className = "lib-bar"; lb.append(A.$("#f-q")); A.$(".topbar.filters-bar").after(lb); }
+  if (A.isMobile()) { const lb = document.createElement("div"); lb.className = "lib-bar"; lb.append(A.$("#f-q")); A.$(".topbar").after(lb); }
   const fFormat = A.dropdown(A.$("#f-format"), { title: T("Format"), onChange: relist, items: [{ v: "", label: T("Alle Formate"), short: T("Format"), icon: FI.set }, ...[...new Set(D.decks.map((d) => d.format).filter(Boolean))].sort().map((f) => ({ v: f, label: f, icon: FI.set }))] });
   A.dropdown(A.$("#f-played"), { title: T("Nutzung"), onChange: (v) => { onlyPlayed = v === "1"; onlyArchived = v === "2"; renderList(); }, items: [{ v: "0", label: T("Alle Decks"), short: T("Alle"), icon: FI.all }, { v: "1", label: T("Nur gespielte"), short: T("Gespielte"), icon: FI.play }, ...(D.decks.some((d) => d.archived) ? [{ v: "2", label: T("Archiv (in Arena gelöscht)"), short: T("Archiv"), icon: FI.deck }] : [])] });
 
@@ -92,11 +91,11 @@ App.load().then((D) => {
       <a class="back-link" id="back-decks" href="decks.html">${A.FI.chevron} ${T("Alle Decks")}</a>
       <div class="deck-head">
         ${A.deckBox(d, { cls: "sm", sub: commanderOf(d) })}
-        <div class="info"><div class="t">${A.esc(d.name)}</div><div class="small muted">${A.esc(commanderOf(d))} · ${A.esc(d.format || "")} · ${T("{n} Karten", { n: cardCount(d) })} · ${T("zuletzt geändert {d}", { d: d.lastUpdated ? A.fmtDate(d.lastUpdated) : "?" })}${d.archived ? ` · <b>${T("in Arena gelöscht, archiviert am {d}", { d: d.archivedAt ? A.fmtDate(d.archivedAt) : "?" })}</b>` : ""}${d.fromMatch ? " · " + T("Deckliste aus dem letzten Match") : ""}</div>
-          <div class="tiles stat-rows">${tile(T("Matches"), s.n)}${tile(T("Siege"), s.w, "win")}${tile(T("Niederlagen"), s.l, "loss")}${tile(T("Winrate"), s.n ? Math.round(s.rate * 100) + " %" : "–", s.n ? (s.rate >= .5 ? "win" : "loss") : "")}${tile(T("Ø Züge"), s.n ? s.avgTurns.toFixed(1) : "–")}${tile(T("Ø Dauer"), s.n ? A.fmtDur(s.avgDur) : "–")}</div></div>
+        <div class="info"><div class="t"><span class="tn">${A.esc(d.name)}</span><button type="button" class="primary small edit-deck" onclick="location.href='builder.html?deck=${encodeURIComponent(d.id)}'" title="${T("Im Deckbau bearbeiten")}">${A.FI.edit} ${T("Bearbeiten")}</button></div><div class="small muted">${A.esc(commanderOf(d))} · ${A.esc(d.format || "")} · ${T("{n} Karten", { n: cardCount(d) })} · ${T("zuletzt geändert {d}", { d: d.lastUpdated ? A.fmtDate(d.lastUpdated) : "?" })}${d.archived ? ` · <b>${T("in Arena gelöscht, archiviert am {d}", { d: d.archivedAt ? A.fmtDate(d.archivedAt) : "?" })}</b>` : ""}${d.fromMatch ? " · " + T("Deckliste aus dem letzten Match") : ""}</div>
+          <div class="tiles stat-rows">${tile(T("Matches"), s.n)}${tile(T("Siege"), s.w, "win")}${tile(T("Niederlagen"), s.l, "loss")}${tile(T("Winrate"), s.n ? Math.round(s.rate * 100) + " %" : "–", s.n ? (s.rate >= .5 ? "win" : "loss") : "")}${tile(T("Ø Züge"), s.n ? A.num(s.avgTurns, 1) : "–")}${tile(T("Ø Dauer"), s.n ? A.fmtDur(s.avgDur) : "–")}</div></div>
         <div class="deck-side"><div class="col export"><h3>${T("Deckliste exportieren")}</h3>
-          <div class="export-actions"><button class="primary small" id="copy-exp" title="${T("Arena-Importformat in die Zwischenablage")}">${A.FI.copies} ${T("Für Arena kopieren")}</button><button class="ghost small" id="save-exp" title="${T("Als Textdatei herunterladen")}">${A.FI.download} ${T("Als .txt speichern")}</button><button class="ghost small" id="toggle-exp">▾ ${T("Anzeigen")}</button><a class="ghost small edit-deck" href="builder.html?deck=${encodeURIComponent(d.id)}" title="${T("Im Deckbau bearbeiten")}">${A.FI.edit} ${T("Bearbeiten")}</a></div>
-          <pre class="export collapsed" id="exp" title="${T("Klick zum Auf- und Zuklappen")}">${A.esc(deckText(d))}</pre></div>
+          <div class="export-actions"><button class="small" id="copy-exp" title="${T("Arena-Importformat in die Zwischenablage")}">${A.FI.copies} ${T("Für Arena kopieren")}</button><button class="ghost small" id="save-exp" title="${T("Als Textdatei herunterladen")}">${A.FI.download} ${T("Als .txt speichern")}</button></div>
+          <div class="exp-wrap"><pre class="export collapsed" id="exp" title="${T("Klick zum Auf- und Zuklappen")}">${A.esc(deckText(d))}</pre><button type="button" class="exp-more" id="toggle-exp">… ${T("mehr")}</button></div></div>
         <div class="col matches"><h3>${T("Matches mit diesem Deck")}</h3>
           <table><tbody>${ms.slice(0, 6).map((m) => `<tr class="clickable" onclick="location.href='replay.html?id=${m.matchId}'"><td>${A.relDate(m.start)}</td><td>${A.resultBadge(m.result)}</td><td>${A.esc(m.opponent)}</td><td class="muted small">${m.turns} ${T("Züge")}</td><td class="play">${A.replayLink(m.matchId, true)}</td></tr>`).join("") || `<tr><td class="muted">${T("noch keine")}</td></tr>`}</tbody></table>
           ${ms.length > 6 ? `<a class="small" href="matches.html?deck=${encodeURIComponent(label(d))}">${T("alle {n} anzeigen →", { n: ms.length })}</a>` : ""}</div></div>
@@ -113,9 +112,9 @@ App.load().then((D) => {
     A.$("#save-exp").addEventListener("click", () => { const u = URL.createObjectURL(new Blob([expText], { type: "text/plain;charset=utf-8" })); const l = document.createElement("a"); l.href = u; l.download = d.name.replace(/[\/:*?"<>|]+/g, "_") + ".txt"; l.click(); setTimeout(() => URL.revokeObjectURL(u), 1000); });
     // Export-Vorschau: Klick (ohne Textauswahl) klappt auf/zu, Knopf ebenso; Klick außerhalb oder Esc klappt wieder zu
     const exp = A.$("#exp"), expBtn = A.$("#toggle-exp");
-    const setExp = (open) => { exp.classList.toggle("collapsed", !open); expBtn.innerHTML = open ? "▴ " + T("Einklappen") : "▾ " + T("Anzeigen"); };
+    const setExp = (open) => { exp.classList.toggle("collapsed", !open); expBtn.textContent = open ? "▴ " + T("weniger") : "… " + T("mehr"); };
     exp.addEventListener("click", () => { if (String(getSelection()).length) return; setExp(exp.classList.contains("collapsed")); });
-    expBtn.addEventListener("click", () => setExp(exp.classList.contains("collapsed")));
+    expBtn.addEventListener("click", (ev) => { ev.stopPropagation(); setExp(exp.classList.contains("collapsed")); });
     document.addEventListener("click", (ev) => { if (exp.isConnected && !exp.classList.contains("collapsed") && !ev.target.closest(".col.export")) setExp(false); });
     document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && exp.isConnected) setExp(false); });
     const zonesEl = A.$("#zones");

@@ -47,16 +47,16 @@ App.load().then((D) => {
   const FI = A.FI, rerender = () => render();
   A.foldable(A.$("#h-charts"), A.$("#charts"), "index-charts", !A.isMobile());
   A.foldable(A.$("#h-recent"), A.$("#recent-panel"), "index-recent", !A.isMobile());
-  A.foldable(A.$("#h-platform"), A.$("#rate-platform"), "index-platform", false);   // Gegner-Plattform standardmäßig zu
+  A.foldable(A.$("#h-platform"), A.$("#rate-platform"), "index-platform", true);   // Gegner-Plattform standardmäßig offen
   const fRange = A.dropdown(A.$("#f-range"), { title: T("Zeitraum"), value: "30", defaultValue: "30", onChange: (v) => { range = +v; render(); }, items: [
     { v: "7", label: T("Letzte 7 Tage"), short: T("7 Tage"), icon: FI.calendar }, { v: "30", label: T("Letzte 30 Tage"), short: T("30 Tage"), icon: FI.calendar }, { v: "90", label: T("Letzte 90 Tage"), short: T("90 Tage"), icon: FI.calendar }, { v: "0", label: T("Alle Matches"), short: T("Alle"), icon: FI.all }] });
   const fFormat = A.dropdown(A.$("#f-format"), { title: T("Format"), onChange: rerender, items: [{ v: "", label: T("Alle Formate"), short: T("Format"), icon: FI.set }, ...[...new Set(D.matches.map((m) => m.format).filter(Boolean))].sort().map((f) => ({ v: f, label: f, icon: FI.set }))] });
   const fDeck = A.dropdown(A.$("#f-deck"), { title: T("Deck"), searchable: true, onChange: rerender, items: [{ v: "", label: T("Alle Decks"), short: T("Deck"), icon: FI.deck }, ...[...new Set(D.matches.map(A.deckLabel))].sort().map((d) => ({ v: d, label: d, icon: FI.deck }))] });
 
   const isW = (m) => m.result === "Sieg", isL = (m) => m.result === "Niederlage";
-  const matchLine = (m) => `<div class="row"><span class="${isW(m) ? "dotw" : "dotl"}"></span>${A.fmtTime(m.start)} ${A.esc(T(m.result))} vs <b>${A.esc(m.opponent)}</b> <span class="muted">(${A.esc(m.myDeck)}, ${m.turns} ${T("Züge")})</span></div>`;
+  const matchLine = (m) => `<div class="row"><span class="${isW(m) ? "dotw" : "dotl"}"></span><span>${A.fmtTime(m.start)} ${A.esc(T(m.result))} <span style="white-space:nowrap">vs&nbsp;<b>${A.esc(m.opponent)}</b></span> <span class="muted">(${A.esc(m.myDeck)}, ${m.turns} ${T("Züge")})</span></span></div>`;
   const rateOf = (map, tileFn) => [...map.entries()].map(([label, ms]) => ({ label, tile: tileFn ? tileFn(ms[0]) : undefined, w: ms.filter(isW).length, l: ms.filter(isL).length,
-    tipHtml: `<b>${A.esc(label)}</b><br>${T("{w} Siege, {l} Niederlagen", { w: ms.filter(isW).length, l: ms.filter(isL).length })} · Ø ${(ms.reduce((s, m) => s + m.turns, 0) / ms.length).toFixed(1)} ${T("Züge")}<br><span class="muted">${T("zuletzt {d}", { d: A.relDate(Math.max(...ms.map((m) => m.start))) })}</span>` }))
+    tipHtml: `<b>${A.esc(label)}</b><br>${T("{w} Siege, {l} Niederlagen", { w: ms.filter(isW).length, l: ms.filter(isL).length })} · Ø ${A.num(ms.reduce((s, m) => s + m.turns, 0) / ms.length, 1)} ${T("Züge")}<br><span class="muted">${T("zuletzt {d}", { d: A.relDate(Math.max(...ms.map((m) => m.start))) })}</span>` }))
     .sort((a, b) => (b.w + b.l) - (a.w + a.l));
 
   function filtered() {
@@ -113,14 +113,14 @@ App.load().then((D) => {
     const cards = [
       rankCard("constructed", a.rank && a.rank.constructed, T("Constructed")),
       rankCard("limited", a.rank && a.rank.limited, T("Limited")),
-      a.mastery ? `<div class="mcard"><span class="seticon">${A.setIcon(a.mastery.pass)}</span><div class="mt"><div class="rc-title">${T("Level")} ${a.mastery.level}<span class="next">→ ${a.mastery.level + 1}</span></div>${track(a.mastery.xp)}<div class="rc-sub">${T("Mastery")} ${A.esc(a.mastery.pass)}${a.mastery.xp != null ? " · " + a.mastery.xp + " / 1000 XP" : ""}${a.mastery.premium ? " · Premium" : ""}</div></div></div>` : "",
+      a.mastery ? `<div class="mcard"><span class="seticon">${uiImg("xp", "mico") || A.setIcon(a.mastery.pass)}</span><div class="mt"><div class="rc-title">${T("Level")} ${a.mastery.level}<span class="next">→ ${a.mastery.level + 1}</span></div>${track(a.mastery.xp)}<div class="rc-sub">${T("Mastery")} ${A.esc(a.mastery.pass)}${a.mastery.xp != null ? " · " + a.mastery.xp + " / 1000 XP" : ""}${a.mastery.premium ? " · Premium" : ""}</div></div></div>` : "",
       ai ? `<div class="acard ${ai.claimable.size ? "claim" : ""}">${ring(ai.done, ai.total)}<div class="mt"><div class="rc-title">${T("Erfolge")}</div><div class="rc-sub">${[ai.claimable.size ? T("{n} abholbar", { n: ai.claimable.size }) : "", ai.inProgress ? T("{n} in Arbeit", { n: ai.inProgress }) : ""].filter(Boolean).join(" · ") || T("Alle erledigt")}</div></div></div>` : "",
     ].filter(Boolean).join("");
     // Wallet wie die Navigationsleiste: Wildcards (Symbol + Summe, Liste beim Überfahren), Münzen, Edelsteine
-    const wcTip = `<b>${wc.c || 0} Common</b><br><b>${wc.u || 0} Uncommon</b><br><b>${wc.r || 0} Rare</b><br><b>${wc.m || 0} Mythic</b><br><span class="gold">${T("Tresor")}: ${(a.vault || 0).toFixed(1)}%</span>`;
-    const wallet = a.gems != null || a.wildcards ? `<div class="wallet game"><span class="wal wcs" data-tip="${A.esc(wcTip)}">${uiImg("wc_m")}</span>${a.vault != null ? `<span class="wal" title="${T("Tresor")}${a.orbs ? " · " + T("{n} Orbs", { n: a.orbs }) : ""}">${uiImg("vault")}<b>${(a.vault || 0).toFixed(1)} %</b></span>` : ""}<span class="wal" title="${T("Gold")}">${uiImg("coins")}<b>${a.gold == null ? "?" : a.gold.toLocaleString()}</b></span><span class="wal" title="${T("Edelsteine")}">${uiImg("gems")}<b>${(a.gems || 0).toLocaleString()}</b></span></div>` : "";
+    const wcTip = `<b>${wc.c || 0} Common</b><br><b>${wc.u || 0} Uncommon</b><br><b>${wc.r || 0} Rare</b><br><b>${wc.m || 0} Mythic</b><br><span class="gold">${T("Tresor")}: ${A.num(a.vault, 1)} %</span>`;
+    const wallet = a.gems != null || a.wildcards ? `<div class="wallet game">${(a.boosters || []).reduce((s, b) => s + (b.count || 0), 0) ? `<span class="wal bst" data-tip="${A.esc(`<b>${T("Booster")}</b><br>${a.boosters.filter((b) => b.count).map((b) => `${A.esc(A.setName ? A.setName(b.set) || b.set : b.set)} · ${b.count}×`).join("<br>")}`)}"><span class="bst-stack">${Array.from({ length: Math.min(3, a.boosters.reduce((s, b) => s + (b.count || 0), 0)) }, () => `<img src="assets/booster-pack.png" alt="">`).join("")}</span><b>${A.num(a.boosters.reduce((s, b) => s + (b.count || 0), 0))}</b></span>` : ""}<span class="wal wcs" data-tip="${A.esc(wcTip)}">${uiImg("wc_m")}</span>${a.vault != null ? `<span class="wal" title="${T("Tresor")}${a.orbs ? " · " + T("{n} Orbs", { n: a.orbs }) : ""}">${uiImg("vault")}<b>${A.num(a.vault, 1)} %</b></span>` : ""}<span class="wal" title="${T("Gold")}">${uiImg("coins")}<b>${a.gold == null ? "?" : A.num(a.gold)}</b></span><span class="wal" title="${T("Edelsteine")}">${uiImg("gems")}<b>${A.num(a.gems)}</b></span></div>` : "";
     const season = a.season && a.season.ordinal ? T("Saison {n} · endet {d}", { n: a.season.ordinal, d: A.fmtDate(a.season.end) }) : "";
-    const meta = [T("{n} Matches", { n: s.n }) + " " + (range ? T("in den letzten {n} Tagen", { n: range }) : T("insgesamt")), s.n ? "Ø " + s.avgTurns.toFixed(1) + " " + T("Züge") : "", s.n ? "Ø " + A.fmtDur(s.avgDur) : "", streak].filter(Boolean);
+    const meta = [T("{n} Matches", { n: s.n }) + " " + (range ? T("in den letzten {n} Tagen", { n: range }) : T("insgesamt")), s.n ? "Ø " + A.num(s.avgTurns, 1) + " " + T("Züge") : "", s.n ? "Ø " + A.fmtDur(s.avgDur) : "", streak].filter(Boolean);
     A.$("#hero").innerHTML = `${uiImg("logo", "ph-logo")}
       <div class="ph-top">
         <div class="avatar-ring sm ${s.n ? (s.rate >= .5 ? "good" : "bad") : ""}"><svg viewBox="0 0 88 88"><circle class="t" cx="44" cy="44" r="38"/><circle class="p" cx="44" cy="44" r="38" style="stroke-dasharray:${C.toFixed(1)};stroke-dashoffset:${off.toFixed(1)}"/></svg><div class="avatar">${A.esc(player.slice(0, 1).toUpperCase())}</div></div>
@@ -130,12 +130,21 @@ App.load().then((D) => {
       <div class="ph-match">
         <div class="mc win"><b>${s.w}</b><span>${T("Siege")}</span></div>
         <div class="mbar"><div class="wlbar"><i class="w" style="width:${(s.n ? s.rate * 100 : 50).toFixed(1)}%"></i><span class="pct">${s.n ? Math.round(s.rate * 100) + " %" : "–"}</span></div>
-          <div class="form">${list.slice(0, 20).reverse().map((m) => `<div class="d ${isW(m) ? "w" : isL(m) ? "l" : ""}" data-tip="${A.esc(`${A.fmtDate(m.start)} ${A.esc(T(m.result))} vs ${m.opponent} (${m.myDeck}, ${m.turns} ${T("Züge")})`)}"></div>`).join("")}</div>
+          <div class="form">${list.slice(0, 20).reverse().map((m) => `<div class="d ${isW(m) ? "w" : isL(m) ? "l" : ""}" data-id="${A.esc(m.matchId)}"></div>`).join("")}</div>
           <div class="mmeta">${meta.map((x) => `<span>${x}</span>`).join("")}</div></div>
         <div class="mc loss"><b>${s.l}</b><span>${T("Niederlagen")}</span></div>
       </div>
       <div class="ph-cards">${cards || `<div class="muted small">${T("Konto")}: ${T("nicht im Protokoll")}</div>`}</div>`;
-    A.$$("#hero .form .d, #hero .wal[data-tip]").forEach((d) => { d.addEventListener("mousemove", (ev) => A.tooltip(true, d.dataset.tip, ev)); d.addEventListener("mouseleave", () => A.tooltip(false)); d.addEventListener("click", (ev) => A.tooltip(true, d.dataset.tip, ev)); });
+    A.$$("#hero .wal[data-tip]").forEach((d) => { d.addEventListener("mousemove", (ev) => A.tooltip(true, d.dataset.tip, ev)); d.addEventListener("mouseleave", () => A.tooltip(false)); });
+    // Serien-Punkte: Match wie in der Deck-Detailansicht, Klick öffnet das Replay
+    A.$$("#hero .form .d[data-id]").forEach((d) => {
+      const m = list.find((x) => x.matchId === d.dataset.id);
+      if (!m) return;
+      const html = `<div class="mtip"><div class="mtip-h"><span class="when">${A.esc(A.relDate(m.start))} · ${A.fmtTime(m.start)}</span>${A.resultBadge(m.result)}</div>${A.deckCell(m)}<div class="mtip-r"><span>vs&nbsp;<b>${A.esc(m.opponent)}</b>${m.opponentPlatform ? ` <span class="muted">${A.esc(m.opponentPlatform)}</span>` : ""}</span><span class="muted">${m.turns} ${T("Züge")} · ${A.fmtDur(m.durationSec)}</span></div><div class="mtip-f">${A.FI.play || "▶"} ${T("Klicken für Replay")}</div></div>`;
+      d.addEventListener("mousemove", (ev) => A.tooltip(true, html, ev));
+      d.addEventListener("mouseleave", () => A.tooltip(false));
+      d.addEventListener("click", () => { A.tooltip(false); location.href = "replay.html?id=" + encodeURIComponent(m.matchId); });
+    });
   }
 
   /** Quest-Band: Tagesquests mit Fortschrittsbalken und Belohnung, dazu abholbare und fast fertige Erfolge */
@@ -143,9 +152,16 @@ App.load().then((D) => {
     const a = D.account, el = A.$("#quests");
     if (!a) { el.innerHTML = ""; return; }
     const ai = achInfo(a);
+    // Belohnung wie im Spiel: rundes Medaillon mit Fortschrittsbogen, Belohnungsgrafik und Goldbetrag darüber
+    const qMedal = (q) => {
+      const f = q.goal ? Math.max(0, Math.min(1, q.progress / q.goal)) : 0, c = 2 * Math.PI * 25;
+      const gold = q.reward && q.reward.gold, xpOnly = !gold && q.reward && q.reward.xp;
+      const img = uiImg("xp", "qm-img");
+      return `<div class="qmedal ${xpOnly ? "xp" : ""}" title="${gold ? A.num(gold) + " " + T("Gold") : ""}${q.reward && q.reward.xp ? (gold ? " · " : "") + A.num(q.reward.xp) + " XP" : ""}"><svg viewBox="0 0 56 56"><circle class="t" cx="28" cy="28" r="25"/><circle class="p" cx="28" cy="28" r="25" style="stroke-dasharray:${c.toFixed(1)};stroke-dashoffset:${(c * (1 - f)).toFixed(1)}"/></svg>${xpOnly ? '<span class="qm-xp">XP</span>' : img}${gold ? `<span class="qm-n">${gold}</span>` : ""}</div>`;
+    };
     const quests = (a.quests || []).map((q) => {
       const done = q.goal && q.progress >= q.goal;
-      return `<div class="qcard ${done ? "done" : ""}">${uiImg(questIcon(q.name), "qico") || `<span class="qico ph">${FI.play}</span>`}<div class="qt"><b>${A.esc(q.name)}</b>${bar(q.goal ? q.progress / q.goal : 0, "gold")}<span class="muted small">${q.progress} / ${q.goal}${done ? " · " + T("erledigt") : ""}</span></div><div class="qrew">${uiImg("xp")}<span>${q.reward && q.reward.gold ? q.reward.gold + " " + T("Gold") : ""}${q.reward && q.reward.xp ? "<br>" + q.reward.xp + " XP" : ""}</span></div></div>`;
+      return `<div class="qcard ${done ? "done" : ""}">${qMedal(q)}<div class="qt"><b>${A.esc(q.name)}</b>${bar(q.goal ? q.progress / q.goal : 0, "gold")}<span class="muted small">${q.progress} / ${q.goal}${done ? " · " + T("erledigt") : ""}${q.reward && q.reward.xp ? " · " + A.num(q.reward.xp) + " XP" : ""}</span></div></div>`;
     });
     const achs = ai ? ai.open.filter((x) => ai.claimable.has(x.id) || ai.close.has(x.id)).slice(0, 6).map((x) => `<div class="qcard qach ${ai.claimable.has(x.id) ? "claim" : ""}">${uiImg(ai.claimable.has(x.id) ? "check" : "hourglass", "qico") || `<span class="qico ph">${FI.trophy}</span>`}<div class="qt"><b>${A.esc(ai.nice(x.id))}</b><span class="muted small">${T("Erfolg")} · ${T(x.group === "Colors" ? "Farben" : "Kern")} · <em>${ai.claimable.has(x.id) ? T("abholbar") : T("fast fertig")}</em></span></div></div>`) : [];
     if (!quests.length && !achs.length) { el.innerHTML = ""; return; }
@@ -159,8 +175,8 @@ App.load().then((D) => {
     const a = D.account, el = A.$("#account");
     if (!a) { el.innerHTML = ""; return; }
     const ai = achInfo(a);
-    const achHtml = ai ? ai.open.map((x) => `<div class="ach ${ai.claimable.has(x.id) ? "claim" : ""}"><b>${A.esc(ai.nice(x.id))}</b><span class="muted small">${T(x.group === "Colors" ? "Farben" : "Kern")}${ai.claimable.has(x.id) ? ` · <em>${T("abholbar")}</em>` : ai.close.has(x.id) ? " · " + T("fast fertig") : ""}${x.progress != null ? " · " + T("Fortschritt {n}", { n: x.progress }) : ""}</span></div>`).join("") : "";
-    const boosters = a.boosters && a.boosters.length ? `<div class="quests"><div class="ds-t">${T("Booster")}</div><div class="quest"><b>${a.boosters.reduce((s, b) => s + b.count, 0)}</b><span class="muted small">${a.boosters.slice(0, 8).map((b) => A.esc(b.set) + " ×" + b.count).join(", ")}</span></div></div>` : "";
+    const achHtml = ai ? ai.open.map((x) => `<div class="ach ${ai.claimable.has(x.id) ? "claim" : ""}">${uiImg(x.group === "Colors" ? questIcon(ai.nice(x.id)) : "q_x", "aico")}<b>${A.esc(ai.nice(x.id))}</b><span class="muted small">${T(x.group === "Colors" ? "Farben" : "Kern")}${ai.claimable.has(x.id) ? ` · <em>${T("abholbar")}</em>` : ai.close.has(x.id) ? " · " + T("fast fertig") : ""}${x.progress != null ? " · " + T("Fortschritt {n}", { n: x.progress }) : ""}</span></div>`).join("") : "";
+    const boosters = false ? `<div class="quests"><div class="ds-t">${T("Booster")}</div><div class="quest"><b>${a.boosters.reduce((s, b) => s + b.count, 0)}</b><span class="muted small">${a.boosters.slice(0, 8).map((b) => A.esc(b.set) + " ×" + b.count).join(", ")}</span></div></div>` : "";
     if (!achHtml && !boosters) { el.innerHTML = ""; return; }
     el.innerHTML = `<h2 class="fold-h2" id="h-account">${T("Konto")} <span class="muted small" style="text-transform:none;letter-spacing:0">${ai ? T("Erfolge") + " " + ai.done + " / " + ai.total : ""}</span></h2>
       <div id="account-body">${boosters}${ai ? `<div class="achs"><div class="ds-t">${T("Erfolge")} <span class="muted small" style="text-transform:none;letter-spacing:0">${ai.done} / ${ai.total}</span></div>${achHtml || `<div class="muted small">${T("Alle erledigt")}</div>`}</div>` : ""}</div>`;
@@ -184,7 +200,7 @@ App.load().then((D) => {
       const slice = chrono.slice(Math.max(0, i - win + 1), i + 1);
       const w = slice.filter(isW).length, l = slice.filter(isL).length;
       return { y: w + l ? w / (w + l) : 0.5, mark: isW(m) ? "win" : isL(m) ? "loss" : "", label: A.fmtDate(m.start).slice(0, 5),
-        html: `<b>${A.fmtDate(m.start)} ${A.fmtTime(m.start)}</b> · ${A.esc(T(m.result))} vs ${A.esc(m.opponent)}<br>${A.esc(A.deckLabel(m))}<br>${T("Winrate der letzten {n}", { n: slice.length })}: <b>${Math.round(100 * w / Math.max(1, w + l))} %</b> (${w}-${l})` };
+        html: `<b>${A.fmtDate(m.start)} ${A.fmtTime(m.start)}</b> · ${A.esc(T(m.result))} vs&nbsp;${A.esc(m.opponent)}<br>${A.esc(A.deckLabel(m))}<br>${T("Winrate der letzten {n}", { n: slice.length })}: <b>${Math.round(100 * w / Math.max(1, w + l))} %</b> (${w}-${l})` };
     });
     A.lineChart(A.$("#chart-trend"), pts, { label: T("Winrate-Verlauf") });
 

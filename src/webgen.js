@@ -92,7 +92,8 @@ function build(outDir, cards) {
   const ASST_TAG = '<script src="assistant.js" data-asst="1"></script>';
   for (const f of fs.readdirSync(srcDir)) {
     const p = path.join(srcDir, f);
-    if (!fs.statSync(p).isFile()) continue;
+    // Unterordner (web/assets: Bilder der Oberfläche) mitnehmen
+    if (!fs.statSync(p).isFile()) { fs.cpSync(p, path.join(webDir, f), { recursive: true }); continue; }
     if (!mitAssistent && f === "assistant.js") continue;
     if (!mitAssistent && f.endsWith(".html")) {
       fs.writeFileSync(path.join(webDir, f), fs.readFileSync(p, "utf8").split(ASST_TAG + "\n").join("").split(ASST_TAG).join(""));

@@ -185,10 +185,13 @@ label.f { display: flex; align-items: center; gap: 8px; color: var(--ink-2); fon
 .tooltip .gold { color: var(--orange); font-weight: 700; }
 /* Profilkopf v4: platzsparend – Kopfzeile, Match-Zähler über die volle Breite, kompakte Karten */
 .profile-hero.v4 { display: flex; flex-direction: column; align-items: stretch; gap: 14px; padding: 18px 22px 18px; }
-.ph-top { display: flex; align-items: center; gap: 16px; min-width: 0; }
-.ph-top .ph-id { flex: 1; min-width: 0; padding-top: 0; }
+.ph-top { display: grid; grid-template-columns: auto minmax(140px, 1fr) minmax(0, max-content); column-gap: 16px; row-gap: 4px; align-items: center; min-width: 0; }
+.ph-top .ph-id { display: contents; }
+.ph-top .avatar-ring { grid-column: 1; grid-row: 1 / span 2; }
+.ph-top .ph-id .name { grid-column: 2; grid-row: 1; align-self: end; min-width: 0; }
+.ph-top .ph-id .meta { grid-column: 2 / 4; grid-row: 2; align-self: start; min-width: 0; }
 .ph-top .name { font-size: 24px; }
-.ph-top .wallet { flex: none; }
+.ph-top .wallet { flex: none; grid-column: 3; grid-row: 1; align-self: start; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
 .avatar-ring.sm { width: 84px; height: 84px; }
 .avatar-ring.sm circle { stroke-width: 6; }
 .avatar-ring.sm .avatar { left: 10px; top: 10px; width: 64px; height: 64px; font-size: 28px; }
@@ -201,7 +204,8 @@ label.f { display: flex; align-items: center; gap: 8px; color: var(--ink-2); fon
 .wlbar { position: relative; height: 14px; border-radius: 7px; background: var(--loss); overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,.5); }
 .wlbar i { display: block; height: 100%; background: linear-gradient(90deg, #ffd777, var(--win)); border-radius: 7px 0 0 7px; box-shadow: 0 0 10px rgba(242,177,52,.6); transform-origin: left; animation: growX .8s cubic-bezier(.2,.7,.2,1) both; }
 .wlbar .pct { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 800 11px/1 var(--font-game); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.9); }
-.ph-match .form { margin: 0; }
+.ph-match .form { margin: 0; gap: 4px; flex-wrap: nowrap; }
+.ph-match .form .d { flex: 1; width: auto; max-width: 28px; }
 .ph-match .mmeta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-3); }
 .ph-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .ph-cards .rankcard { display: flex; align-items: center; gap: 10px; text-align: left; padding: 8px 12px 8px 8px; }
@@ -219,8 +223,9 @@ label.f { display: flex; align-items: center; gap: 8px; color: var(--ink-2); fon
 .ph-cards .mcard .rc-title, .ph-cards .acard .rc-title { font-size: 17px; }
 .ph-cards .mcard .rc-title .next { font-size: 12px; color: var(--ink-3); margin-left: 6px; font-family: var(--font-game-text); }
 .ph-cards .mcard .seticon { width: 36px; height: 36px; }
+.mcard .seticon img.mico { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 3px 6px rgba(0,0,0,.6)); }
 .ph-cards .track { height: 14px; margin: 5px 0 3px; } .ph-cards .track::before { top: 6px; } .ph-cards .track .fill { top: 5px; } .ph-cards .track b { top: 2px; height: 10px; }
-.ph-cards .ringc { width: 52px; height: 52px; } .ph-cards .ringc span { font-size: 13px; }
+.ph-cards .ringc { width: 52px; height: 52px; } .ph-cards .ringc span { font-size: clamp(9px, 2.2cqi, 13px); }
 .ph-cards .acard .vico { width: 44px; height: 44px; }
 .wallet.game .wal .gi { height: 32px; } .wallet.game .wal { font-size: 18px; }
 .wallet.game .wal.wcs .gi { position: static; }
@@ -230,11 +235,11 @@ label.f { display: flex; align-items: center; gap: 8px; color: var(--ink-2); fon
 .profile-hero .ph-left { grid-area: left; display: flex; gap: 18px; align-items: flex-start; min-width: 0; }
 .profile-hero .ph-right { grid-area: right; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .avatar-ring { position: relative; width: 116px; height: 116px; flex: none; }
-.avatar-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.avatar-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg) scaleY(-1); }
 .avatar-ring circle { fill: none; stroke-width: 7; }
-.avatar-ring circle.t { stroke: rgba(255,255,255,.08); }
+.avatar-ring circle.t { stroke: var(--loss); }
 .avatar-ring circle.p { stroke: var(--win); stroke-linecap: round; transition: stroke-dashoffset .9s ease; }
-.avatar-ring.bad circle.p { stroke: var(--loss); }
+.avatar-ring.bad circle.p { stroke: var(--win); }
 .avatar-ring .avatar { position: absolute; left: 14px; top: 14px; width: 88px; height: 88px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 800 38px/1 var(--font-title); color: var(--gold-ink); background: radial-gradient(circle at 35% 30%, var(--gold-2), var(--gold) 70%); box-shadow: 0 8px 22px rgba(0,0,0,.55); }
 .avatar-ring .pct { position: absolute; left: 50%; bottom: -12px; transform: translateX(-50%); padding: 2px 9px; border-radius: 999px; background: var(--panel-3); border: 1px solid var(--line-2); font: 800 12px/1.4 var(--font-title); color: var(--ink); white-space: nowrap; }
 .profile-hero .ph-id { min-width: 0; padding-top: 6px; }
@@ -244,6 +249,11 @@ label.f { display: flex; align-items: center; gap: 8px; color: var(--ink-2); fon
 .wallet { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .wallet .wal { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px 0 6px; border-radius: 12px; background: rgba(255,255,255,.045); border: 1px solid var(--line); font: 800 15px/1 var(--font-title); }
 .wallet .wal .gi { height: 30px; width: auto; }
+.wallet .wal.bst { padding-left: 10px; }
+.wallet .wal.bst .bst-stack { position: relative; display: inline-flex; height: 32px; flex: none; }
+.wallet .wal.bst .bst-stack img { height: 32px; width: auto; border-radius: 2px; box-shadow: 0 2px 5px rgba(0,0,0,.6); }
+.wallet .wal.bst .bst-stack img + img { margin-left: -12px; }
+.wallet .wal.bst .bst-stack img:nth-child(1) { transform: rotate(-6deg); } .wallet .wal.bst .bst-stack img:nth-child(3) { transform: rotate(6deg); }
 .gi { display: inline-block; object-fit: contain; }
 .feats { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
 .feat { display: flex; align-items: center; gap: 12px; padding: 10px 14px 10px 10px; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid var(--line); min-width: 0; position: relative; overflow: hidden; }
@@ -274,6 +284,15 @@ label.f { display: flex; align-items: center; gap: 8px; color: var(--ink-2); fon
 .qcard .qt .fbar { margin-top: 2px; }
 .qcard .qrew { display: flex; align-items: center; gap: 6px; flex: none; font-size: 12px; color: var(--ink-2); text-align: right; line-height: 1.25; }
 .qcard .qrew .gi { height: 40px; width: 40px; }
+/* Quest-Medaillon nach Spielvorbild, verkleinert */
+.qmedal { position: relative; width: 56px; height: 56px; flex: none; border-radius: 50%; background: radial-gradient(circle at 50% 40%, #2a1f16, #0d0907 70%); box-shadow: 0 3px 8px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.08); }
+.qmedal svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.qmedal circle { fill: none; stroke-width: 3; }
+.qmedal circle.t { stroke: rgba(255,255,255,.14); stroke-dasharray: 3 3; }
+.qmedal circle.p { stroke: var(--orange); stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(255,140,40,.8)); }
+.qmedal .qm-img { position: absolute; left: 7px; top: 4px; width: 42px; height: 42px; object-fit: contain; }
+.qmedal .qm-n { position: absolute; left: 0; right: 0; bottom: 5px; text-align: center; font: 700 17px/1 var(--font-game); color: #fff; text-shadow: 0 1px 0 #000, 0 0 4px rgba(0,0,0,.9), 0 2px 6px rgba(0,0,0,.8); letter-spacing: -.3px; }
+.qmedal .qm-xp { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 800 20px/1 var(--font-game); color: #ffe7b0; text-shadow: 0 0 6px rgba(255,140,40,.9), 0 2px 3px rgba(0,0,0,.8); }
 .qcard.done { border-color: rgba(242,177,52,.55); } .qcard.done .qt b::after { content: " ✓"; color: var(--gold-2); }
 .qcard.qach em { font-style: normal; color: var(--gold-2); font-weight: 700; }
 .qcard.qach.claim { border-color: rgba(242,177,52,.55); background: rgba(242,177,52,.07); }
@@ -389,7 +408,7 @@ kbd { background: var(--panel-3); border: 1px solid var(--line-2); border-radius
 .empty { color: var(--ink-3); padding: 20px; text-align: center; }
 
 /* ---- Textur-Canvas in Kacheln ---- */
-.c .art canvas, .deck-cell .art canvas, .bar-row .lbl .art canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+.c .art canvas, .deck-cell .art canvas, .bar-row .lbl .art canvas, .bar-row .lbl .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .deck-cell .art { overflow: hidden; }
 .bar-row .lbl .art { overflow: hidden; }
 
@@ -441,6 +460,15 @@ kbd { background: var(--panel-3); border: 1px solid var(--line-2); border-radius
 .tooltip .row { display: flex; gap: 8px; align-items: center; }
 .tooltip .dotw, .tooltip .dotl { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
 .tooltip .dotw { background: var(--win); } .tooltip .dotl { background: var(--loss); }
+/* Match-Tooltip der Serien-Punkte: wie die Match-Zeilen der Deck-Detailansicht */
+.ph-match .form .d[data-id] { cursor: pointer; transition: transform .12s; }
+.ph-match .form .d[data-id]:hover { transform: scaleY(1.6); }
+.tooltip .mtip { display: flex; flex-direction: column; gap: 8px; min-width: 240px; }
+.tooltip .mtip-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tooltip .mtip-h .when { font-weight: 700; }
+.tooltip .mtip-r { display: flex; justify-content: space-between; gap: 12px; white-space: nowrap; }
+.tooltip .mtip-f { display: flex; align-items: center; gap: 6px; padding-top: 7px; border-top: 1px solid var(--line); color: var(--gold-2); font-weight: 700; }
+.tooltip .mtip-f svg { width: 12px; height: 12px; }
 .stat-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .stat-split .box { background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
 .stat-split .box .k { color: var(--ink-3); font-size: 11px; text-transform: uppercase; letter-spacing: .8px; }
@@ -992,7 +1020,9 @@ pre.export { margin: 0; max-height: 132px; overflow: auto; padding: 8px 10px; fo
 .export-actions button svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
 pre.export { border: 1px solid var(--line); border-radius: var(--r-sm); background: rgba(0,0,0,.25); max-height: 220px; cursor: pointer; position: relative; }
 pre.export.collapsed { max-height: 58px; overflow: hidden; }
-pre.export.collapsed::after { content: "… mehr"; position: absolute; right: 8px; bottom: 4px; font: 600 10px system-ui, sans-serif; color: var(--gold); background: rgba(16,13,11,.85); padding: 1px 6px; border-radius: 6px; }
+.exp-wrap { position: relative; }
+.exp-wrap .exp-more { position: absolute; right: 8px; bottom: 6px; z-index: 1; padding: 1px 7px; border: 0; border-radius: 4px; font: 600 10px system-ui, sans-serif; color: var(--gold); background: rgba(16,13,11,.85); }
+.exp-wrap .exp-more:hover { color: var(--gold-2); background: rgba(16,13,11,.95); }
 
 /* ---- Deckansicht flach wie die Bibliothek: keine Rahmen, nur trennende Überschriften ---- */
 .deck-detail { margin-bottom: 26px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
@@ -1041,8 +1071,11 @@ pre.export.collapsed::after { content: "… mehr"; position: absolute; right: 8p
 }
 @media (max-width: 700px) { .deck-head { grid-template-columns: 1fr; } .deck-side { grid-template-columns: 1fr; } .deck-head .deck-facts { grid-template-columns: 1fr; } }
 /* ---- Deckseite: Kacheln und Fakten nach Vorlage ---- */
-.deck-head .tile .label { color: var(--ink-3); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; line-height: 2; }
-.deck-head .tile .value { font-weight: 800; letter-spacing: -.5px; margin-top: -16px; line-height: 1.25; text-align: right; }
+/* Kachel: Beschriftung links, Wert rechts, unten bündig; eine zu lange Beschriftung bricht nach oben um,
+   damit alle Kacheln dieselbe niedrige Höhe behalten */
+.deck-head .tile { display: flex; flex-wrap: nowrap; align-items: flex-end; justify-content: space-between; column-gap: 10px; height: 46px; box-sizing: border-box; padding-top: 5px; padding-bottom: 7px; }
+.deck-head .tile .label { color: var(--ink-3); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; line-height: 1.25; flex: 1 1 0; min-width: 0; padding-bottom: 2px; align-self: flex-start; margin-top: 4px; }
+.deck-head .tile .value { font-weight: 800; letter-spacing: -.5px; margin: 0; line-height: 1.1; text-align: right; flex: none; white-space: nowrap; }
 .deck-head .deck-facts { grid-column: 1 / 3; grid-row: 2; margin-top: 0; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 26px; align-items: start; }
 .ds-block .curve { display: flex; gap: 5px; align-items: flex-end; height: auto; margin-top: 25px; }
 .deck-facts .ds-block .curve { height: 131px; }
@@ -1247,9 +1280,9 @@ h3.sub-fold { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; 
   .topbar h1 { font-size: 20px; }
   /* Profilkopf: Kopfzeile bricht um, Wallet in eigener Zeile, Match-Zähler kompakt, Karten einspaltig */
   .profile-hero.v4 { padding: 14px; gap: 10px; }
-  .ph-top { flex-wrap: wrap; gap: 12px; }
+  .ph-top { gap: 12px; }
   .ph-top .name { font-size: 20px; }
-  .ph-top .wallet { flex: 1 1 100%; justify-content: space-between; }
+  .ph-top .wallet { grid-column: 1 / -1; grid-row: 3; justify-content: space-between; }
   .wallet.game .wal { padding: 0 2px; font-size: 16px; } .wallet.game .wal .gi { height: 28px; }
   .ph-match { grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; padding: 10px; }
   .ph-match .mc { min-width: 52px; } .ph-match .mc b { font-size: 26px; } .ph-match .mc span { font-size: 9px; letter-spacing: .5px; }
@@ -1358,6 +1391,8 @@ h3.sub-fold { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; 
 .achs { margin-top: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
 .achs .ds-t { grid-column: 1 / -1; }
 .ach { padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.03); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.ach { position: relative; padding-right: 60px; min-height: 40px; justify-content: center; }
+.ach .aico { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 3px 6px rgba(0,0,0,.5)); }
 .ach.claim { border-color: rgba(242,177,52,.55); background: rgba(242,177,52,.06); }
 .ach em { font-style: normal; color: var(--gold-2); font-weight: 700; }
 .tiles.account .tile .label svg { width: 14px; height: 14px; vertical-align: -3px; margin-right: 5px; }
@@ -1663,6 +1698,9 @@ button.reset svg { width: 16px; height: 16px; }
 .deck-tools-row .lib-bar .dd.zoom { order: 0; margin: 0; } .deck-tools-row .lib-bar .qcol { order: 1; margin-left: 0; }
 /* Titelzeile rechts: Kartenzahl, dann Suche, dann Zoom-Menü ganz rechts (Bibliothek, Deckbau); Deckansicht ebenso */
 .topbar .right.filters.search-col { flex-direction: row; align-items: center; gap: 10px; align-self: flex-start; }
+/* Filter vor der Suche in der Titelzeile: dürfen schrumpfen und rechtsbündig in eine zweite Zeile umbrechen */
+.topbar .right.filters.search-col { flex: 1 1 auto; min-width: 0; max-width: 100%; flex-wrap: wrap; justify-content: flex-end; row-gap: 8px; }
+.topbar .right.filters.search-col #f-q { margin-left: 0; }
 .search-col .count { white-space: nowrap; }
 .search-col .dd.zoom { order: 3; margin: 0; }
 .deck-tools-row .lib-bar .qcol { flex-direction: row; align-items: center; gap: 10px; }
@@ -1689,6 +1727,10 @@ body.deck-open .content > .topbar, body.deck-open .content > .lib-bar, body.deck
 .back-link svg { width: 14px; height: 14px; transform: rotate(90deg); }
 .back-link:hover { color: var(--gold-2); }
 .export-actions .edit-deck, .deck-mini .edit-deck { display: inline-flex; align-items: center; gap: 6px; }
+.deck-head .info .t { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.deck-head .info .t .tn { min-width: 0; }
+.deck-head .info .t .edit-deck { font-size: 13px; padding: 7px 14px; box-shadow: 0 2px 10px rgba(242,177,52,.25); }
+.deck-head .info .t .edit-deck svg { width: 14px; height: 14px; }
 .deck-mini .edit-deck { width: 38px; height: 38px; justify-content: center; padding: 0; }
 @media (max-width: 760px) { .back-link { margin: 4px 0 10px; } }
 @media (max-width: 760px) { .deck-mini .edit-deck { width: 36px; height: 36px; border-radius: 10px; } .deck-mini .edit-deck svg { width: 16px; height: 16px; } }
@@ -2322,3 +2364,4 @@ body.no-cardimg .cc .inner img.cimg, body.no-cardimg .cc .inner .fallback { disp
 body.no-cardimg .c .tcard, body.no-cardimg .cc .inner .tcard { display: flex; }
 body.no-cardimg .c::before, body.no-cardimg .c::after,
 body.no-cardimg .cc .inner::before, body.no-cardimg .cc .inner::after { content: none !important; }
+
