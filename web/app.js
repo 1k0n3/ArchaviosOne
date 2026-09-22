@@ -97,8 +97,13 @@ window.App = (function () {
   const COLOR_NAMES = { 1: "w", 2: "u", 3: "b", 4: "r", 5: "g" };
   const TYPE_NAMES = { 1: "Artefakt", 2: "Kreatur", 3: "Verzauberung", 4: "Spontanzauber", 5: "Land", 8: "Planeswalker", 10: "Hexerei", 11: "Stammes", 14: "Schlacht" };
   const RARITY_KEY = { Common: "c", Uncommon: "u", Rare: "r", Mythic: "m", Standardland: "c", Token: "t" };
+  // Seiten mit eigenen Kartendaten (Bibliothek, Deckbau, Replay) geben ein dict mit; die Verweise merken
+  // wir uns, damit auch später erzeugte Teile (z. B. Textkarten) die Karte noch finden
+  const dicts = [];
+  const merkeDict = (d) => { if (d && typeof d === "object" && !dicts.includes(d)) { dicts.unshift(d); if (dicts.length > 4) dicts.length = 4; } };
   function card(g, dict) {
-    const d = (dict && dict[g]) || (DATA && DATA.cards[g]);
+    merkeDict(dict);
+    const d = (dict && dict[g]) || (DATA && DATA.cards[g]) || dicts.reduce((x, o) => x || o[g], null);
     if (!d) return { name: tr("Karte") + " " + g, set: "", nr: "", rarity: "", token: false, art: 0, colors: [], types: [], frame: "c", isLand: false, creature: false, flags: "", style: "std", pt: "", typeText: "", typeLine: "", text: "", cost: "", rar: "c", legendary: false };
     const colors = String(d[6] || "").split(",").filter(Boolean).map((x) => COLOR_NAMES[x]).filter(Boolean);
     const types = String(d[7] || "").split(",").filter(Boolean).map(Number);
@@ -120,6 +125,7 @@ window.App = (function () {
    * opts: { dict, cls, qty, extra, w (Artwork-Fallbackbreite) }
    */
   function cardHtml(g, opts = {}) {
+    merkeDict(opts.dict);
     const c = typeof g === "object" ? g : card(g, opts.dict);
     const gid = typeof g === "object" ? g.grpId || 0 : g;
     const cls = `c ${opts.cls || ""}`;
@@ -130,6 +136,40 @@ window.App = (function () {
       ${opts.qty > 1 ? `<span class="q">${opts.qty}</span>` : ""}${opts.extra || ""}</div>`;
   }
   const cardTile = (g, opts = {}) => cardHtml(g, opts);
+  /**
+   * Textkarte: dieselbe Darstellung wie im Replay-Modus „Bilder aus“ – Name, Manakosten, Typzeile,
+   * Regeltext und Kampfwerte aus den Spieldaten, ganz ohne Bild. Sie braucht weder Server noch Netz.
+   */
+  const TYPE_EMBLEM = (c) => c.isLand ? ["land", FI.land] : c.creature ? ["creature", FI.creature] : c.types.includes(8) ? ["pw", FI.planeswalker] : c.types.includes(4) ? ["instant", FI.instant] : c.types.includes(10) ? ["sorcery", FI.sorcery] : c.types.includes(3) ? ["ench", FI.enchantment] : c.types.includes(1) ? ["artifact", FI.artifact] : c.types.includes(14) ? ["battle", FI.battle] : ["other", FI.copies];
+  function textCard(g, opts = {}) {
+    const c = typeof g === "object" ? g : card(g, opts.dict);
+    const [k, ic] = TYPE_EMBLEM(c);
+    return `<div class="tcard f-${c.frame}"><div class="th"><span class="cp">${c.cost ? "" : c.colors.map((x) => manaSymbol(x)).join("")}</span><span class="n">${esc(c.name)}</span><span class="m">${manaHtml(c.cost)}</span></div>` +
+      `<div class="tt"><span class="emb t-${k}">${ic}</span><span class="tl">${esc(c.typeLine || c.typeText)}</span></div>` +
+      `<div class="tx">${c.text ? c.text.split("\n").map((l) => `<p>${ruleHtml(l)}</p>`).join("") : ""}</div>` +
+      (c.pt ? `<div class="tpt">${esc(c.pt)}</div>` : "") + "</div>";
+  }
+  /**
+   * Sind die Kartenbilder nicht erreichbar (Begleitprogramm aus, kein Netz), zeigen alle Kacheln die
+   * Textkarte. Die Bilder werden im Hintergrund weiter versucht; sobald eines ankommt, sind sie zurück.
+   */
+  let ohneBilder = false, bildFehler = 0;
+  function setOhneBilder(an) {
+    if (ohneBilder === an) return;
+    ohneBilder = an;
+    document.body.classList.toggle("no-cardimg", an);
+    if (an) textkartenEinsetzen(document);
+    bildFehler = 0;
+  }
+  /** Textkarte in jede Kachel legen, die noch keine hat (Bild und Artwork blendet das CSS aus) */
+  function textkartenEinsetzen(root) {
+    for (const box of $$(".c[data-g], .cc[data-g]", root || document)) {
+      const g = +box.dataset.g;
+      if (!g || $(".tcard", box)) continue;
+      (box.querySelector(".inner") || box).insertAdjacentHTML("beforeend", textCard(g));
+    }
+  }
+  window.addEventListener("online", () => setOhneBilder(false));
   /** Schmaler Bildschirm (Handy): weniger auf einmal zeigen, Sekundäres einklappen */
   const isMobile = () => window.matchMedia("(max-width: 760px)").matches;
   /**
@@ -154,6 +194,7 @@ window.App = (function () {
   /** Fehlgeschlagene Kartenbilder auf Artwork-Fallback umschalten (Bild aus den Spieldaten) */
   const loadedImgs = new Set(); // bereits geladene Kartenbilder: neue Kacheln damit blenden nicht erneut ein
   function bindCardImages(root) {
+    if (ohneBilder) textkartenEinsetzen(root);
     for (const im of $$("img.cimg", root)) {
       if (im.dataset.bound) continue;
       im.dataset.bound = "1";
@@ -166,11 +207,13 @@ window.App = (function () {
           const fa = $(".fart", box);
           if (fa && +im.dataset.art) { fa.innerHTML = artCanvas(+im.dataset.art, "", +im.dataset.w || 256); Art.bind(fa); }
         }
+        // Kein Netz oder mehrere Bilder hintereinander fehlgeschlagen: auf Textkarten umstellen
+        if (!ohneBilder && (!navigator.onLine || ++bildFehler >= 3)) setOhneBilder(true);
         // Scryfall kann kurzzeitig gesperrt sein: das echte Kartenbild nach einer Pause erneut anfordern
         // (bis zu 6 Versuche mit wachsendem Abstand: 20 s … 8 min, damit auch längere Sperren überbrückt werden)
         if (tries++ < 6 && im.isConnected) setTimeout(() => { if (im.isConnected) im.src = im.src.split("&r=")[0].split("?r=")[0] + (im.src.includes("?") ? "&" : "?") + "r=" + tries; }, Math.min(480000, 20000 * Math.pow(2, tries - 1)));
       };
-      const done = () => { const box = im.closest(".c, .cc"); if (box && im.naturalWidth > 0) { box.classList.remove("fb"); box.classList.add("ld"); loadedImgs.add(im.getAttribute("src")); } };
+      const done = () => { const box = im.closest(".c, .cc"); if (box && im.naturalWidth > 0) { box.classList.remove("fb"); box.classList.add("ld"); loadedImgs.add(im.getAttribute("src")); bildFehler = 0; setOhneBilder(false); } };
       im.addEventListener("load", done);
       if (im.complete && im.naturalWidth > 0) done();
       else if (im.complete && im.naturalWidth === 0 && im.src) fail();
@@ -1028,5 +1071,5 @@ window.App = (function () {
     setInterval(check, 20000);
   })();
 
-  return { load, get DATA() { return DATA; }, $, $$, esc, card, cardName, artOf, artCanvas, cardTile, cardHtml, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, filterIcon, uiIcon, zoomMenu, cardRow, longPress, openMenu, colorMatch, cardFilterBar, qtyHtml, ownHtml, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, selectToDropdown, enhanceSelects, settingsTabs, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, colorBarHtml, cmcOf, loadedImgs, t: tr, isMobile, foldable, get LOGO() { return logoSvg(); } };
+  return { load, get DATA() { return DATA; }, $, $$, esc, card, cardName, artOf, artCanvas, cardTile, cardHtml, textCard, get ohneBilder() { return ohneBilder; }, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, filterIcon, uiIcon, zoomMenu, cardRow, longPress, openMenu, colorMatch, cardFilterBar, qtyHtml, ownHtml, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, selectToDropdown, enhanceSelects, settingsTabs, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, colorBarHtml, cmcOf, loadedImgs, t: tr, isMobile, foldable, get LOGO() { return logoSvg(); } };
 })();

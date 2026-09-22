@@ -82,7 +82,9 @@ label.f { display: flex; align-items: center; gap: 8px; color: var(--ink-2); fon
 .panel { background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; box-shadow: var(--shadow); }
 .panel h3 { margin: 0 0 12px; font-size: 13px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: .8px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .grid { display: grid; gap: var(--gap); }
-.grid.c2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 620px), 1fr)); }
+/* Diagramme bleiben lange nebeneinander: einspaltig werden sie erst, wenn wirklich kein Platz mehr ist
+   (sonst skaliert das SVG auf volle Breite und wird unnötig groß) */
+.grid.c2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); }
 .grid.c3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); }
 @media (max-width: 1100px) { .grid.c3 { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 800px) { .grid.c2, .grid.c3 { grid-template-columns: 1fr !important; } }
@@ -2277,3 +2279,46 @@ body.asst-open .side-nav .asst-nav.asst-btn svg { color: #2a1c06; }
 .asst-set .asst-modelstatus { margin-top: 8px; font-size: 12px; color: var(--ink-3); }
 
 .asst-set .asst-sync { margin: 2px 0 8px; }
+
+/* ---- Textkarte: Karte ohne Bild, wie der Replay-Modus „Bilder aus“ ------------------------------ */
+/* Sie braucht nur die Spieldaten und erscheint, wenn keine Kartenbilder erreichbar sind (body.no-cardimg). */
+.tcard {
+  position: absolute; inset: 0; display: none; flex-direction: column; gap: 3px; padding: 5px; border-radius: inherit;
+  background: linear-gradient(180deg, #b3bac4, #6c747e); color: #120e08; text-align: left;
+  font: 600 calc(var(--tile-w, 150px) * .062)/1.25 "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  box-shadow: inset 0 0 0 2px #070504, inset 0 0 0 4px rgba(242,177,52,.32); overflow: hidden;
+}
+.tcard.f-w { background: linear-gradient(180deg, #fbf3d8, #e2d094); }
+.tcard.f-u { background: linear-gradient(180deg, #5a9ae8, #1c4a9e); }
+.tcard.f-b { background: linear-gradient(180deg, #6a5e78, #251c2c); }
+.tcard.f-r { background: linear-gradient(180deg, #e85a3c, #8a2210); }
+.tcard.f-g { background: linear-gradient(180deg, #56b862, #1f6a2c); }
+.tcard.f-m { background: linear-gradient(180deg, #f3d35e, #ad861c); }
+.tcard.f-a { background: linear-gradient(180deg, #cfd9e2, #7f8d9a); }
+.tcard.f-l { background: linear-gradient(180deg, #cf9d62, #7a4f2a); }
+.tcard .th { display: flex; align-items: center; gap: 3px; padding: 2px 4px; border-radius: 4px; background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(230,220,196,.86)); box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
+.tcard .th .n { flex: 1; min-width: 0; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tcard .th .m, .tcard .th .cp { flex: none; display: inline-flex; gap: 1px; line-height: 0; max-width: 55%; overflow: hidden; }
+.tcard .th .m .ms, .tcard .th .cp .ms { display: block; flex: none; width: 1.05em; height: 1.05em; vertical-align: 0; filter: none; }
+.tcard .tt { display: flex; align-items: center; gap: 4px; padding: 2px 4px; border-radius: 3px; background: rgba(255,255,255,.72); font-weight: 700; font-size: .92em; }
+.tcard .tt .tl { display: block; flex: 1; min-width: 0; min-height: 0; margin: 0; padding: 0; background: none; box-shadow: none; border-radius: 0; color: inherit; font-size: inherit; text-shadow: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tcard .emb { flex: none; width: 1.5em; height: 1.5em; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.tcard .emb svg { width: .95em; height: .95em; }
+.tcard .emb.t-land { background: #4f7a3a; } .tcard .emb.t-creature { background: #8a2f1c; } .tcard .emb.t-instant { background: #2b63b8; }
+.tcard .emb.t-sorcery { background: #6e3a9a; } .tcard .emb.t-ench { background: #b8862a; } .tcard .emb.t-artifact { background: #5f6b76; }
+.tcard .emb.t-pw { background: #c25a22; } .tcard .emb.t-battle { background: #9a2a22; } .tcard .emb.t-other { background: #55606b; }
+.tcard .tx { display: block; flex: 1; min-height: 0; margin: 0; overflow: hidden; padding: 3px 4px; border-radius: 3px; background: rgba(250,246,232,.94); color: #14100a; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); font-weight: 500; font-size: .95em; line-height: 1.25; }
+.tcard .tx p { margin: 0 0 3px; }
+.tcard .tx .ms { width: .9em; height: .9em; vertical-align: -.12em; filter: none; }
+.tcard .tpt { position: absolute; right: 6px; bottom: 5px; padding: 1px 6px; border-radius: 4px; background: rgba(20,16,10,.85); color: #ffe9b0; font-weight: 800; font-size: .95em; }
+.c.compact .tcard { font-size: 7.5px; padding: 3px; gap: 2px; }
+.c.compact .tcard .tx { display: none; }
+.c.big .tcard { font-size: 15px; padding: 10px; gap: 6px; }
+.card-preview .c.big .tcard { font-size: 12px; }
+
+/* Keine Kartenbilder erreichbar: überall die Textkarte statt Bild, Artwork und Ladeanzeige */
+body.no-cardimg .c img.cimg, body.no-cardimg .c .fallback,
+body.no-cardimg .cc .inner img.cimg, body.no-cardimg .cc .inner .fallback { display: none !important; }
+body.no-cardimg .c .tcard, body.no-cardimg .cc .inner .tcard { display: flex; }
+body.no-cardimg .c::before, body.no-cardimg .c::after,
+body.no-cardimg .cc .inner::before, body.no-cardimg .cc .inner::after { content: none !important; }
