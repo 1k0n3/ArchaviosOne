@@ -45,8 +45,6 @@ window.I18N = (function () {
     "Legendär": ["Legendary","Légendaire","Legendaria","Leggendaria","Lendária","伝説"],
     "Jeder Manawert": ["Any mana value","Toute valeur de mana","Cualquier valor de maná","Qualsiasi valore di mana","Qualquer valor de mana","すべてのマナ総量"],
     "Ausblenden": ["Hide", "Masquer", "Ocultar", "Nascondi", "Ocultar", "非表示"],
-    "Passend zur Farbidentität": ["Matching color identity","Compatible avec l'identité","Compatible con la identidad","Compatibile con l'identità","Compatível com a identidade","固有色に合う"],
-    "Identität": ["Identity","Identité","Identidad","Identità","Identidade","固有色"],
     "Als Commander": ["As commander","Comme commandant","Como comandante","Come comandante","Como comandante","統率者にする"],
     "Hexereien": ["Sorceries","Rituels","Conjuros","Stregonerie","Feitiços","ソーサリー"],
     "Verzauberungen": ["Enchantments","Enchantements","Encantamientos","Incantesimi","Encantamentos","エンチャント"],

@@ -303,9 +303,9 @@ App.load().then(async (D) => {
   document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") A.$("#alt").classList.add("hidden"); });
 
   // ---- Pool: Filter, Sortierung, Kacheln --------------------------------------------------------------------
-  // Filterleiste (gemeinsam mit der Bibliothek): Suche auch im Regeltext, Besitz zusätzlich "passend zur Farbidentität"
+  // Filterleiste (gemeinsam mit der Bibliothek): Suche auch im Regeltext
   const F = A.cardFilterBar({ key: "builder", grid: A.$("#grid"), sets, searchPlaceholder: T("Name oder Regeltext suchen"), textSearch: true, sizeKey: "mtga-builder-tile", sizeMin: 80, sizeMax: 200,
-    ownItems: [{ v: "id", label: T("Passend zur Farbidentität"), short: T("Identität"), icon: FI.deck }], sort: ["color", "indeck", "name", "cmc", "wins", "rarity", "set", "owned"], sortDefault: "color", onChange: () => renderPool() });
+    sort: ["color", "indeck", "name", "cmc", "wins", "rarity", "set", "owned"], sortDefault: "color", onChange: () => renderPool() });
   let page = 0, current = [];
   // Commander gesetzt oder gewechselt: Farbfilter auf seine Farbidentität plus Farblos stellen (ohne Commander: Filter frei)
   let cmdKey = null, cmdPick = false;
@@ -321,7 +321,7 @@ App.load().then(async (D) => {
   const PAGE = 100;
 
   function filtered() {
-    const own = F.own.value, s = F.sort.value, id = deckIdentity(), ok = F.matcher();
+    const own = F.own.value, s = F.sort.value, ok = F.matcher();
     // ein Druck je Kartenname (der mit den meisten Exemplaren, sonst der neueste)
     const best = new Map();
     for (const c of base) {
@@ -329,7 +329,6 @@ App.load().then(async (D) => {
       if (cmdPick && !cmdEligible(c)) continue;
       if (own === "1" && !ownedOf(c)) continue;
       if (own === "0" && ownedOf(c)) continue;
-      if (own === "id" && id.size && [...identityOf(c)].some((x) => !id.has(x))) continue;
       const p = best.get(c[1]); if (!p || ownedOf(c) > ownedOf(p) || (ownedOf(c) === ownedOf(p) && c[0] > p[0])) best.set(c[1], c);
     }
     const list = [...best.values()];
