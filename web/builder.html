@@ -66,10 +66,9 @@ App.load().then(async (D) => {
   // Farbidentität: Kartenfarben plus Manasymbole im Regeltext (Näherung für Brawl/Commander)
   const identityOf = (c) => { const s = new Set(colorsOf(c)); for (const m of String(c[17] || "").matchAll(/\{([WUBRG])(?:\/[WUBRGP])?\}/g)) s.add({ W: "1", U: "2", B: "3", R: "4", G: "5" }[m[1]]); return s; };
   const ownedOf = (c) => c[9] || 0;
-  // Nutzung (Siege, Matches) je Kartenname aus den lokalen Daten
-  const use = new Map();
-  for (const m of D.matches || []) for (const [g] of m.played || []) { const n = A.cardName(g); if (!use.has(n)) use.set(n, { w: 0, p: 0 }); const x = use.get(n); x.p++; if (m.result === "Sieg") x.w++; }
-  const useOf = (c) => use.get(c[1]) || { w: 0, p: 0 };
+  // Nutzung (Siege, Matches, Decks) je Kartenname – dieselbe Rechnung wie in der Bibliothek
+  const use = A.cardUsage(D);
+  const useOf = use.of;
 
   // ---- Deck-Zustand (im Browser gespeichert) ----------------------------------------------------------
   const ASST_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l1.9 4.9L19 9.8l-4.4 2.5L13.4 18 12 13.6 10.6 18 9.4 12.3 5 9.8l5.1-1.9z"/><path d="M18.5 3.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg>';
@@ -268,7 +267,7 @@ App.load().then(async (D) => {
       seen.add(c[1]);
       const ck = kw(c); let shared = 0; for (const k of tk) if (ck.has(k)) shared++;
       const u = useOf(c);
-      let score = 10 - dc * 3 + shared * 4 - Math.abs(ck.size - tk.size) + (colorsOf(c).join() === colorsOf(t).join() ? 3 : 0) + Math.min(6, u.w * 2 + u.p * 0.5) + (c[4] === t[4] ? 1 : 0);
+      let score = 10 - dc * 3 + shared * 4 - Math.abs(ck.size - tk.size) + (colorsOf(c).join() === colorsOf(t).join() ? 3 : 0) + Math.min(6, u.w * 2 + u.played * 0.5) + (c[4] === t[4] ? 1 : 0);
       if (types.includes("2") && t[15] !== "" && c[15] !== "") score -= Math.abs((+c[15] || 0) - (+t[15] || 0)) + Math.abs((+c[16] || 0) - (+t[16] || 0));
       if (countOfName(c[1]) >= fmt().copies && !isBasic(c)) score -= 6;
       out.push({ c, score, shared, u });
@@ -305,7 +304,7 @@ App.load().then(async (D) => {
   // ---- Pool: Filter, Sortierung, Kacheln --------------------------------------------------------------------
   // Filterleiste (gemeinsam mit der Bibliothek): Suche auch im Regeltext
   const F = A.cardFilterBar({ key: "builder", grid: A.$("#grid"), sets, searchPlaceholder: T("Name oder Regeltext suchen"), textSearch: true, sizeKey: "mtga-builder-tile", sizeMin: 80, sizeMax: 200,
-    sort: ["color", "indeck", "name", "cmc", "wins", "rarity", "set", "owned"], sortDefault: "color", onChange: () => renderPool() });
+    deckSort: true, sortDefault: "color", onChange: () => renderPool() });
   let page = 0, current = [];
   // Commander gesetzt oder gewechselt: Farbfilter auf seine Farbidentität plus Farblos stellen (ohne Commander: Filter frei)
   let cmdKey = null, cmdPick = false;
@@ -332,19 +331,8 @@ App.load().then(async (D) => {
       const p = best.get(c[1]); if (!p || ownedOf(c) > ownedOf(p) || (ownedOf(c) === ownedOf(p) && c[0] > p[0])) best.set(c[1], c);
     }
     const list = [...best.values()];
-    const byName = (a, b) => a[1].localeCompare(b[1], "en");
-    // Farbreihenfolge wie in Arena: Weiß, Blau, Schwarz, Rot, Grün, mehrfarbig, farblos, Länder
-    const colorKey = (c) => { if (String(c[6]).split(",").includes("5")) return 90; const cc = String(c[5] || "").split(",").filter(Boolean); return cc.length === 1 ? +cc[0] : cc.length > 1 ? 10 + cc.length : 80; };
-    list.sort((a, b) => {
-      if (s === "color") return (colorKey(a) - colorKey(b)) || String(a[5]).localeCompare(String(b[5])) || (a[8] - b[8]) || byName(a, b);
-      if (s === "cmc") return (a[8] - b[8]) || byName(a, b);
-      if (s === "wins") { const x = useOf(a), y = useOf(b); return (y.w - x.w) || (y.p - x.p) || byName(a, b); }
-      if (s === "rarity") return (b[4] - a[4]) || byName(a, b);
-      if (s === "set") return a[2].localeCompare(b[2]) || String(a[3]).localeCompare(String(b[3]), undefined, { numeric: true });
-      if (s === "owned") return (ownedOf(b) - ownedOf(a)) || byName(a, b);
-      if (s === "indeck") return (colorKey(a) - colorKey(b)) || String(a[5]).localeCompare(String(b[5])) || (a[8] - b[8]) || byName(a, b);
-      return byName(a, b);
-    });
+    // "Im Deck zuerst" ordnet innerhalb der beiden Gruppen nach Farbe (siehe unten)
+    list.sort(A.cardSorter(s, { use, extra: { indeck: A.cardSorter("color") } }));
     if (s === "indeck") {
       // Druckunabhängig über den Namen: im Pool steht oft ein anderer Druck als im Deck
       const names = new Set([...Object.keys(deck.main), ...Object.keys(deck.side), ...deck.cmd].map((g) => (byId.get(+g) || [])[1]).filter(Boolean));

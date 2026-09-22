@@ -43,20 +43,13 @@ App.load().then(async (D) => {
   const RAR = { 1: "Standardland", 2: "Common", 3: "Uncommon", 4: "Rare", 5: "Mythic", 0: "Token" };
 
   // Nutzung aus den lokalen Daten (über alle Drucke, nach Kartennamen): Siege, gespielte Matches, Decks
-  const use = new Map();
-  const u = (name) => { if (!use.has(name)) use.set(name, { w: 0, played: 0, casts: 0, decks: 0, m: new Set() }); return use.get(name); };
-  for (const m of D.matches || []) for (const [g, n] of m.played || []) {
-    const x = u(A.cardName(g));
-    if (!x.m.has(m.matchId)) { x.m.add(m.matchId); x.played++; if (m.result === "Sieg") x.w++; }
-    x.casts += n;
-  }
-  for (const d of D.decks || []) { const names = new Set(); for (const z of Object.values(d.zones || {})) for (const [g] of z) names.add(A.cardName(g)); for (const n of names) u(n).decks++; }
-  const useOf = (c) => use.get(c[1]) || { w: 0, played: 0, casts: 0, decks: 0 };
+  const use = A.cardUsage(D);
+  const useOf = use.of;
 
   // Filterleiste (gemeinsam mit dem Deckbau): Suche, Set, Seltenheit, Typ, Manawert, Farben, Besitz, Sortierung, Ansicht
   const params = new URLSearchParams(location.search);
   const F = A.cardFilterBar({ key: "lib", grid: A.$("#grid"), sets, searchPlaceholder: T("Name suchen"), searchValue: params.get("q") || "", ownValue: params.get("own") || "1", sortValue: params.get("sort") || "name",
-    sort: ["name", "color", "wins", "played", "decks", "owned", "cmc", "rarity", "set"], onChange: () => render() });
+    onChange: () => render() });
   let page = 0;
   const PAGE = 120;
 
@@ -67,26 +60,13 @@ App.load().then(async (D) => {
   function filtered() {
     const own = F.own.value, s = F.sort.value, ok = F.matcher();
     let list = base.filter((c) => ok(c) && !(own === "1" && !c[9]) && !(own === "0" && c[9]));
-    const byName = (a, b) => a[1].localeCompare(b[1], "en");
-    // Farbreihenfolge wie in Arena: Weiß, Blau, Schwarz, Rot, Grün, mehrfarbig, farblos, Länder
-    const colorKey = (c) => { if (String(c[6]).split(",").includes("5")) return 90; const cc = String(c[5] || "").split(",").filter(Boolean); return cc.length === 1 ? +cc[0] : cc.length > 1 ? 10 + cc.length : 80; };
     // Bei Nutzungs-Sortierung nur ein Druck je Kartenname (der mit den meisten Exemplaren)
     if (s === "wins" || s === "played" || s === "decks") {
       const best = new Map();
       for (const c of list) { const p = best.get(c[1]); if (!p || c[9] > p[9]) best.set(c[1], c); }
       list = [...best.values()];
     }
-    list.sort((a, b) => {
-      if (s === "color") return (colorKey(a) - colorKey(b)) || String(a[5]).localeCompare(String(b[5])) || (a[8] - b[8]) || byName(a, b);
-      if (s === "wins") { const x = useOf(a), y = useOf(b); return (y.w - x.w) || (y.played - x.played) || byName(a, b); }
-      if (s === "played") { const x = useOf(a), y = useOf(b); return (y.played - x.played) || (y.casts - x.casts) || byName(a, b); }
-      if (s === "decks") { const x = useOf(a), y = useOf(b); return (y.decks - x.decks) || (y.played - x.played) || byName(a, b); }
-      if (s === "set") return a[2].localeCompare(b[2]) || String(a[3]).localeCompare(String(b[3]), undefined, { numeric: true });
-      if (s === "cmc") return (a[8] - b[8]) || byName(a, b);
-      if (s === "rarity") return (b[4] - a[4]) || byName(a, b);
-      if (s === "owned") return (b[9] - a[9]) || byName(a, b);
-      return byName(a, b);
-    });
+    list.sort(A.cardSorter(s, { use }));
     return list;
   }
   let current = [];

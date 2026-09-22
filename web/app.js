@@ -358,6 +358,11 @@ window.App = (function () {
     };
   }
   const colorMatch = (sel, cc, isLand) => colorMatcher(sel)(cc, isLand);
+  /**
+   * Reihenfolge der Sortierpunkte – auf allen Seiten dieselbe. "indeck" erscheint nur, wo ein Deck
+   * offen ist (Deckbau: deckSort). Ein neuer Punkt kommt hierhin und nach SORT_ITEMS, sonst nirgends.
+   */
+  const SORT_ORDER = ["color", "indeck", "name", "cmc", "rarity", "set", "owned", "wins", "played", "decks"];
   const SORT_ITEMS = {
     color: () => ({ v: "color", label: tr("Farbe"), short: tr("Farbe"), icon: FI.set }),
     indeck: () => ({ v: "indeck", label: tr("Im Deck zuerst"), short: tr("Im Deck"), icon: FI.deck }),
@@ -366,10 +371,47 @@ window.App = (function () {
     decks: () => ({ v: "decks", label: tr("Meist in Decks"), short: tr("Decks"), icon: FI.deck }), owned: () => ({ v: "owned", label: tr("Meiste Exemplare"), short: tr("Exemplare"), icon: FI.copies }),
     rarity: () => ({ v: "rarity", label: tr("Seltenheit"), icon: FI.gem("#e0b654") }), set: () => ({ v: "set", label: tr("Set und Nummer"), short: tr("Set"), icon: FI.set })
   };
+  /** Nutzung je Kartenname aus den lokalen Daten: Siege, gespielte Matches, Beschwörungen, Decks */
+  function cardUsage(D) {
+    D = D || DATA || {};
+    const use = new Map();
+    const u = (n) => { let x = use.get(n); if (!x) use.set(n, x = { w: 0, played: 0, casts: 0, decks: 0, m: new Set() }); return x; };
+    for (const m of D.matches || []) for (const [g, n] of m.played || []) {
+      const x = u(cardName(g));
+      if (!x.m.has(m.matchId)) { x.m.add(m.matchId); x.played++; if (m.result === "Sieg") x.w++; }
+      x.casts += n || 1;
+    }
+    for (const d of D.decks || []) { const namen = new Set(); for (const z of Object.values(d.zones || {})) for (const [g] of z) namen.add(cardName(g)); for (const n of namen) u(n).decks++; }
+    const leer = { w: 0, played: 0, casts: 0, decks: 0 };
+    return { map: use, of: (c) => use.get(typeof c === "string" ? c : c[1]) || leer };
+  }
+  /** Farbreihenfolge wie in Arena: Weiß, Blau, Schwarz, Rot, Grün, mehrfarbig, farblos, Länder */
+  const colorKey = (c) => { if (String(c[6]).split(",").includes("5")) return 90; const cc = String(c[5] || "").split(",").filter(Boolean); return cc.length === 1 ? +cc[0] : cc.length > 1 ? 10 + cc.length : 80; };
+  /**
+   * Vergleich für eine Sortierung der Kartenliste (Zeilen wie in api/cards).
+   * opt: { use: cardUsage(), extra: { schlüssel: vergleich } } – extra sind Vergleiche der Seite.
+   */
+  function cardSorter(key, opt = {}) {
+    const byName = (a, b) => a[1].localeCompare(b[1], "en");
+    if (opt.extra && opt.extra[key]) return opt.extra[key];
+    const u = opt.use || cardUsage();
+    const V = {
+      color: (a, b) => (colorKey(a) - colorKey(b)) || String(a[5]).localeCompare(String(b[5])) || (a[8] - b[8]) || byName(a, b),
+      name: byName,
+      cmc: (a, b) => (a[8] - b[8]) || byName(a, b),
+      rarity: (a, b) => (b[4] - a[4]) || byName(a, b),
+      set: (a, b) => String(a[2]).localeCompare(String(b[2])) || String(a[3]).localeCompare(String(b[3]), undefined, { numeric: true }),
+      owned: (a, b) => ((b[9] || 0) - (a[9] || 0)) || byName(a, b),
+      wins: (a, b) => (u.of(b).w - u.of(a).w) || (u.of(b).played - u.of(a).played) || byName(a, b),
+      played: (a, b) => (u.of(b).played - u.of(a).played) || (u.of(b).casts - u.of(a).casts) || byName(a, b),
+      decks: (a, b) => (u.of(b).decks - u.of(a).decks) || (u.of(b).played - u.of(a).played) || byName(a, b)
+    };
+    return V[key] || byName;
+  }
   /** Gemeinsame Filterleiste für Kartenlisten (Bibliothek, Deckbau). Füllt .topbar .right.filters (Set, Seltenheit, Typ,
    *  Manawert als Symbol, Farben, Besitz, Sortierung, Zurücksetzen) und .lib-bar (Suche, Zähler, Zoom-Menü mit Raster/Liste).
    *  Handy: Reihen Set/Besitz/Sortierung – Typ/Seltenheit – Manawert/Farben/Zurücksetzen.
-   *  o: { key, grid, sets, sort: [Schlüssel], ownItems, ownValue, sortValue, searchPlaceholder, searchValue, textSearch,
+   *  o: { key, grid, sets, deckSort (zeigt „Im Deck zuerst“), ownItems, ownValue, sortValue, searchPlaceholder, searchValue, textSearch,
    *       sizeKey, sizeMin, sizeMax, onChange }. Liefert Steuerelemente, matcher() für die gemeinsamen Filter, view(), count(text). */
   function cardFilterBar(o) {
     const bar = $(".topbar .right.filters"), lib = $(".lib-bar"), grid = o.grid, gem = FI.gem;
@@ -395,7 +437,9 @@ window.App = (function () {
     F.cmc = dropdown($("#f-cmc"), { title: tr("Manawert"), onChange: change, items: [{ v: "", label: tr("Jeder Manawert"), short: "", icon: FI.mana }, ...[0, 1, 2, 3, 4, 5, 6].map((n) => ({ v: String(n), label: String(n), short: "", icon: manaSymbol(String(n)) })), { v: "7", label: "7+", short: "", icon: manaSymbol("7") }, { v: "x", label: "X", short: "", icon: manaSymbol("x") }] });
     $("#f-cmc").classList.add("icon-only", "cmc");
     F.own = dropdown($("#f-own"), { title: tr("Besitz"), value: o.ownValue || "1", defaultValue: "1", onChange: change, items: [{ v: "1", label: tr("Im Besitz"), icon: FI.check }, { v: "", label: tr("Alle Karten"), short: tr("Alle"), icon: FI.all }, { v: "0", label: tr("Fehlende"), icon: FI.x }, ...(o.ownItems || [])] });
-    F.sort = dropdown($("#f-sort"), { title: tr("Sortierung"), value: o.sortValue || o.sortDefault || "name", defaultValue: o.sortDefault || "name", onChange: change, items: o.sort.map((k) => SORT_ITEMS[k]()) });
+    // Immer dieselben Punkte in derselben Reihenfolge; "Im Deck zuerst" nur mit offenem Deck
+    const sortKeys = SORT_ORDER.filter((k) => k !== "indeck" || o.deckSort);
+    F.sort = dropdown($("#f-sort"), { title: tr("Sortierung"), value: o.sortValue || o.sortDefault || "name", defaultValue: o.sortDefault || "name", onChange: change, items: sortKeys.map((k) => SORT_ITEMS[k]()) });
     $$("#f-colors button").forEach((b) => b.addEventListener("click", () => { const v = b.dataset.v; if (colors.has(v)) colors.delete(v); else colors.add(v); b.classList.toggle("on", colors.has(v)); change(); }));
     F.setColors = (vals) => { colors.clear(); for (const v of vals) colors.add(v); $$("#f-colors button").forEach((b) => b.classList.toggle("on", colors.has(b.dataset.v))); paintReset(); };
     $("#f-reset").addEventListener("click", () => { F.set.value = ""; F.rar.value = ""; F.type.value = ""; F.cmc.value = ""; F.own.value = "1"; F.sort.value = (o.sortDefault || "name"); F.setColors([]); F.q.value = ""; F.q.dispatchEvent(new Event("input")); });
@@ -1080,5 +1124,5 @@ window.App = (function () {
     setInterval(check, 20000);
   })();
 
-  return { load, get DATA() { return DATA; }, $, $$, esc, num, card, cardName, artOf, artCanvas, cardTile, cardHtml, textCard, get ohneBilder() { return ohneBilder; }, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, filterIcon, uiIcon, zoomMenu, cardRow, longPress, openMenu, colorMatch, cardFilterBar, qtyHtml, ownHtml, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, selectToDropdown, enhanceSelects, settingsTabs, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, colorBarHtml, cmcOf, loadedImgs, t: tr, isMobile, foldable, get LOGO() { return logoSvg(); } };
+  return { load, get DATA() { return DATA; }, $, $$, esc, num, card, cardName, artOf, artCanvas, cardTile, cardHtml, textCard, cardUsage, cardSorter, get ohneBilder() { return ohneBilder; }, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, filterIcon, uiIcon, zoomMenu, cardRow, longPress, openMenu, colorMatch, cardFilterBar, qtyHtml, ownHtml, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, selectToDropdown, enhanceSelects, settingsTabs, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, colorBarHtml, cmcOf, loadedImgs, t: tr, isMobile, foldable, get LOGO() { return logoSvg(); } };
 })();
