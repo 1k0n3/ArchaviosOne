@@ -56,7 +56,7 @@ App.load().then(async (D) => {
   // Filterleiste (gemeinsam mit dem Deckbau): Suche, Set, Seltenheit, Typ, Manawert, Farben, Besitz, Sortierung, Ansicht
   const params = new URLSearchParams(location.search);
   const F = A.cardFilterBar({ key: "lib", grid: A.$("#grid"), sets, searchPlaceholder: T("Name suchen"), searchValue: params.get("q") || "", ownValue: params.get("own") || "1", sortValue: params.get("sort") || "name",
-    sort: ["name", "wins", "played", "decks", "owned", "cmc", "rarity", "set"], onChange: () => render() });
+    sort: ["name", "color", "wins", "played", "decks", "owned", "cmc", "rarity", "set"], onChange: () => render() });
   let page = 0;
   const PAGE = 120;
 
@@ -68,6 +68,8 @@ App.load().then(async (D) => {
     const own = F.own.value, s = F.sort.value, ok = F.matcher();
     let list = base.filter((c) => ok(c) && !(own === "1" && !c[9]) && !(own === "0" && c[9]));
     const byName = (a, b) => a[1].localeCompare(b[1], "en");
+    // Farbreihenfolge wie in Arena: Weiß, Blau, Schwarz, Rot, Grün, mehrfarbig, farblos, Länder
+    const colorKey = (c) => { if (String(c[6]).split(",").includes("5")) return 90; const cc = String(c[5] || "").split(",").filter(Boolean); return cc.length === 1 ? +cc[0] : cc.length > 1 ? 10 + cc.length : 80; };
     // Bei Nutzungs-Sortierung nur ein Druck je Kartenname (der mit den meisten Exemplaren)
     if (s === "wins" || s === "played" || s === "decks") {
       const best = new Map();
@@ -75,6 +77,7 @@ App.load().then(async (D) => {
       list = [...best.values()];
     }
     list.sort((a, b) => {
+      if (s === "color") return (colorKey(a) - colorKey(b)) || String(a[5]).localeCompare(String(b[5])) || (a[8] - b[8]) || byName(a, b);
       if (s === "wins") { const x = useOf(a), y = useOf(b); return (y.w - x.w) || (y.played - x.played) || byName(a, b); }
       if (s === "played") { const x = useOf(a), y = useOf(b); return (y.played - x.played) || (y.casts - x.casts) || byName(a, b); }
       if (s === "decks") { const x = useOf(a), y = useOf(b); return (y.decks - x.decks) || (y.played - x.played) || byName(a, b); }

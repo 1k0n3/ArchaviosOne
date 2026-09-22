@@ -465,7 +465,6 @@ window.I18N = (function () {
     "Einklappen": ["Collapse", "Replier", "Plegar", "Comprimi", "Recolher", "折りたたむ"],
     "Anzeigen": ["Show", "Afficher", "Mostrar", "Mostra", "Mostrar", "表示"],
     "Einklappen": ["Collapse", "Replier", "Plegar", "Comprimi", "Recolher", "折りたたむ"],
-    "Farbe und Manawert": ["Color and mana value", "Couleur et valeur de mana", "Color y valor de maná", "Colore e valore di mana", "Cor e valor de mana", "色とマナ総量"],
     "Im Deck": ["In deck", "Dans le deck", "En el mazo", "Nel mazzo", "No deck", "デッキ内"],
     "Im Deck zuerst": ["In deck first", "Deck en premier", "En el mazo primero", "Prima nel mazzo", "No deck primeiro", "デッキ内を先頭に"],
     "Karten im Deck zuerst anzeigen": ["Show cards in the deck first", "Afficher d’abord les cartes du deck", "Mostrar primero las cartas del mazo", "Mostra prima le carte nel mazzo", "Mostrar primeiro as cartas do deck", "デッキ内のカードを先に表示"],

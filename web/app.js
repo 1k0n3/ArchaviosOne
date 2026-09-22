@@ -359,7 +359,7 @@ window.App = (function () {
   }
   const colorMatch = (sel, cc, isLand) => colorMatcher(sel)(cc, isLand);
   const SORT_ITEMS = {
-    color: () => ({ v: "color", label: tr("Farbe und Manawert"), short: tr("Farbe"), icon: FI.set }),
+    color: () => ({ v: "color", label: tr("Farbe"), short: tr("Farbe"), icon: FI.set }),
     indeck: () => ({ v: "indeck", label: tr("Im Deck zuerst"), short: tr("Im Deck"), icon: FI.deck }),
     name: () => ({ v: "name", label: tr("Name A–Z"), short: tr("Name"), icon: FI.az }), cmc: () => ({ v: "cmc", label: tr("Manawert"), short: tr("Mana"), icon: FI.mana }),
     wins: () => ({ v: "wins", label: tr("Meiste Siege"), short: tr("Siege"), icon: FI.trophy }), played: () => ({ v: "played", label: tr("Meist gespielt"), short: tr("Gespielt"), icon: FI.play }),
