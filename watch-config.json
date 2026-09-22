@@ -16,6 +16,8 @@
     "_maxQty":  "Höchste plausible Anzahl pro Karte.",
     "matchCheckSec":  10,
     "_matchCheckSec":  "Wie oft während des Spiels die Player.log auf neue Match-Ereignisse geprüft wird (sehr günstig).",
+    "_assistant":  "KI-Assistent in der Oberfläche mitliefern. false = Fassung ohne Assistent (Skript und Verweis fehlen dann in den Seiten).",
+    "assistant":  true,
     "webDashboard":  true,
     "_webDashboard":  "Web-Dashboard (out/web/index.html) nach jedem Match und Sitzungsende aktualisieren.",
     "webServer":  true,

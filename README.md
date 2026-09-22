@@ -107,6 +107,10 @@ Your questions and the data the assistant looks up go to the provider you picked
 linked a website account, the access is mirrored there encrypted so you are connected on both sides without a
 second login.
 
+The assistant ships with every build. To build a version without it, set `assistant: false` in
+`watch-config.json` (or `MTGA_ASSISTANT=0` for a single build): `assistant.js` and its `<script>` tag are then
+left out of every page.
+
 Also: collection export as CSV before and after every session with a running change log, live refresh of open pages when new data arrives, and an installable web app (Chrome/Edge offer "Install app").
 
 ## macOS, Linux and Steam Deck
@@ -169,6 +173,7 @@ All settings live in [`watch-config.json`](watch-config.json) and can also be ch
 | `webPort` | 8765 | Port of the dashboard server |
 | `outDir` | `out` | Where CSVs, matches and the dashboard are written |
 | `prefetchCardImages` | false | Resolve image links for all known cards at start (off: resolved on demand) |
+| `assistant` | true | Ship the AI assistant with the interface. `false` builds a version without it: `assistant.js` and its `<script>` tag are left out of every page (`MTGA_ASSISTANT=0` does the same for one build) |
 
 ## Output files (`out\`)
 

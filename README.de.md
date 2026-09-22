@@ -75,6 +75,10 @@ Fragen kosten deshalb nur eine Anfrage; braucht er Werkzeuge, denkt er danach er
 Minutenlimit eines Anbieters erreicht, zählt der Chat herunter und fragt selbst noch einmal, statt
 abzubrechen. Schaltet ein Anbieter ein Modell ab, übernimmt der Chat den Nachfolger, den der Anbieter nennt.
 
+Der Assistent gehört zu jeder Fassung. Eine Fassung ohne ihn baust du mit `"assistant": false` in
+`watch-config.json` (oder einmalig mit `MTGA_ASSISTANT=0`): dann fehlen `assistant.js` und der Verweis
+darauf in allen Seiten.
+
 Die Schlüssel liegen auf deinem Rechner in `out/assistant.json` (nur für dich lesbar). Das Dashboard spricht
 nie direkt mit dem Anbieter: alle Anfragen laufen über den lokalen Server, damit der Schlüssel nicht im Browser
 landet, und der lokale Dienst nimmt sie nur von der eigenen Oberfläche an. Deine Fragen und die Daten, die der

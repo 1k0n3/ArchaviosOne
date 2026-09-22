@@ -107,10 +107,21 @@ function configFile() { return process.env.MTGA_STATS_CONFIG || path.join(__dirn
 function readConfig() {
   try { const raw = JSON.parse(fs.readFileSync(configFile(), "utf8").replace(/^\uFEFF/, "")); const o = {}; for (const k of Object.keys(raw)) if (!k.startsWith("_")) o[k] = raw[k]; return o; } catch (e) { return {}; }
 }
+/**
+ * Gehört der KI-Assistent zur ausgelieferten Oberfläche? Standard ist ja; wer eine Fassung ohne ihn
+ * bauen will, setzt "assistant": false in watch-config.json oder MTGA_ASSISTANT=0. Beim Bauen fallen
+ * dann Skript und Verweis aus den Seiten (siehe src/webgen.js und scripts/build-hosting.js).
+ */
+function assistantEnabled(env = process.env) {
+  if (env.MTGA_ASSISTANT !== undefined) return !/^(0|false|off|nein)$/i.test(String(env.MTGA_ASSISTANT).trim());
+  return readConfig().assistant !== false;
+}
+
 /** Ausgabeordner: outDir aus den Einstellungen (relativ zum Tool-Ordner), sonst out/ im Tool-Ordner */
 function outDir() { const o = readConfig().outDir || "out"; return path.isAbsolute(o) ? o : path.join(__dirname, "..", o); }
 
 /** Speicher-Scan der Sammlung gibt es bisher nur unter Windows (PowerShell); Matches, Decks und Konto kommen überall aus dem Log */
 function memoryScanSupported() { return process.platform === "win32"; }
 
-module.exports = { configFile, readConfig, outDir, logDirCandidates, installDirCandidates, pickLogDir, installFromLogHead, findLogDir, findLogFile, findInstall, findInstallDir, findDataDir, mtgaPid, memoryScanSupported, STEAM_APP_ID };
+module.exports = {
+  assistantEnabled, configFile, readConfig, outDir, logDirCandidates, installDirCandidates, pickLogDir, installFromLogHead, findLogDir, findLogFile, findInstall, findInstallDir, findDataDir, mtgaPid, memoryScanSupported, STEAM_APP_ID };

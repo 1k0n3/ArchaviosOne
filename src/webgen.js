@@ -1,6 +1,7 @@
 // Erzeugt das Web-Dashboard: kopiert web/ nach <outDir>/web und schreibt data.js/data.json + matches/<id>.js
 const fs = require("fs");
 const path = require("path");
+const paths = require("./paths");
 const lib = require("./lib");
 const matches = require("./matches");
 const { readDecksFromLog } = require("./decks");
@@ -85,19 +86,21 @@ function build(outDir, cards) {
     for (const f of fs.readdirSync(path.join(webDir, "matches"))) if (f.endsWith(".js")) fs.unlinkSync(path.join(webDir, "matches", f));
     fs.writeFileSync(fmtFile, String(FORMAT));
   }
-  // Optionaler Zusatz: liegt web/assistant.js vor, wird er in die Seiten eingebunden
-  const hasAssistant = fs.existsSync(path.join(srcDir, "assistant.js"));
+  // Der Assistent ist Standard und steht in den Seiten. Nur wenn er abgewählt ist ("assistant": false
+  // in watch-config.json oder MTGA_ASSISTANT=0) oder die Datei fehlt, bleiben Skript und Verweis weg.
+  const mitAssistent = require("./paths").assistantEnabled() && fs.existsSync(path.join(srcDir, "assistant.js"));
   const ASST_TAG = '<script src="assistant.js" data-asst="1"></script>';
   for (const f of fs.readdirSync(srcDir)) {
     const p = path.join(srcDir, f);
     if (!fs.statSync(p).isFile()) continue;
-    if (hasAssistant && f.endsWith(".html")) {
-      const html = fs.readFileSync(p, "utf8");
-      fs.writeFileSync(path.join(webDir, f), html.includes(ASST_TAG) || !html.includes("</head>") ? html : html.replace("</head>", ASST_TAG + "\n</head>"));
+    if (!mitAssistent && f === "assistant.js") continue;
+    if (!mitAssistent && f.endsWith(".html")) {
+      fs.writeFileSync(path.join(webDir, f), fs.readFileSync(p, "utf8").split(ASST_TAG + "\n").join("").split(ASST_TAG).join(""));
       continue;
     }
     fs.copyFileSync(p, path.join(webDir, f));
   }
+  if (!mitAssistent) { try { fs.unlinkSync(path.join(webDir, "assistant.js")); } catch (e) { /* war nie da */ } }
   // Icons für Manifest, App-Fenster und Tab
   const assets = path.join(__dirname, "..", "assets");
   for (const [src, dst] of [["icon-192.png", "icon-192.png"], ["icon-512.png", "icon-512.png"], ["mtga-stats.ico", "favicon.ico"]]) {
