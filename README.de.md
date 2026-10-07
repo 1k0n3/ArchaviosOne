@@ -102,15 +102,26 @@ Seiten ohne zweite Anmeldung verbunden bist. Ohne eingerichteten Anbieter bleibt
 
 ## macOS, Linux und Steam Deck
 
-Seit 1.2.0 läuft der Companion auch auf macOS und Linux, inklusive Steam Deck (Arena über Steam/Proton):
+Seit 1.2.0 läuft der Companion auch auf macOS und Linux, inklusive Steam Deck (Arena über Steam/Proton). Ein Befehl im Terminal installiert ihn, und derselbe Befehl aktualisiert ihn später (Einstellungen und Daten bleiben erhalten):
 
 ```bash
-chmod +x install.sh && ./install.sh
+curl -fsSL https://mtga.a16.be/install.sh | bash
 ```
 
-Der Installer lädt bei Bedarf ein portables Node.js nach `~/.mtga-stats` (ohne root), richtet den Watcher als Hintergrunddienst ein (launchd auf dem Mac, systemd-Benutzerdienst auf Linux/SteamOS), legt einen Eintrag **MTGA Stats** an, der das Dashboard öffnet, und startet alles. Steuerung: `scripts/unix/mtga-stats start|stop|status|dashboard|log`, entfernen mit `./install.sh --uninstall`.
+Er lädt den Companion nach `~/mtga-stats`, holt bei Bedarf ein portables Node.js nach `~/.mtga-stats` (ohne root, ohne Passwort), richtet den Watcher als Hintergrunddienst ein (launchd auf dem Mac, systemd-Benutzerdienst auf Linux/SteamOS), legt einen Eintrag **MTGA Stats** an, der das Dashboard öffnet, und startet alles.
 
-Arena wird automatisch gefunden (Mac-App, Steam/Proton-Präfix `steamapps/compatdata/2141910`, Flatpak-Steam, Wine, Lutris, Bottles). Abweichende Orte gibst du mit `MTGA_DIR` (Ordner mit `MTGA_Data`) und `MTGA_LOG_DIR` (Ordner mit `Player.log`) an.
+**Steam Deck, Schritt für Schritt**
+
+1. In den Desktop-Modus wechseln: Steam-Taste → Ein/Aus → *Zum Desktop wechseln*.
+2. **Konsole** öffnen (Anwendungsstarter unten links → System → Konsole).
+3. Den Befehl oben einfügen (Rechtsklick → Einfügen oder Strg+Umschalt+V) und Enter drücken.
+4. Zurück in den Spielmodus und wie gewohnt spielen. Der Watcher läuft im Hintergrund mit und zeichnet deine Matches auf; das Dashboard öffnest du im Desktop-Modus über **MTGA Stats** im Anwendungsmenü oder auf dem Desktop.
+
+**Alternativ aus dem ZIP:** entpacken, im entpackten Ordner ein Terminal öffnen und `bash install.sh` ausführen. Der Ordner bleibt dann der Programmordner.
+
+Steuerung: `~/mtga-stats/scripts/unix/mtga-stats start|stop|status|dashboard|log`, entfernen mit `bash ~/mtga-stats/install.sh --uninstall`.
+
+Arena wird automatisch gefunden (Mac-App, jede Steam-Bibliothek mit ihrem Proton-Präfix `steamapps/compatdata/2141910`, auch auf der SD-Karte des Steam Deck, Flatpak-Steam, Wine, Lutris, Bottles). Abweichende Orte gibst du mit `MTGA_DIR` (Ordner mit `MTGA_Data`) und `MTGA_LOG_DIR` (Ordner mit `Player.log`) an.
 
 **Eine Einschränkung:** Die Kartensammlung (Besitzstand) liest das Tool aus dem Arbeitsspeicher des Spiels, das geht nur unter Windows. Auf Mac und Linux bekommst du Matches, Replays, Decks, Kontodaten und die komplette Kartenbibliothek, aber keine Besitzzahlen. Auf dem Steam Deck spielst du wie gewohnt im Gaming-Modus und öffnest das Dashboard im Desktop-Modus.
 
@@ -122,16 +133,17 @@ Arena wird automatisch gefunden (Mac-App, Steam/Proton-Präfix `steamapps/compat
   brew install mtga-stats && brew services start mtga-stats
   mtga-stats dashboard
   ```
-- **Linux / Steam Deck (Flatpak):** im Desktop-Modus aus [`flatpak/`](flatpak/) bauen (ein Flathub-Eintrag ist geplant):
+- **Linux (Flatpak):** im Programmordner aus [`flatpak/`](flatpak/) bauen, alles ohne root (ein Flathub-Eintrag ist geplant):
   ```bash
-  flatpak install -y flathub org.flatpak.Builder org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
-  flatpak run org.flatpak.Builder --user --install --force-clean build-dir flatpak/be.a16.mtga.Stats.yml
+  flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+  flatpak install --user -y flathub org.flatpak.Builder
+  flatpak run org.flatpak.Builder --user --install --install-deps-from=flathub --force-clean build-dir flatpak/be.a16.mtga.Stats.yml
   flatpak run be.a16.mtga.Stats
   ```
-  Das Flatpak bringt Node.js mit, legt Einstellungen unter `~/.var/app/be.a16.mtga.Stats` ab und findet Arena im Steam/Proton-Präfix (auch auf der SD-Karte).
+  Das Flatpak bringt Node.js mit und legt Einstellungen unter `~/.var/app/be.a16.mtga.Stats` ab. Es zeichnet nur auf, solange es geöffnet ist (beenden mit `flatpak kill be.a16.mtga.Stats`); auf dem Steam Deck deshalb besser den Befehl oben nehmen, dessen Dienst auch im Spielmodus mitläuft.
 - **Windows (winget):** geplant; bis dahin `Install.cmd`.
 
-**Stand:** Windows ist die getestete Plattform. Mac und Linux sind neu in 1.2.0 und ohne Testgerät entstanden: Die Pfaderkennung ist per Test abgedeckt, die Skripte sind syntaxgeprüft, aber noch niemand hat es durchgängig ausprobiert. Wenn es bei dir läuft oder hakt, bitte ein Issue mit Plattform und der Ausgabe von `scripts/unix/mtga-stats status` anlegen.
+**Stand:** Windows ist die getestete Plattform. Der Linux-Installer ist in einem Arch-Linux-Container (der Basis von SteamOS) als normaler Benutzer ohne Node.js durchgängig getestet; auf einem echten Steam Deck und auf dem Mac ist er noch nicht gelaufen. Wenn es bei dir läuft oder hakt, bitte ein Issue mit Plattform und der Ausgabe von `~/mtga-stats/scripts/unix/mtga-stats status` anlegen.
 
 ## Voraussetzungen
 

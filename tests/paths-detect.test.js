@@ -20,6 +20,24 @@ test("Steam Deck: Proton-Präfix mit Player.log wird gewählt", () => {
   assert.ok(paths.installDirCandidates("linux", home, {}).includes(inst));
 });
 
+test("Steam Deck: Arena auf der SD-Karte (libraryfolders.vdf und /run/media)", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "mtga-deck-"));
+  const karte = fs.mkdtempSync(path.join(os.tmpdir(), "mtga-sd-"));
+  const steam = path.join(home, ".local", "share", "Steam", "steamapps");
+  fs.mkdirSync(steam, { recursive: true });
+  fs.writeFileSync(path.join(steam, "libraryfolders.vdf"), `"libraryfolders"\n{\n\t"0"\n\t{\n\t\t"path"\t\t"${path.join(home, ".local", "share", "Steam")}"\n\t}\n\t"1"\n\t{\n\t\t"path"\t\t"${karte}"\n\t\t"apps"\n\t\t{\n\t\t\t"2141910"\t\t"0"\n\t\t}\n\t}\n}\n`);
+  const logDir = path.join(karte, "steamapps", "compatdata", "2141910", "pfx", "drive_c", "users", "steamuser", "AppData", "LocalLow", "Wizards Of The Coast", "MTGA");
+  fs.mkdirSync(logDir, { recursive: true });
+  fs.writeFileSync(path.join(logDir, "Player.log"), "x\n");
+  assert.strictEqual(paths.pickLogDir(paths.logDirCandidates("linux", home, {})), logDir);
+  assert.ok(paths.installDirCandidates("linux", home, {}).includes(path.join(karte, "steamapps", "common", "MTGA")));
+  // ohne Eintrag in libraryfolders.vdf: Karte unter /run/media/<Benutzer>/<Karte> wird trotzdem gefunden
+  const media = fs.mkdtempSync(path.join(os.tmpdir(), "mtga-media-"));
+  const sd = path.join(media, "deck", "SD");
+  fs.mkdirSync(path.join(sd, "steamapps"), { recursive: true });
+  assert.ok(paths.steamLibraries(fs.mkdtempSync(path.join(os.tmpdir(), "mtga-leer-")), media).includes(sd));
+});
+
 test("macOS: Installationsordner und Datenordner „Data“ aus dem Log", () => {
   const r = paths.installFromLogHead("Mono path[0] = '/Applications/MTGA.app/Contents/Resources/Data/Managed'\nMono config path = …", "darwin");
   assert.deepStrictEqual(r, { dir: "/Applications/MTGA.app/Contents/Resources", dataDir: "Data" });

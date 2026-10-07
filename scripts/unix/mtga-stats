@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Steuerung von MTGA Stats auf macOS/Linux/Steam Deck (auch aus Flatpak und Homebrew heraus):
-#   mtga-stats start | stop | restart | run | status | dashboard | log | account
+#   mtga-stats start | stop | restart | run | app | status | dashboard | log | account
+#   (run: Watcher im Vordergrund · app: dazu das Dashboard öffnen, so startet das Flatpak)
 # Einstellungen und Daten: im Tool-Ordner, wenn er beschreibbar ist (ZIP-Installation), sonst unter
 # ~/.config/mtga-stats/watch-config.json und ~/.local/share/mtga-stats (Flatpak, Homebrew) – oder MTGA_STATS_CONFIG.
 set -euo pipefail
@@ -10,7 +11,7 @@ PIDFILE="$APP_DIR/watcher.pid"
 mkdir -p "$APP_DIR"
 NODE="$(cat "$APP_DIR/node-path" 2>/dev/null || command -v node || true)"
 [ -n "$NODE" ] && [ -x "$NODE" ] || NODE="$(command -v node || true)"
-[ -n "$NODE" ] || { echo "Node.js nicht gefunden – bitte ./install.sh ausführen oder Node.js 22+ installieren." >&2; exit 1; }
+[ -n "$NODE" ] || { echo "Node.js nicht gefunden – bitte bash install.sh ausführen oder Node.js 22+ installieren." >&2; exit 1; }
 
 # Einstellungsdatei: Umgebungsvariable, sonst Tool-Ordner (wenn beschreibbar), sonst XDG-Konfigordner
 if [ -z "${MTGA_STATS_CONFIG:-}" ]; then
@@ -26,9 +27,13 @@ fi
 PORT="$("$NODE" -e "try{const c=JSON.parse(require('fs').readFileSync(process.env.MTGA_STATS_CONFIG,'utf8').replace(/^﻿/,''));console.log(c.webPort||8765)}catch(e){console.log(8765)}")"
 URL="http://localhost:$PORT/"
 OS="$(uname -s)"
-LOGDIR="$("$NODE" -e "console.log(require('$ROOT/src/paths.js').outDir())")"
+export MTGA_ROOT="$ROOT"
+LOGDIR="$("$NODE" -e "console.log(require(process.env.MTGA_ROOT+'/src/paths.js').outDir())")"
 
 running() { [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; }
+# Antwortet das Dashboard? Sieht auch einen Watcher aus einer anderen Sandbox (Flatpak), den die PID-Datei nicht kennt
+up() { "$NODE" -e "require('http').get(process.argv[1],()=>process.exit(0)).on('error',()=>process.exit(1)).setTimeout(1500,()=>process.exit(1))" "$URL" >/dev/null 2>&1; }
+wait_up() { for _ in $(seq 1 "${1:-30}"); do up && return 0; sleep 1; done; return 1; }
 managed() {
   if [ "$OS" = "Darwin" ]; then launchctl print "gui/$(id -u)/de.mtga-stats.watcher" >/dev/null 2>&1 || launchctl print "gui/$(id -u)/homebrew.mxcl.mtga-stats" >/dev/null 2>&1
   else systemctl --user is-active --quiet mtga-stats.service 2>/dev/null; fi
@@ -38,6 +43,10 @@ open_url() {
     if [ -d "/Applications/Google Chrome.app" ]; then open -na "Google Chrome" --args --app="$URL" --user-data-dir="$APP_DIR/chrome-profile"; else open "$URL"; fi
   else
     for b in google-chrome google-chrome-stable chromium chromium-browser; do if command -v "$b" >/dev/null 2>&1; then "$b" --app="$URL" --user-data-dir="$APP_DIR/chrome-profile" >/dev/null 2>&1 & return 0; fi; done
+    # Steam Deck: Chrome kommt als Flatpak (Steam installiert es für den Spielmodus mit)
+    if command -v flatpak >/dev/null 2>&1; then
+      for b in com.google.Chrome org.chromium.Chromium; do if flatpak info "$b" >/dev/null 2>&1; then flatpak run "$b" --app="$URL" >/dev/null 2>&1 & return 0; fi; done
+    fi
     xdg-open "$URL" >/dev/null 2>&1 &
   fi
 }
@@ -54,14 +63,23 @@ case "${1:-status}" in
     if [ "$OS" != "Darwin" ] && managed; then systemctl --user stop mtga-stats.service; echo "Dienst gestoppt."; exit 0; fi
     if running; then kill "$(cat "$PIDFILE")" && rm -f "$PIDFILE" && echo "Watcher gestoppt."; else echo "Watcher läuft nicht."; fi ;;
   restart) "$0" stop || true; sleep 1; if [ "$OS" = "Darwin" ]; then launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/de.mtga-stats.watcher.plist" 2>/dev/null || "$0" start; else systemctl --user start mtga-stats.service 2>/dev/null || "$0" start; fi ;;
+  app)
+    # Vordergrund samt Dashboard – für das Flatpak, das mit seinem Startprozess endet. Läuft schon ein Watcher, nur öffnen.
+    if up; then open_url; exit 0; fi
+    cd "$ROOT"
+    ( wait_up 60 && open_url ) &
+    exec "$NODE" src/watch.js ;;
   status)
-    if managed || running; then echo "Watcher: läuft · Dashboard $URL"; else echo "Watcher: gestoppt"; fi
+    if managed || running || up; then echo "Watcher: läuft · Dashboard $URL"; else echo "Watcher: gestoppt"; fi
     echo "Einstellungen: $MTGA_STATS_CONFIG · Daten: $LOGDIR"
-    "$NODE" -e "const p=require('$ROOT/src/paths.js'); console.log('Arena: '+(p.mtgaPid()?'läuft':'nicht gestartet')+' · Log: '+p.findLogFile()+' · Spieldaten: '+(p.findDataDir()||'nicht gefunden'))" ;;
+    "$NODE" -e "const p=require(process.env.MTGA_ROOT+'/src/paths.js'); console.log('Arena: '+(p.mtgaPid()?'läuft':'nicht gestartet')+' · Log: '+p.findLogFile()+' · Spieldaten: '+(p.findDataDir()||'nicht gefunden'))" ;;
   dashboard)
-    if ! managed && ! running; then "$0" start; sleep 2; fi
+    if ! up; then
+      if ! managed && ! running; then "$0" start; fi
+      wait_up 30 || echo "Das Dashboard antwortet noch nicht – Protokoll: $0 log"
+    fi
     open_url ;;
   log) tail -n 40 -f "$LOGDIR/watch.log" ;;
   account) cd "$ROOT" && "$NODE" src/account.js --save ;;
-  *) echo "Verwendung: mtga-stats start|stop|restart|run|status|dashboard|log|account"; exit 1 ;;
+  *) echo "Verwendung: mtga-stats start|stop|restart|run|app|status|dashboard|log|account"; exit 1 ;;
 esac

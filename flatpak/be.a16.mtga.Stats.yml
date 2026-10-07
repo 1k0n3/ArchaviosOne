@@ -1,11 +1,12 @@
-# Flatpak-Manifest für MTGA Stats (Linux, Steam Deck). Bauen und installieren:
-#   flatpak install -y flathub org.flatpak.Builder org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
-#   flatpak run org.flatpak.Builder --user --install --force-clean build-dir flatpak/be.a16.mtga.Stats.yml
-#   flatpak run be.a16.mtga.Stats            (startet den Watcher und öffnet das Dashboard)
+# Flatpak-Manifest für MTGA Stats (Linux, Steam Deck). Im Programmordner bauen und installieren (alles ohne root):
+#   flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+#   flatpak install --user -y flathub org.flatpak.Builder
+#   flatpak run org.flatpak.Builder --user --install --install-deps-from=flathub --force-clean build-dir flatpak/be.a16.mtga.Stats.yml
+#   flatpak run be.a16.mtga.Stats            (startet den Watcher und öffnet das Dashboard; beenden: flatpak kill be.a16.mtga.Stats)
 # Node.js wird als offizielles Binärpaket mitgeliefert (kein Netz zur Laufzeit nötig außer für Website-Sync und Kartenbilder).
 app-id: be.a16.mtga.Stats
 runtime: org.freedesktop.Platform
-runtime-version: '24.08'
+runtime-version: '25.08'
 sdk: org.freedesktop.Sdk
 command: mtga-stats
 finish-args:

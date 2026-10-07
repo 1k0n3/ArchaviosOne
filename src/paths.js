@@ -15,10 +15,8 @@ function logDirCandidates(platform = process.platform, home = os.homedir(), env 
   if (platform === "win32") out.push(path.join(home, ...LOG_SUB));
   else if (platform === "darwin") out.push(path.join(home, "Library", "Logs", "Wizards Of The Coast", "MTGA"));
   else {
-    // Steam (nativ, ~/.steam-Link, Flatpak) mit Proton-Präfix, danach Wine/Lutris/Bottles
-    const steamRoots = [path.join(home, ".local", "share", "Steam"), path.join(home, ".steam", "steam"), path.join(home, ".steam", "root"),
-      path.join(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam")];
-    for (const r of steamRoots) out.push(path.join(r, "steamapps", "compatdata", STEAM_APP_ID, "pfx", "drive_c", "users", "steamuser", ...LOG_SUB));
+    // Steam-Bibliotheken (auch SD-Karte) mit Proton-Präfix, danach Wine/Lutris/Bottles
+    for (const r of steamLibraries(home)) out.push(path.join(r, "steamapps", "compatdata", STEAM_APP_ID, "pfx", "drive_c", "users", "steamuser", ...LOG_SUB));
     for (const prefix of winePrefixes(home)) for (const u of usersOf(prefix)) out.push(path.join(prefix, "drive_c", "users", u, ...LOG_SUB));
   }
   return [...new Set(out)];
@@ -32,11 +30,24 @@ function installDirCandidates(platform = process.platform, home = os.homedir(), 
   else if (platform === "darwin") out.push("/Applications/MTGA.app/Contents/Resources", path.join(home, "Applications", "MTGA.app", "Contents", "Resources"),
     path.join(home, "Library", "Application Support", "Steam", "steamapps", "common", "MTGA", "MTGA.app", "Contents", "Resources"));
   else {
-    const steamRoots = [path.join(home, ".local", "share", "Steam"), path.join(home, ".steam", "steam"), path.join(home, ".steam", "root"),
-      path.join(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam")];
-    for (const r of steamRoots) out.push(path.join(r, "steamapps", "common", "MTGA"));
+    for (const r of steamLibraries(home)) out.push(path.join(r, "steamapps", "common", "MTGA"));
     for (const prefix of winePrefixes(home)) out.push(path.join(prefix, "drive_c", "Program Files", "Wizards of the Coast", "MTGA"), path.join(prefix, "drive_c", "Program Files (x86)", "Wizards of the Coast", "MTGA"));
   }
+  return [...new Set(out)];
+}
+/** Steam-Bibliotheken unter Linux: die Steam-Ordner (nativ, ~/.steam-Link, Flatpak), jede weitere Bibliothek aus
+ *  libraryfolders.vdf (Steam Deck: die SD-Karte) und zur Sicherheit Bibliotheken auf Wechseldatenträgern unter media */
+function steamLibraries(home, media = "/run/media") {
+  const roots = [path.join(home, ".local", "share", "Steam"), path.join(home, ".steam", "steam"), path.join(home, ".steam", "root"),
+    path.join(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam")];
+  const out = [...roots];
+  for (const r of roots) {
+    try { for (const m of fs.readFileSync(path.join(r, "steamapps", "libraryfolders.vdf"), "utf8").matchAll(/"path"\s+"([^"]+)"/g)) out.push(m[1]); }
+    catch (e) { /* keine Steam-Installation an dieser Stelle */ }
+  }
+  // /run/media/<Karte> (ältere SteamOS) und /run/media/<Benutzer>/<Karte>
+  const unter = (d) => { try { return fs.readdirSync(d).map((x) => path.join(d, x)); } catch (e) { return []; } };
+  for (const d of unter(media)) for (const k of [d, ...unter(d)]) if (fs.existsSync(path.join(k, "steamapps"))) out.push(k);
   return [...new Set(out)];
 }
 function winePrefixes(home) {
@@ -124,4 +135,4 @@ function outDir() { const o = readConfig().outDir || "out"; return path.isAbsolu
 function memoryScanSupported() { return process.platform === "win32"; }
 
 module.exports = {
-  assistantEnabled, configFile, readConfig, outDir, logDirCandidates, installDirCandidates, pickLogDir, installFromLogHead, findLogDir, findLogFile, findInstall, findInstallDir, findDataDir, mtgaPid, memoryScanSupported, STEAM_APP_ID };
+  assistantEnabled, configFile, readConfig, outDir, logDirCandidates, installDirCandidates, steamLibraries, pickLogDir, installFromLogHead, findLogDir, findLogFile, findInstall, findInstallDir, findDataDir, mtgaPid, memoryScanSupported, STEAM_APP_ID };

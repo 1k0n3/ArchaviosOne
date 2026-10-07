@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # MTGA Stats – Installation für macOS, Linux und Steam Deck (SteamOS).
-#   ./install.sh            installieren, Autostart einrichten, Watcher starten, Dashboard öffnen
-#   ./install.sh --no-autostart
-#   ./install.sh --uninstall
+#   bash install.sh                 installieren, Autostart einrichten, Watcher starten, Dashboard öffnen
+#   bash install.sh --no-autostart
+#   bash install.sh --uninstall
 # Braucht nur curl und tar. Node.js wird bei Bedarf als portable Version nach ~/.mtga-stats/node geladen (kein root).
+# Laden und installieren in einem Schritt: curl -fsSL https://mtga.a16.be/install.sh | bash
 # Danach: scripts/unix/mtga-stats start|stop|status|dashboard|log
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,11 +13,13 @@ APP_DIR="$HOME_DIR/.mtga-stats"
 NODE_MIN=22
 OS="$(uname -s)"; ARCH="$(uname -m)"
 AUTOSTART=1; UNINSTALL=0
-for a in "$@"; do case "$a" in --no-autostart) AUTOSTART=0 ;; --uninstall) UNINSTALL=1 ;; -h|--help) sed -n 2,7p "$0"; exit 0 ;; esac; done
+for a in "$@"; do case "$a" in --no-autostart) AUTOSTART=0 ;; --uninstall) UNINSTALL=1 ;; -h|--help) sed -n 2,8p "$0"; exit 0 ;; esac; done
 
 say() { printf '\n  \033[36m%s\033[0m\n' "$1"; }
 ok() { printf '    \033[32m[OK]\033[0m %s\n' "$1"; }
 warn() { printf '    \033[33m[!]\033[0m %s\n' "$1"; }
+# Nie stumm abbrechen: Zeile und Code nennen, damit klar ist, woran es lag
+trap 'c=$?; printf "\n    \033[31m[Fehler]\033[0m Installation abgebrochen (install.sh Zeile %s, Code %s).\n" "$LINENO" "$c" >&2' ERR
 
 # ---- Deinstallation ---------------------------------------------------------------------------------
 if [ "$UNINSTALL" = 1 ]; then
@@ -47,11 +50,14 @@ else
     Linux-x86_64) NPLAT=linux-x64 ;; Linux-aarch64|Linux-arm64) NPLAT=linux-arm64 ;;
     *) echo "Unbekannte Plattform $OS-$ARCH – bitte Node.js $NODE_MIN+ selbst installieren (https://nodejs.org)." >&2; exit 1 ;;
   esac
-  VER="$(curl -fsSL https://nodejs.org/dist/index.json | grep -o '"version":"v[0-9]*\.[0-9]*\.[0-9]*"' | grep -o 'v[0-9]*\.[0-9]*\.[0-9]*' | awk -F. -v min="$NODE_MIN" '{ v=substr($1,2)+0; if (v>=min && v%2==0) { print; exit } }')"
-  [ -n "$VER" ] || { echo "Konnte keine Node.js-Version ermitteln." >&2; exit 1; }
+  # Neueste LTS-Version ab NODE_MIN (eine Zeile pro Version, neueste zuerst). Die Liste erst ganz laden und
+  # in der Pipe nichts vorzeitig beenden: sonst bricht SIGPIPE wegen pipefail das ganze Skript stumm ab.
+  IDX="$(curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors https://nodejs.org/dist/index.json)" || { echo "    nodejs.org ist nicht erreichbar – Internetverbindung prüfen und erneut starten." >&2; exit 1; }
+  VER="$(printf '%s\n' "$IDX" | grep '"lts":"' | grep -o '"version":"v[0-9.]*"' | grep -o 'v[0-9.]*' | awk -F. -v min="$NODE_MIN" 'v == "" && substr($1, 2) + 0 >= min { v = $0 } END { print v }')"
+  [ -n "$VER" ] || { echo "    Konnte keine Node.js-Version ermitteln." >&2; exit 1; }
   say "Node.js $VER wird nach $APP_DIR/node geladen (portabel, ohne root)"
   mkdir -p "$APP_DIR"; TMP="$(mktemp -d)"
-  curl -fL "https://nodejs.org/dist/$VER/node-$VER-$NPLAT.tar.gz" -o "$TMP/node.tgz"
+  curl -fL -C - --retry 5 --retry-delay 2 --retry-all-errors --progress-bar "https://nodejs.org/dist/$VER/node-$VER-$NPLAT.tar.gz" -o "$TMP/node.tgz"
   rm -rf "$APP_DIR/node"; mkdir -p "$APP_DIR/node"; tar -xzf "$TMP/node.tgz" -C "$APP_DIR/node" --strip-components=1; rm -rf "$TMP"
   NODE="$APP_DIR/node/bin/node"; ok "installiert: $("$NODE" --version)"
 fi
@@ -60,7 +66,7 @@ chmod +x "$ROOT/scripts/unix/mtga-stats" 2>/dev/null || true
 
 # ---- Arena finden -------------------------------------------------------------------------------------
 say "Arena suchen"
-if "$NODE" -e "const p=require('$ROOT/src/paths.js'); const d=p.findDataDir(); if(!d){process.exit(3)} console.log('    Spieldaten: '+d); console.log('    Player.log: '+p.findLogFile())"; then ok "gefunden"
+if MTGA_ROOT="$ROOT" "$NODE" -e "const p=require(process.env.MTGA_ROOT+'/src/paths.js'); const d=p.findDataDir(); if(!d){process.exit(3)} console.log('    Spieldaten: '+d); console.log('    Player.log: '+p.findLogFile())"; then ok "gefunden"
 else warn "Arena-Spieldaten nicht gefunden. Läuft Arena über Steam/Proton oder Wine? Ordner per MTGA_DIR bzw. MTGA_LOG_DIR setzen (siehe README)."; fi
 echo "    In Arena einmal einschalten: Einstellungen → Konto → Detailed Logs (Plugin Support)."
 
@@ -95,7 +101,8 @@ EOF
 EOF
   ok "~/Applications/MTGA Stats.app öffnet das Dashboard"
 else
-  if [ "$AUTOSTART" = 1 ] && command -v systemctl >/dev/null 2>&1; then
+  # Benutzerdienst: läuft auf dem Steam Deck auch im Spielmodus, solange das Gerät an ist
+  if [ "$AUTOSTART" = 1 ] && command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
     say "Autostart (systemd-Benutzerdienst) einrichten"
     UD="$HOME_DIR/.config/systemd/user"; mkdir -p "$UD"
     cat > "$UD/mtga-stats.service" <<EOF
@@ -104,7 +111,7 @@ Description=MTGA Stats – Companion für Magic: The Gathering Arena
 After=default.target
 
 [Service]
-ExecStart=$NODE $ROOT/src/watch.js
+ExecStart="$NODE" "$ROOT/src/watch.js"
 WorkingDirectory=$ROOT
 Restart=on-failure
 RestartSec=10
@@ -112,9 +119,15 @@ RestartSec=10
 [Install]
 WantedBy=default.target
 EOF
-    systemctl --user daemon-reload && systemctl --user enable --now mtga-stats.service && ok "Watcher läuft im Hintergrund und startet mit der Sitzung"
+    # restart statt enable --now: bei einem Update läuft danach gleich der neue Stand
+    if systemctl --user daemon-reload && systemctl --user enable mtga-stats.service >/dev/null 2>&1 && systemctl --user restart mtga-stats.service; then
+      ok "Watcher läuft im Hintergrund und startet mit der Sitzung"
+    else warn "Der systemd-Dienst ließ sich nicht starten – Watcher läuft jetzt ohne Autostart"; "$CTL" start; fi
     loginctl enable-linger "$(id -un)" >/dev/null 2>&1 || true
-  else "$CTL" start; fi
+  else
+    [ "$AUTOSTART" = 1 ] && warn "Kein systemd-Benutzerdienst verfügbar – der Watcher läuft bis zum Abmelden (danach: $CTL start)"
+    "$CTL" start
+  fi
   say "Verknüpfungen anlegen"
   AD="$HOME_DIR/.local/share/applications"; mkdir -p "$AD"
   cat > "$AD/mtga-stats.desktop" <<EOF
@@ -122,7 +135,7 @@ EOF
 Type=Application
 Name=MTGA Stats
 Comment=Dashboard für Magic: The Gathering Arena
-Exec=$CTL dashboard
+Exec="$CTL" dashboard
 Icon=$ROOT/assets/icon-192.png
 Terminal=false
 Categories=Game;Utility;
@@ -133,6 +146,7 @@ EOF
 fi
 
 say "Fertig"
-echo "    Dashboard: http://localhost:8765/   ·   Steuerung: scripts/unix/mtga-stats start|stop|status|dashboard|log"
+echo "    Dashboard: http://localhost:8765/   ·   Steuerung: $CTL start|stop|status|dashboard|log"
+echo "    Der Ordner $ROOT ist jetzt der Programmordner – nicht löschen oder verschieben (sonst install.sh dort erneut ausführen)."
 echo "    Hinweis: Die Kartensammlung (Besitzstand) liest MTGA Stats bisher nur unter Windows; Matches, Replays, Decks und Konto laufen überall."
 "$CTL" dashboard >/dev/null 2>&1 || true

@@ -406,8 +406,19 @@ if (process.argv.includes("--supervised")) {
   }, 30 * 1000).unref();
 }
 
+/** Kartendatenbank von Arena; fehlt sie (Arena noch nicht installiert oder nie gestartet), warten statt abbrechen */
+async function waitForCardDb() {
+  for (let gemeldet = false; ; await sleep(60)) {
+    try { return lib.findCardDb(cfg.db); }
+    catch (e) {
+      if (cfg.once) throw e;
+      if (!gemeldet) { log("Warte auf Arena: " + e.message + " – erst nach der Installation und dem ersten Start von Arena da. Neuer Versuch jede Minute."); gemeldet = true; }
+    }
+  }
+}
+
 (async function main() {
-  const dbPath = lib.findCardDb(cfg.db);
+  const dbPath = await waitForCardDb();
   const loaded = lib.loadCards(dbPath);
   cards = loaded.cards;
   anchors = lib.resolveAnchors(cards, cfg.anchors);
