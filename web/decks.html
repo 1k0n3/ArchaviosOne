@@ -161,7 +161,7 @@ App.load().then((D) => {
       const c = A.card(g);
       if (q && !c.name.toLowerCase().includes(q)) return false;
       if (setF && c.set !== setF) return false;
-      if (!A.colorMatch(colorsF, c.colors, c.isLand)) return false;
+      if (!A.colorMatch(colorsF, c.colors, c.isLand, () => A.landColors(c.text, c.typeLine))) return false;
       return true;
     };
     // Listenansicht: Tags der Karte klein hinter dem Namen (in der Tag-Gruppierung ohne den Tag des Abschnitts)

@@ -399,26 +399,64 @@ window.App = (function () {
     paint();
     return { get value() { return value; }, set value(v) { value = v; paint(); }, el };
   }
-  /** Oder-Farbfilter (Bibliothek, Deckbau, Deckansicht) als vorbereitete Prüffunktion: jede gewählte Farbe zählt,
-   *  "0"/"c" ergänzt farblose Karten (keine Länder), "m" verlangt mindestens zwei Farben. sel: Set, cc: Farben der Karte */
   /**
-   * Farbauswahl: Farben sind oder-verknüpft; „Land“ schränkt zusätzlich auf Länder ein (Farben gelten
-   * dann innerhalb der Länder), „Mehrfarbig“ verlangt mindestens zwei Farben.
+   * Farben eines Landes = Farben des Manas, das es erzeugt (Länder selbst sind farblos): Landtypen der Typzeile
+   * (Mountain → Rot), Manafähigkeiten im Regeltext ("Add {R} or {G}", "any color") und Fetchländer ("search your
+   * library for a Mountain or Forest card", ein beliebiges Standardland zählt für alle Farben). Rückgabe: ["w", …]
+   */
+  const LAND_TYPE_COLOR = { plains: "w", island: "u", swamp: "b", mountain: "r", forest: "g" };
+  const landColorCache = new Map();
+  function landColors(text, typeLine) {
+    const key = (typeLine || "") + "|" + (text || "");
+    let hit = landColorCache.get(key); if (hit) return hit;
+    const out = new Set();
+    const tl = String(typeLine || "").toLowerCase();
+    for (const [k, v] of Object.entries(LAND_TYPE_COLOR)) if (new RegExp("\\b" + k + "\\b").test(tl)) out.add(v);
+    const t = String(text || "").toLowerCase().replace(/\{(o[^}]*)\}/g, (m, x) => x.split("o").filter(Boolean).map((y) => "{" + y + "}").join(""));
+    for (const m of t.matchAll(/\badd ([^.]*)/g)) {
+      for (const s of m[1].matchAll(/\{([wubrg])\}/g)) out.add(s[1]);
+      if (/\bany (?:one )?colou?r\b|mana of any type/.test(m[1])) for (const v of "wubrg") out.add(v);
+    }
+    for (const m of t.matchAll(/search your library for ([^.]*)/g)) {
+      for (const [k, v] of Object.entries(LAND_TYPE_COLOR)) if (m[1].includes(k)) out.add(v);
+      if (/basic land card/.test(m[1])) for (const v of "wubrg") out.add(v);
+    }
+    hit = ["w", "u", "b", "r", "g"].filter((v) => out.has(v));
+    landColorCache.set(key, hit);
+    return hit;
+  }
+  /**
+   * Farbauswahl (Bibliothek, Deckbau, Deckansicht) als vorbereitete Prüffunktion. sel: Set der gewählten Werte.
+   * - Farben sind oder-verknüpft; "0"/"c" ergänzt farblose Karten (Länder nur, wenn „Land“ gewählt ist).
+   * - „Land“ ("l") zeigt nur Länder; deren Farben sind dann die Farben ihres Manas (landCc), Land + Rot = rote Länder.
+   * - „Mehrfarbig“ ("m"): allein alle mehrfarbigen Karten; mit einer Farbe die mehrfarbigen, die sie enthalten;
+   *   mit zwei oder mehr Farben genau diese Kombination (Mehrfarbig + Rot + Blau = nur rot-blaue Karten).
+   * Prüffunktion: (cc, isLand, landCc) – cc Farben der Karte, landCc Liste oder Funktion (erst bei Bedarf berechnet).
    */
   function colorMatcher(sel) {
     if (!sel.size) return () => true;
     const pick = [...sel].filter((v) => v !== "0" && v !== "c" && v !== "m" && v !== "l");
     const wantC = sel.has("0") || sel.has("c"), wantM = sel.has("m"), wantLand = sel.has("l");
-    return (cc, isLand) => {
+    return (cc, isLand, landCc) => {
       if (wantLand && !isLand) return false;
-      // Länder gelten sonst nicht als farblos; ist „Land“ gewählt, zählt ein Land ohne Farben doch dazu
-      const colorless = !cc.length && (!isLand || wantLand);
-      let ok = !pick.length || pick.some((v) => cc.includes(v));
-      if (wantC) ok = pick.length ? (ok || colorless) : colorless;
-      return ok && !(wantM && cc.length < 2);
+      const col = wantLand && isLand && landCc ? (typeof landCc === "function" ? landCc() : landCc) : cc;
+      // Länder gelten sonst nicht als farblos; ist „Land“ gewählt, zählt ein Land ohne Manafarbe als farblos
+      const colorless = !col.length && (!isLand || wantLand);
+      let ok;
+      if (wantM) {
+        ok = col.length >= 2 && (pick.length >= 2 ? col.length === pick.length && pick.every((v) => col.includes(v)) : pick.every((v) => col.includes(v)));
+        if (wantC) ok = ok || colorless;
+      } else {
+        ok = !pick.length || pick.some((v) => col.includes(v));
+        if (wantC) ok = pick.length ? (ok || colorless) : colorless;
+      }
+      return ok;
     };
   }
-  const colorMatch = (sel, cc, isLand) => colorMatcher(sel)(cc, isLand);
+  const colorMatch = (sel, cc, isLand, landCc) => colorMatcher(sel)(cc, isLand, landCc);
+  /** Manafarben eines Landes in der Schreibweise der Kartenliste (api/cards: "1"–"5") */
+  const LAND_NUM = { w: "1", u: "2", b: "3", r: "4", g: "5" };
+  const landColorsRow = (c) => landColors(c[17], c[18]).map((x) => LAND_NUM[x]);
   /**
    * Reihenfolge der Sortierpunkte – auf allen Seiten dieselbe. "indeck" erscheint nur, wo ein Deck
    * offen ist (Deckbau: deckSort). Ein neuer Punkt kommt hierhin und nach SORT_ITEMS, sonst nirgends.
@@ -707,7 +745,7 @@ window.App = (function () {
         if (rar && String(c[4]) !== rar) return false;
         if (t === "L" ? !isLegendary(c) : (t && !String(c[6]).split(",").includes(t))) return false;
         if (m && (m === "x" ? !/x/i.test(String(c[10] || "")) : m === "7" ? c[8] < 7 : c[8] !== +m)) return false;
-        return col(String(c[5]).split(",").filter(Boolean), String(c[6]).split(",").includes("5"));
+        return col(String(c[5]).split(",").filter(Boolean), String(c[6]).split(",").includes("5"), () => landColorsRow(c));
       };
     };
     paintReset();
@@ -1381,5 +1419,5 @@ window.App = (function () {
     setInterval(check, 20000);
   })();
 
-  return { load, get DATA() { return DATA; }, $, $$, esc, num, card, cardName, artOf, artCanvas, cardTile, cardHtml, textCard, cardUsage, cardSorter, isLegendary, get ohneBilder() { return ohneBilder; }, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, filterIcon, uiIcon, zoomMenu, cardRow, longPress, openMenu, closeMenu, tags, colorMatch, cardFilterBar, qtyHtml, ownHtml, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, selectToDropdown, enhanceSelects, settingsTabs, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, colorBarHtml, cmcOf, loadedImgs, t: tr, isMobile, foldable, get LOGO() { return logoSvg(); } };
+  return { load, get DATA() { return DATA; }, $, $$, esc, num, card, cardName, artOf, artCanvas, cardTile, cardHtml, textCard, cardUsage, cardSorter, isLegendary, get ohneBilder() { return ohneBilder; }, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, filterIcon, uiIcon, zoomMenu, cardRow, longPress, openMenu, closeMenu, tags, colorMatch, landColors, cardFilterBar, qtyHtml, ownHtml, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, selectToDropdown, enhanceSelects, settingsTabs, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, colorBarHtml, cmcOf, loadedImgs, t: tr, isMobile, foldable, get LOGO() { return logoSvg(); } };
 })();
