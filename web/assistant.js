@@ -1526,7 +1526,7 @@
     dock.classList.toggle("hidden", !show);
     document.body.classList.toggle("asst-open", show);
     // Offene Auswahlmenüs der Seite schließen: sie liegen über dem Fenster und würden hineinragen
-    if (show) for (const d of A.$$(".dd.open")) if (!dock.contains(d)) d.classList.remove("open");
+    if (show) for (const d of A.$$(".dd.open")) if (!dock.contains(d)) (A.closeMenu ? A.closeMenu(d) : d.classList.remove("open"));
     if (show) { scroll(true); setTimeout(() => { inputEl.focus(); scroll(true); }, 60); }
   }
 

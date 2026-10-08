@@ -2254,6 +2254,13 @@ body.asst-open .side-nav .asst-nav.asst-btn svg { color: #2a1c06; }
    und verschwand dahinter, sobald der Assistent offen war. */
 .dd.open { z-index: 140; }
 .asst .dd.open { z-index: 150; }
+/* Offene Menüs in der obersten Ebene des Browsers (Popover-API, siehe openMenu in app.js): liegen damit über allem,
+   auch über Karten und Leisten mit eigenem Stapelkontext. Fest am Fenster, die Lage setzt das Skript; die
+   Browser-Vorgaben für Popover (mittig, Systemfarben, eigener Rahmen) gelten hier nicht. */
+.dd-menu[popover] { position: fixed; inset: auto; margin: 0; color: inherit; overflow: visible; }
+.dd-menu[popover]::backdrop { display: none; }
+/* min-width: 100 % meinte die Breite des Felds – im Fenster wäre es die ganze Fensterbreite */
+.dd.from-select .dd-menu[popover] { min-width: var(--dd-w, 0px); }
 
 /* Ausweichmodelle und Hinweis bei erschöpftem Kontingent */
 .asst-alts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }

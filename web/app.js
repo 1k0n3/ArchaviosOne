@@ -295,13 +295,57 @@ window.App = (function () {
     chevron: '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m6 9 6 6 6-6"/></svg>'
   };
   let ddOpen = null;
-  document.addEventListener("click", (ev) => { if (ddOpen && !ddOpen.contains(ev.target)) { ddOpen.classList.remove("open"); ddOpen = null; } });
+  document.addEventListener("click", (ev) => { if (ddOpen && !ddOpen.contains(ev.target)) closeMenu(ddOpen); });
+  // Offene Menüs liegen in der obersten Ebene des Browsers (Popover-API): über Karten, Leisten, Panels und jedem
+  // Stapelkontext, egal wie die Seite gebaut ist, und nie von einem Rahmen abgeschnitten. Im DOM bleiben sie am
+  // Feld, Klicks, Stile und closest() wirken also wie gehabt. Ohne Popover-API bleibt das Menü absolut am Feld.
+  const TOP_LAYER = typeof HTMLElement !== "undefined" && "showPopover" in HTMLElement.prototype;
+  const popOpen = (m) => TOP_LAYER && m.matches(":popover-open");
+  /** Menü in der obersten Ebene ans Feld legen: unten links, sonst rechtsbündig, notfalls nach oben; immer im Fenster */
+  function placeMenu(el) {
+    const menu = $(".dd-menu", el); if (!menu || !popOpen(menu)) return;
+    const vw = document.documentElement.clientWidth, vh = window.innerHeight, pad = 8, gap = 6;
+    const b = el.getBoundingClientRect();
+    menu.style.setProperty("--dd-w", Math.round(b.width) + "px");
+    Object.assign(menu.style, { left: "0px", top: "0px", right: "auto", bottom: "auto", maxHeight: "", overflowY: "" });
+    const w = menu.offsetWidth, h = menu.offsetHeight;
+    let left = menu.classList.contains("dd-right") ? b.right - w : b.left;
+    if (left + w > vw - pad) left = b.right - w;
+    left = Math.max(pad, Math.min(left, vw - pad - w));
+    const below = vh - pad - (b.bottom + gap), above = b.top - gap - pad;
+    let top = b.bottom + gap;
+    if (h > below && above > below) top = b.top - gap - Math.min(h, above);
+    const room = top === b.bottom + gap ? below : above;
+    if (h > room) Object.assign(menu.style, { maxHeight: Math.max(120, room) + "px", overflowY: "auto" });
+    Object.assign(menu.style, { left: Math.round(left) + "px", top: Math.round(Math.max(pad, top)) + "px" });
+  }
+  /** Menü schließen (auch aus der obersten Ebene nehmen) */
+  function closeMenu(el) {
+    if (!el) return;
+    el.classList.remove("open");
+    const menu = $(".dd-menu", el);
+    if (menu && popOpen(menu)) menu.hidePopover();
+    if (ddOpen === el) ddOpen = null;
+  }
+  if (TOP_LAYER) {
+    // Beim Scrollen und bei neuer Fenstergröße folgt das offene Menü seinem Feld (Scrollen im Menü selbst zählt nicht)
+    const follow = (ev) => { if (ddOpen && !(ev && ev.target instanceof Node && ddOpen.contains(ev.target))) placeMenu(ddOpen); };
+    window.addEventListener("resize", follow, { passive: true });
+    document.addEventListener("scroll", follow, { capture: true, passive: true });
+  }
   /** Menü (.dd-menu) eines .dd-Elements öffnen oder schließen. Universell für alle Dropdowns und Menüs:
    *  nur eines offen; am rechten Rand rechtsbündig anschlagen, am unteren Rand nach oben aufklappen, nie über den linken Rand */
   function openMenu(el, open) {
-    if (ddOpen && ddOpen !== el) ddOpen.classList.remove("open");
-    el.classList.toggle("open", open); ddOpen = open ? el : null;
-    const menu = $(".dd-menu", el); if (!open || !menu) return;
+    if (ddOpen && ddOpen !== el) closeMenu(ddOpen);
+    if (!open) { closeMenu(el); return; }
+    el.classList.add("open"); ddOpen = el;
+    const menu = $(".dd-menu", el); if (!menu) return;
+    if (TOP_LAYER) {
+      if (!menu.hasAttribute("popover")) menu.setAttribute("popover", "manual");
+      if (!popOpen(menu)) menu.showPopover();
+      placeMenu(el);
+      return;
+    }
     menu.style.left = ""; menu.style.right = ""; menu.style.top = ""; menu.style.bottom = "";   // Breite regelt das CSS (max-width je Menüart)
     const dr = el.getBoundingClientRect(); let r = menu.getBoundingClientRect();
     if (r.right > window.innerWidth - 8) { menu.style.left = "auto"; menu.style.right = "0"; r = menu.getBoundingClientRect(); }
@@ -319,7 +363,7 @@ window.App = (function () {
     }
   };
   document.addEventListener("scroll", stickyBars, { capture: true, passive: true });
-  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && ddOpen) { ddOpen.classList.remove("open"); ddOpen = null; } });
+  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && ddOpen) closeMenu(ddOpen); });
   /**
    * Dropdown mit Symbolen. items: [{ v, label, icon, short }], opts: { value, icon, title, onChange, defaultValue, searchable }
    * Rückgabe: { get value, set value }
@@ -344,11 +388,11 @@ window.App = (function () {
       $$(".dd-list button", el).forEach((b) => b.addEventListener("click", (ev) => {
         const it = items.find((x) => String(x.v) === b.dataset.v);
         // Einträge mit keepOpen (z. B. "Precons einblenden") schalten nur etwas um und schließen das Menü nicht
-        if (it && it.keepOpen) { ev.stopPropagation(); if (it.onClick) it.onClick(el, b); return; }
-        value = b.dataset.v; el.classList.remove("open"); ddOpen = null; paint(); if (opts.onChange) opts.onChange(value);
+        if (it && it.keepOpen) { ev.stopPropagation(); if (it.onClick) it.onClick(el, b); placeMenu(el); return; }
+        value = b.dataset.v; closeMenu(el); paint(); if (opts.onChange) opts.onChange(value);
       }));
       const q = $(".dd-q", el);
-      if (q) q.addEventListener("input", () => { const t = q.value.trim().toLowerCase(); $$(".dd-list button", el).forEach((b) => { b.style.display = !t || (b.textContent + " " + (b.dataset.q || "")).toLowerCase().includes(t) ? "" : "none"; }); });
+      if (q) q.addEventListener("input", () => { const t = q.value.trim().toLowerCase(); $$(".dd-list button", el).forEach((b) => { b.style.display = !t || (b.textContent + " " + (b.dataset.q || "")).toLowerCase().includes(t) ? "" : "none"; }); placeMenu(el); });
     };
     paint();
     return { get value() { return value; }, set value(v) { value = v; paint(); }, el };
@@ -600,8 +644,8 @@ window.App = (function () {
   }
   /** Liste und Wert eines erzeugten Auswahlfelds austauschen */
   function dropdownReplace(host, items, value, sel) {
+    closeMenu(host);
     host.innerHTML = "";
-    host.classList.remove("open");
     dropdown(host, {
       items: items.length ? items : [{ v: "", label: "…" }], value, defaultValue: value, title: sel.title || "",
       searchable: items.length > 8,
@@ -1143,5 +1187,5 @@ window.App = (function () {
     setInterval(check, 20000);
   })();
 
-  return { load, get DATA() { return DATA; }, $, $$, esc, num, card, cardName, artOf, artCanvas, cardTile, cardHtml, textCard, cardUsage, cardSorter, isLegendary, get ohneBilder() { return ohneBilder; }, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, filterIcon, uiIcon, zoomMenu, cardRow, longPress, openMenu, colorMatch, cardFilterBar, qtyHtml, ownHtml, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, selectToDropdown, enhanceSelects, settingsTabs, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, colorBarHtml, cmcOf, loadedImgs, t: tr, isMobile, foldable, get LOGO() { return logoSvg(); } };
+  return { load, get DATA() { return DATA; }, $, $$, esc, num, card, cardName, artOf, artCanvas, cardTile, cardHtml, textCard, cardUsage, cardSorter, isLegendary, get ohneBilder() { return ohneBilder; }, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, filterIcon, uiIcon, zoomMenu, cardRow, longPress, openMenu, closeMenu, colorMatch, cardFilterBar, qtyHtml, ownHtml, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, selectToDropdown, enhanceSelects, settingsTabs, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, colorBarHtml, cmcOf, loadedImgs, t: tr, isMobile, foldable, get LOGO() { return logoSvg(); } };
 })();
