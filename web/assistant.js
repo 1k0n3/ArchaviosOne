@@ -26,7 +26,7 @@
   const saveAll = (l) => { try { localStorage.setItem(KEY, JSON.stringify(l)); } catch (e) { /* ohne Speicher */ } };
   const curId = () => { try { return localStorage.getItem(CUR) || ""; } catch (e) { return ""; } };
   const setCur = (id) => { try { localStorage.setItem(CUR, id); } catch (e) { /* ohne Speicher */ } };
-  const newDeck = () => ({ id: "b" + Date.now().toString(36), name: T("Neues Deck"), format: "standard", cmd: [], main: {}, side: {}, updated: Date.now() });
+  const newDeck = () => ({ id: "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: T("Neues Deck"), format: "standard", cmd: [], main: {}, side: {}, updated: Date.now() });
   function curDeck() {
     const l = loadAll();
     return l.find((d) => d.id === curId()) || l[0] || null;

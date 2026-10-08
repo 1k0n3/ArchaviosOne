@@ -292,7 +292,9 @@ window.App = (function () {
     calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
     swords: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20l7-7M13 11l7-7M14 4h6v6M4 14v6h6"/></svg>',
     gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
-    chevron: '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m6 9 6 6 6-6"/></svg>'
+    chevron: '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m6 9 6 6 6-6"/></svg>',
+    tag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.6" fill="currentColor" stroke="none"/></svg>',
+    layers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg>'
   };
   let ddOpen = null;
   document.addEventListener("click", (ev) => { if (ddOpen && !ddOpen.contains(ev.target)) closeMenu(ddOpen); });
@@ -467,6 +469,194 @@ window.App = (function () {
     };
     return V[key] || byName;
   }
+
+  // ---- Tags für Karten -------------------------------------------------------------------------------------
+  /**
+   * Eigene Schlagworte je Karte (über den Namen, nicht den Druck: alle Drucke teilen ihre Tags), gespeichert im
+   * Browser wie die Deckbau-Decks. Standard-Tags werden aus dem englischen Regeltext erkannt; was der Nutzer an
+   * einer Karte an- oder abwählt, gilt vor der Erkennung. Speicher: { auto, custom: [{id, name}], rename: {id: name},
+   * hidden: [ids], cards: { Name: { a: [hinzugefügt], d: [abgewählte erkannte] } } }
+   */
+  const TAG_KEY = "mtga-card-tags";
+  const TAG_DEFAULTS = [
+    { id: "ramp", name: "Mana Ramp" }, { id: "draw", name: "Card Draw" }, { id: "removal", name: "Removal" }, { id: "wipe", name: "Board Wipe" },
+    { id: "counter", name: "Counter" }, { id: "tutor", name: "Tutor" }, { id: "protect", name: "Protection" }, { id: "recursion", name: "Recursion" },
+    { id: "tokens", name: "Tokens" }, { id: "lifegain", name: "Lifegain" }, { id: "wincon", name: "Wincon", manual: true }
+  ];
+  let tagSt = null;
+  const tagLoad = () => {
+    if (tagSt) return tagSt;
+    let s = {}; try { s = JSON.parse(localStorage.getItem(TAG_KEY) || "{}") || {}; } catch (e) { s = {}; }
+    tagSt = { auto: s.auto !== false, custom: Array.isArray(s.custom) ? s.custom : [], rename: s.rename || {}, hidden: Array.isArray(s.hidden) ? s.hidden : [], cards: s.cards || {} };
+    return tagSt;
+  };
+  const tagEmit = () => window.dispatchEvent(new CustomEvent("mtga-tags-changed"));
+  const tagSave = () => { try { localStorage.setItem(TAG_KEY, JSON.stringify(tagSt)); } catch (e) { /* ohne Speicher */ } tagEmit(); };
+  // Andere Fenster (Deckbau und Deckansicht nebeneinander) sehen Änderungen sofort
+  window.addEventListener("storage", (ev) => { if (ev.key === TAG_KEY) { tagSt = null; tagEmit(); } });
+  /** Name als Schlüssel: Rebalanced-Fassungen ("A-…") teilen die Tags der Originalkarte */
+  const tagKey = (name) => String(name || "").replace(/^A-/, "");
+  const LAND_SEARCH = /^(?:up to \w+ |an? |any number of |two |three )?(?:basic |snow |nonbasic )?(?:land|forest|plains|island|swamp|mountain|basic)/;
+  /** Standard-Tags aus dem englischen Regeltext (Arena-Schreibweise {oT}); Länder bekommen keine */
+  function autoTags(c) {
+    if (!c || c.isLand) return [];
+    const t = String(c.text || "").toLowerCase().replace(/[’‘]/g, "'").replace(/\{(o[^}]*)\}/g, (m, x) => x.split("o").filter(Boolean).map((y) => "{" + y + "}").join(""));
+    const out = new Set();
+    const mine = (s) => /\byou control\b|\byou own\b/.test(s);
+    for (const s of t.split(/(?<=[.:])\s+|\n+/)) {
+      // Karten ziehen, auch "Impulse draw" und Clues
+      if (/\bdraws? (?:a|an|one|two|three|four|five|six|seven|x|that many|\w+ additional) cards?\b|\bdraws? cards? equal\b|\bdraw (?:a|two|three) cards?\b/.test(s)) out.add("draw");
+      if (/exile the top (?:card|\w+ cards) of your library/.test(s) && /you may (?:play|cast)/.test(t)) out.add("draw");
+      if (/\binvestigates?\b|\bcreate (?:a|an|one|two|three|x|that many|\w+) clues?\b/.test(s)) out.add("draw");
+      // Mana-Ramp: Manafähigkeiten, Länder suchen oder ins Spiel bringen, Treasure, zusätzliche Länder
+      if (/\badd (?:\{[wubrgcx0-9]\}|one mana|two mana|three mana|x mana|an amount of|mana of any|that much mana|\w+ mana)/.test(s)) out.add("ramp");
+      for (const m of s.matchAll(/search your library for ([^.]*)/g)) {
+        if (LAND_SEARCH.test(m[1])) { if (/onto the battlefield/.test(m[1]) || (/onto the battlefield|put (?:it|them|one|those)/.test(s + " " + t) && !/put (?:it|that card|them) into your hand/.test(s))) out.add("ramp"); }
+        else if (!/named |with the same name/.test(m[1])) out.add("tutor");
+      }
+      if (/put (?:a|an|up to \w+|that|those|any number of) (?:basic )?land cards? [^.]*onto the battlefield/.test(s)) out.add("ramp");
+      if (/\bcreate (?:a|an|one|two|three|x|that many|\w+) treasure/.test(s) || (/\btreasure tokens?\b/.test(s) && /\bcreate\b/.test(s))) out.add("ramp");
+      if (/play (?:an|two|one) additional lands?/.test(s)) out.add("ramp");
+      // Board Wipe
+      if (/\b(?:destroy|exile) all (?:other )?(?:\w+ )?(?:creatures|permanents|nonland permanents|artifacts|enchantments|planeswalkers|nontoken|attacking)/.test(s)) out.add("wipe");
+      if (/damage to each (?:other )?(?:creature|nonland|planeswalker)/.test(s)) out.add("wipe");
+      if (/\b(?:all|each) (?:other )?(?:\w+ )?creatures? (?:get|gets) [-−](?:\d+|x)\/[-−](?:\d+|x)/.test(s) && !mine(s)) out.add("wipe");
+      if (/return all (?:other )?(?:nonland )?(?:\w+ )?(?:creatures|permanents|nonland permanents)[^.]* to (?:their|its) owner(?:'s|s') hands?/.test(s)) out.add("wipe");
+      if (/each (?:player|opponent) sacrifices (?:all|two|three)/.test(s)) out.add("wipe");
+      // Removal gegen fremde Ziele: zerstören, verbannen, Schaden, -X/-X, Kampf, auf die Hand, opfern lassen
+      if (!mine(s)) {
+        if (/\b(?:destroy|exile) (?:another |up to (?:one|two|three|x) |any number of |each of up to \w+ )?target (?:[a-z-]+ )*(?:creature|permanent|artifact|enchantment|planeswalker|battle|land)s?\b/.test(s) && !/target (?:[a-z-]+ )*card/.test(s)) out.add("removal");
+        if (/deals? (?:\d+|x|that much|twice x|three times x) damage to (?:any target|another target|up to (?:one|two) targets?|target (?:[a-z-]+ )*(?:creature|planeswalker|permanent|battle))/.test(s)) out.add("removal");
+        if (/deals? damage equal to [^.]*? to (?:any target|target (?:[a-z-]+ )*creature)/.test(s)) out.add("removal");
+        if (/target (?:[a-z-]+ )*creature (?:an opponent controls |you don't control )?gets [-−](?:\d+|x)\/[-−](?:\d+|x)/.test(s)) out.add("removal");
+        if (/\bfights? (?:target|another target|up to one target)/.test(s)) out.add("removal");
+        if (/return (?:another |up to (?:one|two) )?target (?:[a-z-]+ )*(?:creature|permanent|artifact|enchantment|planeswalker)s? (?:an opponent controls |you don't control )?to (?:its|their) owner(?:'s|s') hands?/.test(s)) out.add("removal");
+        if (/(?:each opponent|target player|target opponent|defending player) sacrifices (?:a|an|one|that many|\w+) (?:[a-z-]+ )*(?:creature|permanent|nonland permanent|artifact|enchantment|planeswalker)/.test(s)) out.add("removal");
+      }
+      if (/target creature you control fights/.test(s)) out.add("removal");
+      if (/\bcounter (?:target|up to one target|that spell|all|each)\b/.test(s)) out.add("counter");
+      // Schutz für die eigenen Karten
+      if (/(?:gains?|have|has) (?:[a-z, ]*?)(?:hexproof|indestructible|shroud|protection from)/.test(s) && /you control|equipped creature|enchanted creature|target creature|creatures you|it gains|other /.test(s)) out.add("protect");
+      if (/\bphases? out\b/.test(s) && /you control|target creature|permanents you/.test(s)) out.add("protect");
+      // Aus dem Friedhof zurückholen
+      if (/(?:return|put)[^.]*from (?:your|a|any|their|an opponent's) graveyard (?:to|onto) (?:your hand|the battlefield|its owner's hand)/.test(s) && !/return this card from your graveyard/.test(s)) out.add("recursion");
+      if (/\bcreate\b[^.]*\bcreature tokens?\b/.test(s)) out.add("tokens");
+      if (/\byou gain (?:\d+|x|that much|life equal)|\bgain (?:\d+|x) life\b|\blifelink\b/.test(s)) out.add("lifegain");
+    }
+    return [...out];
+  }
+  const autoCache = new Map();
+  const autoOf = (c) => { const k = tagKey(c.name) + "|" + (c.text || "").length; let v = autoCache.get(k); if (!v) { v = autoTags(c); autoCache.set(k, v); } return v; };
+  /** Alle Tags in fester Reihenfolge: Standard-Tags (ohne ausgeblendete), dann eigene */
+  function tagList() {
+    const s = tagLoad();
+    return [...TAG_DEFAULTS.filter((t) => !s.hidden.includes(t.id)).map((t) => ({ id: t.id, name: s.rename[t.id] || tr(t.name), builtin: true, manual: !!t.manual })),
+      ...s.custom.map((t) => ({ id: t.id, name: t.name, builtin: false }))];
+  }
+  const tagName = (id) => (tagList().find((t) => t.id === id) || {}).name || "";
+  /** Tags einer Karte (Objekt aus card() oder { name, text, isLand }) in der Reihenfolge von tagList() */
+  function tagsOf(c) {
+    const s = tagLoad(), e = s.cards[tagKey(c.name)] || {};
+    const on = new Set([...(s.auto ? autoOf(c) : []).filter((id) => !(e.d || []).includes(id)), ...(e.a || [])]);
+    return tagList().filter((t) => on.has(t.id)).map((t) => t.id);
+  }
+  /** Tag an einer Karte setzen oder entfernen; gemerkt wird nur die Abweichung von der Erkennung */
+  function setTag(c, id, on) {
+    const s = tagLoad(), k = tagKey(c.name);
+    const e = s.cards[k] || { a: [], d: [] };
+    e.a = (e.a || []).filter((x) => x !== id); e.d = (e.d || []).filter((x) => x !== id);
+    const erkannt = s.auto && autoOf(c).includes(id);
+    if (on && !erkannt) e.a.push(id);
+    if (!on && erkannt) e.d.push(id);
+    if (e.a.length || e.d.length) s.cards[k] = e; else delete s.cards[k];
+    tagSave();
+  }
+  /** Neuen Tag anlegen (gleicher Name: vorhandenen nehmen); liefert die Kennung */
+  function createTag(name) {
+    name = String(name || "").trim().slice(0, 30); if (!name) return null;
+    const ex = tagList().find((t) => t.name.toLowerCase() === name.toLowerCase()); if (ex) return ex.id;
+    const s = tagLoad();
+    const hid = TAG_DEFAULTS.find((t) => s.hidden.includes(t.id) && (s.rename[t.id] || tr(t.name)).toLowerCase() === name.toLowerCase());
+    if (hid) { s.hidden = s.hidden.filter((x) => x !== hid.id); tagSave(); return hid.id; }
+    const id = "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    s.custom.push({ id, name }); tagSave(); return id;
+  }
+  function renameTag(id, name) {
+    name = String(name || "").trim().slice(0, 30); if (!name) return;
+    const s = tagLoad(), cu = s.custom.find((t) => t.id === id);
+    if (cu) cu.name = name; else if (TAG_DEFAULTS.some((t) => t.id === id)) { if (name === tr(TAG_DEFAULTS.find((t) => t.id === id).name)) delete s.rename[id]; else s.rename[id] = name; }
+    tagSave();
+  }
+  /** Eigene Tags verschwinden ganz (auch von den Karten), Standard-Tags werden ausgeblendet */
+  function deleteTag(id) {
+    const s = tagLoad();
+    if (s.custom.some((t) => t.id === id)) { s.custom = s.custom.filter((t) => t.id !== id); for (const [k, e] of Object.entries(s.cards)) { e.a = (e.a || []).filter((x) => x !== id); if (!e.a.length && !(e.d || []).length) delete s.cards[k]; } }
+    else if (!s.hidden.includes(id)) s.hidden.push(id);
+    tagSave();
+  }
+  /**
+   * Abschnitte eines Decks: nach Tags (jede Karte unter jedem ihrer Tags, Karten ohne Tag unter ihrem Typ) oder nur
+   * nach Typ. entries: [[grpId, Anzahl], …]; Rückgabe: [{ key, title, tag, entries }]
+   */
+  const DECK_TYPE_GROUPS = [["Kreaturen", (c) => c.types.includes(2)], ["Zaubersprüche", (c) => c.types.includes(4) || c.types.includes(10)], ["Bleibende Karten", (c) => !c.isLand], ["Länder", () => true]];
+  function deckGroups(entries, mode, dict) {
+    const out = [];
+    let rest = entries;
+    if (mode === "tags") {
+      const of = new Map(entries.map((x) => [x, tagsOf(card(x[0], dict))]));
+      for (const t of tagList()) { const hit = entries.filter((x) => of.get(x).includes(t.id)); if (hit.length) out.push({ key: "tag:" + t.id, title: t.name, tag: t.id, entries: hit }); }
+      rest = entries.filter((x) => !of.get(x).length);
+    }
+    for (const [name, test] of DECK_TYPE_GROUPS) { const hit = rest.filter(([g]) => test(card(g, dict))); if (hit.length) out.push({ key: "type:" + name, title: tr(name), entries: hit }); rest = rest.filter((x) => !hit.includes(x)); }
+    return out;
+  }
+  /** Tag-Auswahl einer Karte: Chips zum An- und Abwählen, Feld für einen neuen Tag. c: { name, text, isLand } */
+  function tagEditor(el, c) {
+    const draw = () => {
+      const on = new Set(tagsOf(c)), erkannt = new Set(tagLoad().auto ? autoOf(c) : []);
+      el.innerHTML = tagList().map((t) => `<button type="button" class="tchip ${on.has(t.id) ? "on" : ""} ${erkannt.has(t.id) ? "auto" : ""}" data-t="${esc(t.id)}" title="${erkannt.has(t.id) ? tr("Automatisch aus dem Regeltext erkannt") : ""}">${on.has(t.id) ? FI.check : ""}${esc(t.name)}</button>`).join("")
+        + `<input type="text" class="tnew" maxlength="30" placeholder="+ ${tr("Neuer Tag")}" aria-label="${tr("Neuer Tag")}">`;
+      $$(".tchip", el).forEach((b) => b.addEventListener("click", () => { setTag(c, b.dataset.t, !b.classList.contains("on")); draw(); }));
+      const inp = $(".tnew", el);
+      inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && inp.value.trim()) { const id = createTag(inp.value); if (id) setTag(c, id, true); draw(); $(".tnew", el).focus(); } });
+    };
+    el._tagDraw = draw;
+    draw();
+  }
+  // Umbenannt, gelöscht oder in einem anderen Fenster geändert: offene Tag-Auswahlen neu zeichnen (Eingabe nicht unterbrechen)
+  window.addEventListener("mtga-tags-changed", () => { for (const el of document.querySelectorAll(".m-tags")) if (el._tagDraw && !el.contains(document.activeElement)) el._tagDraw(); });
+  /** Fenster „Tags verwalten“: umbenennen, löschen bzw. ausblenden, eigene anlegen, automatische Erkennung an/aus */
+  let tagModal = null;
+  function tagManager() {
+    if (!tagModal) {
+      tagModal = document.createElement("div"); tagModal.className = "modal hidden tag-modal";
+      tagModal.addEventListener("click", (ev) => { if (ev.target === tagModal || ev.target.closest(".x-btn")) tagModal.classList.add("hidden"); });
+      document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && tagModal) tagModal.classList.add("hidden"); });
+      document.body.appendChild(tagModal);
+    }
+    const draw = () => {
+      const s = tagLoad(), hidden = TAG_DEFAULTS.filter((t) => s.hidden.includes(t.id));
+      tagModal.innerHTML = `<div class="m-box tag-box">${xButton("m-close tm-x")}<h3>${FI.tag} ${tr("Tags verwalten")}</h3>
+        <p class="muted small">${tr("Tags gelten für die Karte in allen Decks. Standard-Tags werden aus dem Regeltext erkannt; an jeder Karte lässt sich das ändern (Klick auf die Karte).")}</p>
+        <label class="tm-auto"><input type="checkbox" id="tm-auto" ${s.auto ? "checked" : ""}> ${tr("Standard-Tags automatisch zuordnen")}</label>
+        <div class="tm-list">${tagList().map((t) => `<div class="tm-row" data-t="${esc(t.id)}"><span class="tm-ico">${FI.tag}</span><input type="text" class="tm-name" value="${esc(t.name)}" maxlength="30" aria-label="${tr("Name")}"><span class="muted small">${t.builtin ? (t.manual ? tr("Standard, nur von Hand") : tr("Standard")) : tr("eigener")}</span><button type="button" class="icon-btn ghost danger tm-del" title="${t.builtin ? tr("Ausblenden") : tr("Löschen")}">${FI.x}</button></div>`).join("")}</div>
+        <div class="tm-add"><input type="text" id="tm-new" maxlength="30" placeholder="${tr("Neuer Tag")}"><button type="button" class="primary small" id="tm-add">${tr("Anlegen")}</button></div>
+        ${hidden.length ? `<div class="tm-hidden muted small">${tr("Ausgeblendet")}: ${hidden.map((t) => `<button type="button" class="tchip" data-show="${t.id}">${esc(s.rename[t.id] || tr(t.name))}</button>`).join("")}</div>` : ""}</div>`;
+      $("#tm-auto", tagModal).addEventListener("change", (ev) => { tagLoad().auto = ev.target.checked; tagSave(); });
+      $$(".tm-row", tagModal).forEach((r) => {
+        $(".tm-name", r).addEventListener("change", (ev) => { renameTag(r.dataset.t, ev.target.value); draw(); });
+        $(".tm-del", r).addEventListener("click", () => { const t = tagList().find((x) => x.id === r.dataset.t); if (t && !t.builtin && !confirm(tr("Tag „{n}“ löschen? Er verschwindet von allen Karten.", { n: t.name }))) return; deleteTag(r.dataset.t); draw(); });
+      });
+      const add = () => { const v = $("#tm-new", tagModal).value; if (v.trim()) { createTag(v); draw(); $("#tm-new", tagModal).focus(); } };
+      $("#tm-add", tagModal).addEventListener("click", add);
+      $("#tm-new", tagModal).addEventListener("keydown", (ev) => { if (ev.key === "Enter") add(); });
+      $$("[data-show]", tagModal).forEach((b) => b.addEventListener("click", () => { const s2 = tagLoad(); s2.hidden = s2.hidden.filter((x) => x !== b.dataset.show); tagSave(); draw(); }));
+    };
+    draw();
+    tagModal.classList.remove("hidden");
+  }
+  const tags = { list: tagList, of: tagsOf, set: setTag, create: createTag, rename: renameTag, remove: deleteTag, name: tagName, auto: autoTags, groups: deckGroups, editor: tagEditor, manage: tagManager };
+
   /** Gemeinsame Filterleiste für Kartenlisten (Bibliothek, Deckbau). Füllt .topbar .right.filters (Set, Seltenheit, Typ,
    *  Manawert als Symbol, Farben, Besitz, Sortierung, Zurücksetzen) und .lib-bar (Suche, Zähler, Zoom-Menü mit Raster/Liste).
    *  Handy: Reihen Set/Besitz/Sortierung – Typ/Seltenheit – Manawert/Farben/Zurücksetzen.
@@ -1133,12 +1323,16 @@ window.App = (function () {
           <div class="m-title"><h2>${esc(cc.name)}</h2><span class="m-cost">${manaHtml(cost)}</span></div>
           <div class="m-type">${esc(typeLine || c.typeText)}${ptv ? ` <b class="m-pt">${esc(ptv)}</b>` : ""}</div>
           <div class="m-rules">${rules}${d && d.flavor ? `<p class="flavor">${esc(d.flavor)}</p>` : ""}</div>
+          ${eigene ? `<div class="m-sec m-sec-tags">${tr("Tags")}<button type="button" class="link small" id="m-tagman">${tr("verwalten")}</button></div><div class="m-tags" id="m-tags"></div>` : ""}
           <div class="m-sec">${tr("Kartendaten")}</div>
           <div class="m-meta"><span class="badge unk set" title="${esc(setName(c.set))}">${setIcon(c.set)}${esc(setName(c.set))} · ${esc(c.set)} ${esc(c.nr)}</span>${cc.rarity ? `<span class="badge unk">${esc(tr(cc.rarity))}</span>` : ""}${owned}${d && d.isRebalanced ? `<span class="badge loss">${tr("Rebalanced")}</span>` : ""}${d && d.artist ? `<span class="muted small">${tr("Illustration")}: ${esc(d.artist)}</span>` : ""}</div>
           ${statsHtml}
           <div class="m-links">${prints}${eigene ? `<a href="library.html?q=${encodeURIComponent(cc.name)}">${tr("Bibliothek")}</a>` : ""}<a href="https://scryfall.com/search?q=${encodeURIComponent('!"' + c.name + '"')}" target="_blank" rel="noopener">Scryfall ↗</a><a href="https://gatherer.wizards.com/Pages/Search/Default.aspx?name=${encodeURIComponent(c.name)}" target="_blank" rel="noopener">Gatherer ↗</a></div>
         </div></div>`;
       Art.bind(modal);
+      // Tags der Karte: Regeltext aus den nachgeladenen Details, sonst aus dem Wörterbuch der Seite
+      { const te = $("#m-tags", modal); if (te) tagEditor(te, { name: cc.name, text, isLand: cc.isLand }); }
+      { const tm = $("#m-tagman", modal); if (tm) tm.addEventListener("click", () => tagManager()); }
       const t = $("#m-prints-toggle", modal);
       if (t) t.addEventListener("click", () => { const p = $(".m-prints", modal); p.classList.toggle("hidden"); t.textContent = `${tr("Drucke ({n})", { n: d.printings.length })} ${p.classList.contains("hidden") ? "▾" : "▴"}`; });
       $$(".m-prints button", modal).forEach((b) => b.addEventListener("click", () => showCard(+b.dataset.g, dict)));
@@ -1150,7 +1344,7 @@ window.App = (function () {
   }
   /** Klick auf Kartenkacheln öffnet die Details */
   function cardLinks(root, dict) {
-    for (const el of $$(".c[data-g], .cc[data-g], .c-row[data-g]", root)) {
+    for (const el of $$(".c[data-g], .cc[data-g], .c-row[data-g], .cardline[data-g]", root)) {
       if (el.dataset.lnk) continue;
       el.dataset.lnk = "1";
       el.style.cursor = "pointer";
@@ -1187,5 +1381,5 @@ window.App = (function () {
     setInterval(check, 20000);
   })();
 
-  return { load, get DATA() { return DATA; }, $, $$, esc, num, card, cardName, artOf, artCanvas, cardTile, cardHtml, textCard, cardUsage, cardSorter, isLegendary, get ohneBilder() { return ohneBilder; }, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, filterIcon, uiIcon, zoomMenu, cardRow, longPress, openMenu, closeMenu, colorMatch, cardFilterBar, qtyHtml, ownHtml, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, selectToDropdown, enhanceSelects, settingsTabs, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, colorBarHtml, cmcOf, loadedImgs, t: tr, isMobile, foldable, get LOGO() { return logoSvg(); } };
+  return { load, get DATA() { return DATA; }, $, $$, esc, num, card, cardName, artOf, artCanvas, cardTile, cardHtml, textCard, cardUsage, cardSorter, isLegendary, get ohneBilder() { return ohneBilder; }, replayLink, bigCard, bindCardImages, xButton, deckBox, deckCell, Art, closeModal, fmtDate, fmtTime, fmtDur, relDate, deckLabel, eventLabel, resultBadge, shell, stats, groupBy, tooltip, stackedBars, lineChart, rateRows, ring, param, hoverPreview, showCard, cardLinks, manaHtml, manaSymbol, filterIcon, uiIcon, zoomMenu, cardRow, longPress, openMenu, closeMenu, tags, colorMatch, cardFilterBar, qtyHtml, ownHtml, ruleHtml, skeleton, busy, debounce, getJson, cardStats, dropdown, selectToDropdown, enhanceSelects, settingsTabs, searchBox, FI, loadSets, setName, setIcon, sizeSlider, deckStats, deckStatsHtml, colorBarHtml, cmcOf, loadedImgs, t: tr, isMobile, foldable, get LOGO() { return logoSvg(); } };
 })();

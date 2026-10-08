@@ -34,13 +34,14 @@ App.load().then(async (D) => {
     limited: { label: "Limited", min: 40, copies: 99, side: 99, cmd: false }
   };
   A.shell("builder.html", `
-    <div class="topbar"><div><h1>${T("Deckbau")}</h1><div class="sub" id="sub">${T("Deck von null bauen – aus allen Karten des Spiels")}</div></div>
+    <div class="topbar"><div><div class="t-head"><h1>${T("Deckbau")}</h1><button type="button" class="bview-btn" id="bview"></button></div><div class="sub" id="sub">${T("Deck von null bauen – aus allen Karten des Spiels")}</div></div>
       <div class="right filters"></div></div>
     <div class="builder">
       <section class="pool">
         <div class="lib-bar"></div>
         <div class="cards lib" id="grid">${Array.from({ length: 24 }, () => '<div class="c sk"></div>').join("")}</div>
         <div class="empty" id="more"></div>
+        <div class="dview" id="dview"></div>
       </section>
       <aside class="deckpanel" id="deckpanel"></aside>
     </div>
@@ -75,11 +76,15 @@ App.load().then(async (D) => {
   const KEY = "mtga-builder";
   const loadAll = () => { try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (e) { return []; } };
   const saveAll = (list) => { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (e) { /* ohne Speicher */ } };
-  const newDeck = () => ({ id: "b" + Date.now().toString(36), name: T("Neues Deck"), format: "standard", cmd: [], main: {}, side: {}, updated: Date.now() });
+  const newId = () => "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const newDeck = () => ({ id: newId(), name: T("Neues Deck"), format: "standard", cmd: [], main: {}, side: {}, updated: Date.now() });
   const CUR = "mtga-builder-cur";   // welches Deck offen ist; der Assistent nutzt denselben Schlüssel
   const curId = () => { try { return localStorage.getItem(CUR) || ""; } catch (e) { return ""; } };
   const setCur = (id) => { try { localStorage.setItem(CUR, id); } catch (e) { /* ohne Speicher */ } };
-  let decks = loadAll(), deck = decks.find((d) => d.id === curId()) || decks[0] || newDeck();
+  let decks = loadAll();
+  // Ältere Stände konnten zwei Decks mit derselben Kennung haben (gleiche Millisekunde): spätere neu nummerieren
+  { const seen = new Set(); let fixed = false; for (const d of decks) { if (seen.has(d.id)) { d.id = newId(); fixed = true; } seen.add(d.id); } if (fixed) saveAll(decks); }
+  let deck = decks.find((d) => d.id === curId()) || decks[0] || newDeck();
   if (!decks.length) decks.push(deck);
   const persist = () => { deck.updated = Date.now(); if (!decks.includes(deck)) decks.push(deck); saveAll(decks); setCur(deck.id); };
   const fmt = () => FORMATS[deck.format] || FORMATS.standard;
@@ -234,7 +239,63 @@ App.load().then(async (D) => {
     });
     A.$("#sub").textContent = T("{n} Decks gespeichert · gespeichert im Browser", { n: decks.length });
     markPool();
+    renderDeckView();
   }
+
+  // ---- Zweite Ansicht: das Deck nach Tags und Kategorien (zum Aussortieren), umschaltbar mit dem Knopf am Titel ----
+  const VIEW_KEY = "mtga-builder-view";
+  let view = "pool", dvGroup = "tags";
+  try { view = localStorage.getItem(VIEW_KEY) === "deck" ? "deck" : "pool"; dvGroup = localStorage.getItem("mtga-deck-group") || "tags"; } catch (e) { /* ohne Speicher */ }
+  function setView(v) {
+    view = v;
+    try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ohne Speicher */ }
+    A.$(".builder").classList.toggle("mode-deck", v === "deck");
+    document.body.classList.toggle("bview-deck", v === "deck");
+    const b = A.$("#bview");
+    b.innerHTML = v === "deck" ? `${FI.search}<span>${T("Karten suchen")}</span>` : `${FI.tag}<span>${T("Deck nach Tags")}</span>`;
+    b.title = v === "deck" ? T("Zurück zum Kartenpool, um Karten herauszusuchen") : T("Deine Karten nach Tags und Kategorien – zum Aussortieren");
+    b.classList.toggle("on", v === "deck");
+    renderDeckView();
+  }
+  A.$("#bview").addEventListener("click", () => { setView(view === "deck" ? "pool" : "deck"); window.scrollTo({ top: 0 }); });
+  const MARK_TEXT = { gut: "gut", pruefen: "prüfen", raus: "raus" };
+  function renderDeckView() {
+    const el = A.$("#dview");
+    if (view !== "deck" || !el) return;
+    const f = fmt(), n = mainCount();
+    const sortE = (l) => [...l].sort((a, b) => (byId.get(a[0])[8] - byId.get(b[0])[8]) || byId.get(a[0])[1].localeCompare(byId.get(b[0])[1]));
+    const secs = [];
+    if (f.cmd && deck.cmd.length) secs.push({ key: "cmd", title: T("Commander"), entries: deck.cmd.filter((g) => byId.has(g)).map((g) => [g, 1]), zone: "cmd" });
+    for (const s of A.tags.groups(Object.entries(deck.main).map(([g, q]) => [+g, q]).filter(([g]) => byId.has(g)), dvGroup)) secs.push({ ...s, zone: "main" });
+    if (sideCount()) secs.push({ key: "side", title: T("Sideboard"), entries: Object.entries(deck.side).map(([g, q]) => [+g, q]).filter(([g]) => byId.has(g)), zone: "side" });
+    // Kachel wie im Pool (Besitz, Zähler − Anzahl +), dazu die Bewertung des Assistenten (gut / prüfen / raus)
+    const tile = (g, q, zone) => {
+      const c = byId.get(g), nt = (deck.notes || {})[g] || null, short = zone !== "cmd" && q > ownedOf(c) && !isBasic(c);
+      const mk = nt && nt.mark ? `<span class="mkb mk-${A.esc(nt.mark)}"${nt.text ? ` title="${A.esc(nt.text)}"` : ""}>${A.esc(T(MARK_TEXT[nt.mark] || nt.mark))}</span>` : "";
+      const qty = zone === "cmd" ? "" : A.qtyHtml(g).replace('<b class="q-n">0</b>', `<b class="q-n">${q}</b>`);
+      return A.cardTile(g, { qty: 0, cls: short ? "short" : "", extra: `${A.ownHtml(ownedOf(c))}${qty}${mk}` }).replace(/^<div /, `<div data-zone="${zone}" `);
+    };
+    el.innerHTML = `<div class="dv-bar"><div id="dv-group"></div><button type="button" class="icon-btn ghost tagman" id="dv-tagman" title="${T("Tags verwalten")}">${FI.tag}</button>
+      <span class="muted small dv-hint">${T("{n} Karten", { n })} · ${A.isMobile() ? T("Tippen: Details und Tags") : T("Klick: Details und Tags · Rechtsklick: eins entfernen")}</span></div>
+      <div class="zones-flow">${secs.map((s) => `<section class="zone-sec ${s.tag ? "tagsec" : ""}" data-zone="${A.esc(s.key)}"><div class="zone-title">${A.esc(s.title)} · ${s.entries.reduce((x, [, q]) => x + q, 0)}</div><div class="cards lib zone-body">${sortE(s.entries).map(([g, q]) => tile(g, q, s.zone)).join("")}</div></section>`).join("")
+        || `<div class="empty">${T("Noch keine Karten im Deck. Mit „Karten suchen“ zurück zum Kartenpool.")}</div>`}</div>`;
+    el.style.setProperty("--tile-w", A.$("#grid").style.getPropertyValue("--tile-w") || "");
+    A.dropdown(A.$("#dv-group"), { title: T("Gruppierung"), value: dvGroup, defaultValue: "tags", onChange: (v) => { dvGroup = v; try { localStorage.setItem("mtga-deck-group", v); } catch (e) { /* ohne Speicher */ } renderDeckView(); }, items: [
+      { v: "tags", label: T("Nach Tags"), short: T("Tags"), icon: FI.tag }, { v: "type", label: T("Nach Kartentyp"), short: T("Typ"), icon: FI.layers }] });
+    A.$("#dv-tagman").addEventListener("click", () => A.tags.manage());
+    A.Art.bind(el); A.bindCardImages(el); A.hoverPreview(el);
+    A.$$(".zone-sec", el).forEach((sec) => { const head = A.$(".zone-title", sec), body = A.$(".zone-body", sec); if (head && body) A.foldable(head, body, "builder-zone:" + sec.dataset.zone, true); });
+  }
+  // Klick: Kartendetails mit Tags; − und + am Zähler ändern die Anzahl; Rechtsklick nimmt ein Exemplar heraus
+  A.$("#dview").addEventListener("click", (ev) => {
+    const qb = ev.target.closest(".q-m, .q-p"), t = ev.target.closest(".c[data-g]");
+    if (qb && t) { ev.stopPropagation(); const g = +t.dataset.g, zone = t.dataset.zone; if (qb.classList.contains("q-p")) add(g, zone === "side" ? "side" : "main"); else remove(g, zone); return; }
+    if (t) A.showCard(+t.dataset.g);
+  });
+  A.$("#dview").addEventListener("contextmenu", (ev) => { const t = ev.target.closest(".c[data-g]"); if (!t || A.isMobile()) return; ev.preventDefault(); remove(+t.dataset.g, t.dataset.zone); });
+  window.addEventListener("mtga-tags-changed", () => renderDeckView());
+  // Kachelgröße aus dem Größen-Menü gilt auch in dieser Ansicht
+  new MutationObserver(() => A.$("#dview").style.setProperty("--tile-w", A.$("#grid").style.getPropertyValue("--tile-w") || "")).observe(A.$("#grid"), { attributes: true, attributeFilter: ["style"] });
   /** Import aus dem Textfeld (Arena-Format) als neuer Entwurf */
   function importFromText(t) {
     const r = importText(t);
@@ -245,7 +306,7 @@ App.load().then(async (D) => {
   }
   function menu(v) {
     if (v === "new") { deck = newDeck(); decks.push(deck); }
-    else if (v === "dup") { deck = { ...deck, id: "b" + Date.now().toString(36), name: deck.name + " (2)", main: { ...deck.main }, side: { ...deck.side }, cmd: [...deck.cmd] }; decks.push(deck); }
+    else if (v === "dup") { deck = { ...deck, id: newId(), name: deck.name + " (2)", main: { ...deck.main }, side: { ...deck.side }, cmd: [...deck.cmd] }; decks.push(deck); }
     else if (v === "delete") { if (!confirm(T("Deck „{n}“ wirklich löschen?", { n: deck.name }))) { renderDeck(); return; } decks = decks.filter((d) => d !== deck); deck = decks[0] || newDeck(); if (!decks.length) decks.push(deck); }
     else if (v === "import") { A.$("#dp-imp").click(); return; }
     else if (v.startsWith("arena:")) { const d = (D.decks || []).find((x) => x.id === v.slice(6)); if (d) { deck = arenaToBuilder(d); decks.push(deck); } }
@@ -386,6 +447,7 @@ App.load().then(async (D) => {
   const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting) && page * PAGE < current.length) more(); });
   io.observe(A.$("#more"));
 
+  setView(view);
   renderDeck();
   renderPool();
 });

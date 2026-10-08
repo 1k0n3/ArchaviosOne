@@ -29,6 +29,9 @@ App.load().then((D) => {
     <div class="deck-grid" id="list"></div>
   `);
   let onlyPlayed = false, onlyArchived = false, current = null;
+  // Tags geändert (Kartenfenster, „Tags verwalten“, anderes Fenster): offene Deckansicht neu einteilen
+  let redrawDeck = null;
+  window.addEventListener("mtga-tags-changed", () => { if (current && redrawDeck) redrawDeck(); });
   const FI = A.FI, relist = () => renderList();
   const fQ = A.searchBox(A.$("#f-q"), { placeholder: T("Deck oder Karte suchen"), onInput: A.debounce(relist, 150) });
   // Handy: Suche als fixierte Leiste unter den Filtern, direkt über den Decks
@@ -104,7 +107,7 @@ App.load().then((D) => {
       </div>
       <div class="deck-tools-row">
       <div class="lib-bar"><div class="qcol"><div id="d-q"></div><span class="count" id="d-count"></span></div><div id="d-size"></div><div class="seg" id="view"></div></div>
-      <div class="deck-toolbar filters"><div id="d-set"></div><div class="seg colors" id="d-colors" title="${T("Farbe")}"></div><div id="d-sort"></div><button type="button" class="reset" id="d-reset" title="${T("Filter und Sortierung zurücksetzen")}">${A.FI.reset}</button></div>
+      <div class="deck-toolbar filters"><div id="d-group"></div><button type="button" class="icon-btn ghost tagman" id="d-tagman" title="${T("Tags verwalten")}">${A.FI.tag}</button><div id="d-set"></div><div class="seg colors" id="d-colors" title="${T("Farbe")}"></div><div id="d-sort"></div><button type="button" class="reset" id="d-reset" title="${T("Filter und Sortierung zurücksetzen")}">${A.FI.reset}</button></div>
       </div>
       <div id="zones"></div></div>`;
     const expText = deckText(d);
@@ -118,16 +121,18 @@ App.load().then((D) => {
     document.addEventListener("click", (ev) => { if (exp.isConnected && !exp.classList.contains("collapsed") && !ev.target.closest(".col.export")) setExp(false); });
     document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && exp.isConnected) setExp(false); });
     const zonesEl = A.$("#zones");
-    // Hauptdeck nach Typen: Kreaturen, Zaubersprüche, andere bleibende Karten, Länder
-    const TYPE_GROUPS = [[T("Kreaturen"), (c) => c.types.includes(2)], [T("Zaubersprüche"), (c) => c.types.includes(4) || c.types.includes(10)], [T("Bleibende Karten"), (c) => !c.isLand], [T("Länder"), () => true]];
-    const sections = [];
-    for (const [z, t] of ZONES) {
-      const list = d.zones[z] || [];
-      if (!list.length) continue;
-      if (z !== "MainDeck") { sections.push([t, list, z]); continue; }
-      const rest = [...list];
-      for (const [name, test] of TYPE_GROUPS) { const hit = rest.filter(([g]) => test(A.card(g))); if (hit.length) sections.push([name, hit, z]); for (const x of hit) rest.splice(rest.indexOf(x), 1); }
-    }
+    // Hauptdeck nach Tags (Karten ohne Tag unter ihrem Typ) oder nur nach Typ: Kreaturen, Zaubersprüche, bleibende Karten, Länder
+    let groupBy = "tags"; try { groupBy = localStorage.getItem("mtga-deck-group") || "tags"; } catch (e) { /* ohne Speicher */ }
+    const buildSections = () => {
+      const out = [];
+      for (const [z, t] of ZONES) {
+        const list = d.zones[z] || [];
+        if (!list.length) continue;
+        if (z !== "MainDeck") { out.push([t, list, z, z]); continue; }
+        for (const s of A.tags.groups(list, groupBy)) out.push([s.title, s.entries, z, s.key]);
+      }
+      return out;
+    };
     let mode = "img", q = "", sortBy = "cmc", setF = "";
     const colorsF = new Set();
     const RAR_ORDER = { Mythic: 0, Rare: 1, Uncommon: 2, Common: 3, Standardland: 4, Token: 5 };
@@ -149,9 +154,9 @@ App.load().then((D) => {
     const setsInDeck = [...new Set(allEntries.map(([g]) => A.card(g).set))].filter(Boolean).sort();
     const colorsInDeck = ["w", "u", "b", "r", "g"].filter((k) => allEntries.some(([g]) => A.card(g).colors.includes(k)));
     const hasColorless = allEntries.some(([g]) => { const c = A.card(g); return !c.colors.length && !c.isLand; });
-    // Commander: kein eigener Abschnitt, sondern hervorgehoben als erste Karte im ersten Abschnitt (Kreaturen)
-    const cmdList = (sections.find((x) => x[2] === "CommandZone") || [null, []])[1];
-    const mainSections = sections.filter((x) => x[2] !== "CommandZone");
+    // Commander: kein eigener Abschnitt, sondern hervorgehoben als erste Karte im ersten Abschnitt
+    const cmdList = d.zones.CommandZone || [];
+    let mainSections = [];
     const match = ([g]) => {
       const c = A.card(g);
       if (q && !c.name.toLowerCase().includes(q)) return false;
@@ -159,7 +164,10 @@ App.load().then((D) => {
       if (!A.colorMatch(colorsF, c.colors, c.isLand)) return false;
       return true;
     };
-    const secHtml = ([t, list], m, withCmd) => {
+    // Listenansicht: Tags der Karte klein hinter dem Namen (in der Tag-Gruppierung ohne den Tag des Abschnitts)
+    const tagsLine = (g, secTag) => { const ts = A.tags.of(A.card(g)).filter((x) => x !== secTag); return ts.length ? `<span class="cl-tags">${ts.map((x) => `<i>${A.esc(A.tags.name(x))}</i>`).join("")}</span>` : ""; };
+    const secHtml = ([t, list, , key], m, withCmd) => {
+      const secTag = String(key || "").startsWith("tag:") ? key.slice(4) : null;
       const shown = list.filter(match).sort(sorter), cmd = withCmd ? cmdList.filter(match) : []; // Commander bleibt unsortiert vorn
       if (!shown.length && !cmd.length) return "";
       const n = shown.reduce((s, [, q]) => s + q, 0);
@@ -170,15 +178,18 @@ App.load().then((D) => {
       const titles = cmd.length && m === "img"
         ? `<div class="zone-titles"><div class="zone-title cmd" style="--n:${cmd.length}">${T("Commander")}</div>${shown.length ? `<div class="zone-title">${t} · ${n}</div>` : ""}</div>`
         : `<div class="zone-title">${cmd.length ? T("Commander") + " · " : ""}${t} · ${n}</div>`;
-      return `<section class="zone-sec" data-zone="${A.esc(t)}">${titles}` +
+      return `<section class="zone-sec ${secTag ? "tagsec" : ""}" data-zone="${A.esc(key || t)}">${titles}` +
         (m === "img" ? `<div class="cards zone-body">${cmdHtml}${shown.map(([g, q]) => A.cardTile(g, { qty: q, compact: false })).join("")}</div>`
-          : `<div class="zone-body">` + cmdHtml + shown.map(([g, q]) => { const c = A.card(g); return `<div class="cardline"><span class="q">${q}</span><span>${A.esc(c.name)}</span><span class="set" title="${A.esc(A.setName(c.set))}">${A.esc(c.set)} ${A.esc(c.nr)}</span></div>`; }).join("") + `</div>`) + "</section>";
+          : `<div class="zone-body">` + cmdHtml + shown.map(([g, q]) => { const c = A.card(g); return `<div class="cardline" data-g="${g}"><span class="q">${q}</span><span>${A.esc(c.name)}${tagsLine(g, secTag)}</span><span class="set" title="${A.esc(A.setName(c.set))}">${A.esc(c.set)} ${A.esc(c.nr)}</span></div>`; }).join("") + `</div>`) + "</section>";
     };
     A.$("#d-reset").addEventListener("click", () => { q = ""; dq.value = ""; setF = ""; ddSet.value = ""; colorsF.clear(); A.$$("#d-colors button").forEach((b) => b.classList.remove("on")); sortBy = "cmc"; ddSort.value = "cmc"; draw(); });
     const draw = () => {
+      if (!zonesEl.isConnected) return;
+      mainSections = buildSections().filter((x) => x[2] !== "CommandZone");
       A.$("#d-reset").classList.toggle("show", !!(q || setF || colorsF.size || sortBy !== "cmc"));
       zonesEl.className = mode === "img" ? "zones-flow" : "zones-list";
-      { let n = 0; for (const [, list] of mainSections) for (const [, q] of list.filter(match)) n += q; n += cmdList.filter(match).length; A.$("#d-count").textContent = T("{n} Karten", { n }); }
+      // Jede Karte einmal zählen, auch wenn sie unter mehreren Tags steht
+      { const seen = new Set(); let n = 0; for (const [, list] of mainSections) for (const e of list.filter(match)) if (!seen.has(e)) { seen.add(e); n += e[1]; } n += cmdList.filter(match).length; A.$("#d-count").textContent = T("{n} Karten", { n }); }
       zonesEl.innerHTML = mainSections.map((x, k) => secHtml(x, mode, k === 0)).join("") || `<div class="empty">${T("Keine Karte passt zur Suche")}</div>`;
       A.Art.bind(zonesEl); A.bindCardImages(zonesEl); A.hoverPreview(zonesEl); A.cardLinks(zonesEl);
       // Abschnitte je Kartentyp einklappbar (Handy: nur der erste offen)
@@ -199,6 +210,11 @@ App.load().then((D) => {
       { v: "wins", label: T("Meiste Siege"), short: T("Siege"), icon: A.FI.trophy }, { v: "played", label: T("Meist gespielt"), short: T("Gespielt"), icon: A.FI.play },
       { v: "rarity", label: T("Seltenheit"), icon: A.FI.gem("#e0b654") }, { v: "set", label: T("Set und Nummer"), short: T("Set"), icon: A.FI.set }] });
     const dq = A.searchBox(A.$("#d-q"), { placeholder: T("Karte im Deck suchen"), onInput: A.debounce((v) => { q = v.trim().toLowerCase(); draw(); }, 150) });
+    // Gruppierung: Tags als Kategorien (Standard) oder Kartentyp; Tags ändern sich über das Kartenfenster oder „Tags verwalten“
+    A.dropdown(A.$("#d-group"), { title: T("Gruppierung"), value: groupBy, defaultValue: "tags", onChange: (v) => { groupBy = v; try { localStorage.setItem("mtga-deck-group", v); } catch (e) { /* ohne Speicher */ } draw(); }, items: [
+      { v: "tags", label: T("Nach Tags"), short: T("Tags"), icon: A.FI.tag }, { v: "type", label: T("Nach Kartentyp"), short: T("Typ"), icon: A.FI.layers }] });
+    A.$("#d-tagman").addEventListener("click", () => A.tags.manage());
+    redrawDeck = draw;
     A.sizeSlider(A.$("#d-size"), el, "mtga-deck-tile-w", 90, 200);
     if (A.isMobile()) { A.$(".deck-toolbar", el).append(A.$("#d-set"), A.$("#d-sort"), A.$("#d-colors"), A.$("#d-reset")); A.$(".deck-toolbar", el).after(A.$(".lib-bar", el)); }   // Suche zuletzt, direkt über den Karten
     A.$("#view", el).remove();

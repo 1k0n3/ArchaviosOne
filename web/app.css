@@ -2385,3 +2385,55 @@ body.no-cardimg .c .tcard, body.no-cardimg .cc .inner .tcard { display: flex; }
 body.no-cardimg .c::before, body.no-cardimg .c::after,
 body.no-cardimg .cc .inner::before, body.no-cardimg .cc .inner::after { content: none !important; }
 
+
+/* ---- Tags: Auswahl im Kartenfenster, Verwaltung, Deckbau-Ansicht „Deck nach Tags“ ------------------------- */
+.m-sec-tags { display: flex; align-items: baseline; gap: 10px; }
+.m-sec-tags .link { background: none; border: 0; padding: 0; min-height: 0; height: auto; color: var(--gold); font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: 0; cursor: pointer; }
+.m-sec-tags .link:hover { text-decoration: underline; }
+.m-tags, .tm-hidden { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tchip { display: inline-flex; align-items: center; gap: 4px; height: 26px; min-height: 0; padding: 0 10px; border-radius: 999px; background: transparent; border: 1px dashed var(--line-2); color: var(--ink-3); font-size: 12px; font-weight: 600; cursor: pointer; }
+.tchip svg { width: 12px; height: 12px; }
+.tchip:hover { border-color: var(--gold); color: var(--ink); }
+.tchip.on { background: rgba(242,177,52,.14); border: 1px solid rgba(242,177,52,.55); color: var(--gold-2); }
+.tchip.auto:not(.on) { border-style: dotted; }
+.m-tags .tnew { width: 120px; height: 26px; padding: 0 10px; border-radius: 999px; font-size: 12px; }
+.modal .m-box.tag-box { max-width: 520px; width: min(96vw, 520px); display: flex; flex-direction: column; align-items: stretch; gap: 12px; text-align: left; padding: 22px 24px 20px; }
+.tag-box h3 { display: flex; align-items: center; gap: 8px; margin: 0; padding-right: 44px; } .tag-box h3 svg { width: 18px; height: 18px; color: var(--gold); }
+.tag-box p { margin: 0; }
+.tm-auto { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.tm-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto; }
+.tm-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) 140px 30px; align-items: center; gap: 10px; } .tm-row > .muted { text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-row .tm-ico svg { width: 15px; height: 15px; color: var(--ink-3); }
+.tm-row .tm-name { width: 100%; height: 32px; }
+.tm-row .tm-del { width: 30px; height: 30px; min-height: 0; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
+.tm-row .tm-del svg { width: 14px; height: 14px; }
+.tm-add { display: flex; gap: 8px; } .tm-add input { flex: 1; min-width: 0; height: 32px; }
+/* Umschaltknopf am Titel des Deckbaus */
+.t-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.bview-btn { display: inline-flex; align-items: center; gap: 7px; height: 32px; min-height: 0; padding: 0 14px 0 11px; border-radius: 999px; background: var(--panel-3); border: 1px solid var(--line-2); color: var(--ink); font-size: 13px; font-weight: 700; cursor: pointer; }
+.bview-btn svg { width: 15px; height: 15px; color: var(--gold); }
+.bview-btn:hover { border-color: var(--gold); }
+.bview-btn.on { background: linear-gradient(180deg, var(--gold-2), var(--gold)); color: var(--gold-ink); border-color: transparent; } .bview-btn.on svg { color: var(--gold-ink); }
+.builder:not(.mode-deck) .dview { display: none; }
+.builder.mode-deck .pool > .lib-bar, .builder.mode-deck #grid, .builder.mode-deck #more { display: none; }
+body.bview-deck .topbar .right.filters, body.bview-deck .f-toggle { display: none !important; }
+@media (max-width: 760px) { .modal .m-box.tag-box { padding: 18px 16px; } .tm-row { grid-template-columns: 16px minmax(0, 1fr) 30px; } .tm-row > .muted { display: none; } }
+.dv-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 4px; }
+.tagman { width: 34px; height: 34px; min-height: 0; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; flex: none; }
+.tagman svg { width: 16px; height: 16px; color: var(--gold); }
+.dv-hint { margin-left: auto; }
+.dview .zone-title { cursor: pointer; }
+.zone-sec.tagsec > .zone-title, .zone-sec.tagsec .zone-titles .zone-title:not(.cmd) { color: var(--gold-2); }
+/* Bewertung des Assistenten auf der Kachel und knappe Exemplare */
+.c .mkb { position: absolute; left: 6px; top: 6px; z-index: 3; padding: 1px 7px; border-radius: 999px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; box-shadow: 0 2px 6px rgba(0,0,0,.6); }
+.c .mkb.mk-gut { background: var(--win); color: #08140c; } .c .mkb.mk-pruefen { background: var(--gold); color: var(--gold-ink); } .c .mkb.mk-raus { background: var(--loss); color: #fff; }
+/* Größen-Menü wirkt auch in der Deckansicht; Raster/Liste gilt nur für den Kartenpool */
+body.bview-deck .dd.zoom .seg.view { display: none !important; }
+/* Listenansicht der Deckseite: Tags klein hinter dem Kartennamen */
+.cardline[data-g] { cursor: pointer; }
+.cl-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 8px; vertical-align: middle; }
+.cl-tags i { font-style: normal; font-size: 10px; font-weight: 700; color: var(--gold-2); background: rgba(242,177,52,.1); border: 1px solid rgba(242,177,52,.3); border-radius: 999px; padding: 0 6px; line-height: 16px; }
+@media (max-width: 760px) {
+  .t-head { gap: 10px; } .bview-btn { height: 30px; font-size: 12px; padding: 0 12px 0 10px; }
+  .dv-hint { flex-basis: 100%; margin-left: 0; }
+}
