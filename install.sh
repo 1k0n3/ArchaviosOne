@@ -149,6 +149,7 @@ Name=MTGA Stats
 Comment=Dashboard für Magic: The Gathering Arena
 Exec="$CTL" dashboard
 Icon=$ROOT/assets/icon-192.png
+StartupWMClass=mtga-stats
 Terminal=false
 Categories=Game;Utility;
 EOF
@@ -164,10 +165,12 @@ if grep -qi '^ID=steamos' /etc/os-release 2>/dev/null; then
   echo "      1. Zurück in den Spielmodus (Desktop-Symbol „Return to Gaming Mode“) und Arena wie gewohnt spielen –"
   echo "         MTGA Stats läuft im Hintergrund mit und zeichnet jedes Match auf, auch nach einem Neustart."
   echo "      2. Statistiken ansehen: im Desktop-Modus „MTGA Stats“ auf dem Desktop oder im Anwendungsmenü öffnen."
-  echo "      3. Später aktualisieren: denselben Befehl noch einmal in die Konsole einfügen."
+  echo "      3. Mit deinem Konto verbinden (im Dashboard: Einstellungen → Konto): dann kommen Matches, Decks und Sammlung"
+  echo "         von deinen anderen Geräten auch hierher."
+  echo "      4. Später aktualisieren: in der Konsole  $CTL update  (oder denselben Befehl wie eben noch einmal)."
 else
-  echo "    Dashboard: http://localhost:8765/   ·   Steuerung: $CTL start|stop|status|dashboard|log"
+  echo "    Dashboard: http://localhost:8765/   ·   Steuerung: $CTL start|stop|status|dashboard|log|update"
 fi
 echo "    Der Ordner $ROOT ist jetzt der Programmordner – nicht löschen oder verschieben (sonst install.sh dort erneut ausführen)."
-echo "    Hinweis: Die Kartensammlung (Besitzstand) liest MTGA Stats bisher nur unter Windows; Matches, Replays, Decks und Konto laufen überall."
+echo "    Hinweis: Die Kartensammlung (Besitzstand) liest MTGA Stats nur unter Windows. Mit dem Website-Konto verbunden, kommt sie von dort."
 "$CTL" dashboard >/dev/null 2>&1 || true

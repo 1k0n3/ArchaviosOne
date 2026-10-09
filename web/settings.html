@@ -86,7 +86,8 @@ App.load().then(async (D) => {
     const when = st.lastFlushAt ? A.fmtDate(st.lastFlushAt) + " " + A.fmtTime(st.lastFlushAt) : "–";
     box.innerHTML = st.connected
       ? `<div class="set-row"><div><div class="lbl">${T("Verbunden als {n}", { n: A.esc((st.user && (st.user.displayName || st.user.handle)) || "?") })}</div>
-           <div class="hint">${A.esc(st.url)} · ${T("zuletzt abgeglichen: {t}", { t: when })} · ${T("{n} in der Warteschlange", { n: st.queued })}${st.lastError ? " · " + A.esc(st.lastError) : ""}</div></div>
+           <div class="hint">${A.esc(st.url)} · ${T("zuletzt abgeglichen: {t}", { t: when })} · ${T("{n} in der Warteschlange", { n: st.queued })}${st.lastError ? " · " + A.esc(st.lastError) : ""}</div>
+           ${st.restore ? `<div class="hint">${T("Daten vom Konto zuletzt geholt: {t}", { t: A.fmtDate(st.restore.at) + " " + A.fmtTime(st.restore.at) })}${st.restore.left ? " · " + T("{n} Matches folgen", { n: st.restore.left }) : ""}${st.restore.error && st.restore.error !== "nicht verbunden" ? " · " + A.esc(st.restore.error) : ""}</div>` : `<div class="hint">${T("Deine Daten vom Konto werden geholt …")}</div>`}</div>
            <div class="sync-btns"><button type="button" class="ghost small" id="sync-now">${T("Jetzt abgleichen")}</button><button type="button" class="ghost small danger" id="sync-off">${T("Trennen")}</button></div></div>`
       : `<div class="set-row"><div><div class="lbl">${T("Nicht verbunden")}</div>
            <div class="hint">${T("Melde dich mit deinem Konto an. Es öffnet sich die Website, dort bestätigst du dieses Gerät.")}</div></div>
@@ -123,8 +124,10 @@ App.load().then(async (D) => {
     });
     if (now) now.addEventListener("click", async () => {
       now.disabled = true; now.textContent = T("Wird abgeglichen …");
-      try { await fetch("api/sync/now", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); } catch (e) { /* Meldung steht im Stand */ }
+      let g = null;
+      try { const r = await fetch("api/sync/now", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); g = (await r.json()).geholt; } catch (e) { /* Meldung steht im Stand */ }
       await renderSync();
+      if (g && g.changed) msg(T("Vom Konto geholt: {m} Matches{s}", { m: g.matches, s: (g.collection ? ", " + T("Sammlung") : "") + (g.account ? ", " + T("Kontostand") : "") }));
     });
   }
   renderSync();

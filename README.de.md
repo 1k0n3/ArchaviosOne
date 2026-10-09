@@ -116,14 +116,19 @@ Er lädt den Companion nach `~/mtga-stats`, holt bei Bedarf ein portables Node.j
 2. **Konsole** öffnen (Anwendungsstarter unten links → System → Konsole).
 3. Den Befehl oben einfügen (Rechtsklick → Einfügen oder Strg+Umschalt+V) und Enter drücken. Kein Passwort nötig, dauert etwa zwei Minuten. Der Installer prüft dabei auch, ob in Arena die *detaillierten Protokolle* an sind, und sagt Bescheid, wenn nicht.
 4. Zurück in den Spielmodus und wie gewohnt spielen. Der Watcher läuft im Hintergrund mit und zeichnet deine Matches auf; das Dashboard öffnest du im Desktop-Modus über **MTGA Stats** im Anwendungsmenü oder auf dem Desktop.
+5. Im Dashboard unter *Einstellungen → Konto* mit deinem Website-Konto anmelden. Dann holt der Companion Matches, Replays, Decks, Sammlung und Kontostand von deinen anderen Geräten (z. B. dem Windows-PC) auf das Deck.
+
+**Aktualisieren:** `~/mtga-stats/scripts/unix/mtga-stats update` in der Konsole (oder den Installationsbefehl oben noch einmal). Einstellungen und Daten bleiben erhalten.
+
+**App-Fenster:** Das Dashboard öffnet sich ohne Browserleisten, mit Chrome, Chromium, Brave, Edge oder Vivaldi (auch als Flatpak) im App-Modus. Ist nur Firefox da, nutzt MTGA Stats dafür ein eigenes Firefox-Profil, in dem Tabs und Adressleiste ausgeblendet sind; Links zu anderen Seiten öffnen im normalen Browser.
 
 **Alternativ aus dem ZIP:** entpacken, im entpackten Ordner ein Terminal öffnen und `bash install.sh` ausführen. Der Ordner bleibt dann der Programmordner.
 
-Steuerung: `~/mtga-stats/scripts/unix/mtga-stats start|stop|status|dashboard|log`, entfernen mit `bash ~/mtga-stats/install.sh --uninstall`.
+Steuerung: `~/mtga-stats/scripts/unix/mtga-stats start|stop|status|dashboard|log|update`, entfernen mit `bash ~/mtga-stats/install.sh --uninstall`.
 
 Arena wird automatisch gefunden (Mac-App, jede Steam-Bibliothek mit ihrem Proton-Präfix `steamapps/compatdata/2141910`, auch auf der SD-Karte des Steam Deck, Flatpak-Steam, Wine, Lutris, Bottles). Abweichende Orte gibst du mit `MTGA_DIR` (Ordner mit `MTGA_Data`) und `MTGA_LOG_DIR` (Ordner mit `Player.log`) an.
 
-**Eine Einschränkung:** Die Kartensammlung (Besitzstand) liest das Tool aus dem Arbeitsspeicher des Spiels, das geht nur unter Windows. Auf Mac und Linux bekommst du Matches, Replays, Decks, Kontodaten und die komplette Kartenbibliothek, aber keine Besitzzahlen. Auf dem Steam Deck spielst du wie gewohnt im Gaming-Modus und öffnest das Dashboard im Desktop-Modus.
+**Eine Einschränkung:** Die Kartensammlung (Besitzstand) liest das Tool aus dem Arbeitsspeicher des Spiels, das geht nur unter Windows. Auf Mac und Linux kommen die Besitzzahlen deshalb vom Website-Konto: Ist das Gerät verbunden, gilt der zuletzt von deinem Windows-PC hochgeladene Stand. Auf dem Steam Deck spielst du wie gewohnt im Gaming-Modus und öffnest das Dashboard im Desktop-Modus.
 
 ### Paketmanager
 

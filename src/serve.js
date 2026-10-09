@@ -106,15 +106,32 @@ function mana(text) {
   const cost = parts.map((p) => { const n = parseInt(p, 10); if (!isNaN(n)) cmc += n; else if (p !== "X") cmc += p.replace(/[^WUBRGC]/g, "").length || 0; return "{" + p + "}"; }).join("");
   return { cost, cmc };
 }
+/** Besitzstand: eigene Speicherlesung (state.json, nur Windows), sonst der vom Konto geholte (src/restore.js) */
+function ownedFile(webDir) {
+  const own = path.join(webDir, "..", "state.json");
+  return fs.existsSync(own) ? own : path.join(webDir, "..", "site-collection.json");
+}
 function ownedCounts(webDir) {
   try {
-    const s = JSON.parse(fs.readFileSync(path.join(webDir, "..", "state.json"), "utf8"));
+    const s = JSON.parse(fs.readFileSync(ownedFile(webDir), "utf8"));
     return new Map(s.snapshot);
   } catch (e) { return new Map(); }
 }
+/** Ändert sich der Besitzstand, müssen die Zahlen in der Kartenliste nachziehen */
+let ownedStamp = "";
+function ownedStampOf(webDir) { const f = ownedFile(webDir); try { return f + ":" + fs.statSync(f).mtimeMs; } catch (e) { return f + ":-"; } }
 /** Kompakte Liste aller Karten: [grpId, name, set, nr, rarity, colors, types, artId, cmc, owned, cost, isToken, isRebalanced, isPrimary, frameFlags, power, toughness, text, typeLine] */
 function allCards(webDir) {
-  if (cardsListJson) return cardsListJson;
+  const stamp = ownedStampOf(webDir);
+  if (cardsListJson && stamp === ownedStamp) return cardsListJson;
+  ownedStamp = stamp;
+  if (cardsList) {
+    // Nur die Besitzzahlen (Feld 9) erneuern, die Kartendatenbank bleibt dieselbe
+    const owned = ownedCounts(webDir);
+    for (const c of cardsList) c[9] = owned.get(c[0]) || 0;
+    cardsListJson = JSON.stringify({ generatedAt: new Date().toISOString(), cards: cardsList });
+    return cardsListJson;
+  }
   const d = openDb();
   const rows = d.prepare(`select c.GrpId, c.ExpansionCode, c.CollectorNumber, c.Rarity, c.IsToken, c.IsRebalanced, c.ArtId, c.Colors, c.Types, c.Supertypes, c.OldSchoolManaText, c.IsPrimaryCard, c.DigitalReleaseSet, c.RawFrameDetail, c.AdditionalFrameDetails, c.ArtSize, c.Power, c.Toughness, c.AbilityIds, c.TypeTextId, c.SubtypeTextId,
       (select Loc from Localizations_enUS l where l.LocId = c.TitleId and l.Formatted = 1 limit 1) as Name from Cards c`).all();
@@ -358,6 +375,40 @@ async function prefetch(grpIds, webDir, log) {
   return { done, failed };
 }
 
+/**
+ * Adresse im Standardbrowser öffnen. Das App-Fenster unter Linux (Firefox ohne Leisten) hätte für
+ * fremde Seiten sonst keine Adresszeile. Nur POST mit JSON aus dieser Oberfläche (Prüfung oben),
+ * nur http(s) und nie localhost.
+ */
+function openUrl(req, res) {
+  const nein = (code, m) => { res.writeHead(code, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: m })); };
+  if (req.method !== "POST" || !req.headers.origin) return nein(403, "nicht erlaubt");
+  if (process.platform === "win32") return nein(501, "unter Windows öffnet das App-Fenster Links selbst");
+  let body = "";
+  req.on("data", (c) => { body += c; if (body.length > 8192) req.destroy(); });
+  req.on("end", () => {
+    let u;
+    try { u = new URL(JSON.parse(body).url); } catch (e) { return nein(400, "keine Adresse"); }
+    if (!/^https?:$/.test(u.protocol) || /^(localhost|127\.|\[::1\])/i.test(u.hostname)) return nein(400, "nicht erlaubt");
+    // Der Watcher läuft oft als Hintergrunddienst ohne Bildschirm-Umgebung: die merkt sich
+    // "mtga-stats dashboard" beim Öffnen in ~/.mtga-stats/session.env
+    const env = Object.assign({}, process.env);
+    try {
+      const f = path.join(process.env.MTGA_STATS_HOME || path.join(require("os").homedir(), ".mtga-stats"), "session.env");
+      for (const z of fs.readFileSync(f, "utf8").split("\n")) {
+        const m = z.match(/^(DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|DBUS_SESSION_BUS_ADDRESS|XDG_RUNTIME_DIR|XDG_CURRENT_DESKTOP|XDG_SESSION_TYPE)=(.*)$/);
+        if (m && m[2] && !env[m[1]]) env[m[1]] = m[2];
+      }
+    } catch (e) { /* ohne gemerkte Umgebung */ }
+    try {
+      const p = require("child_process").spawn(process.platform === "darwin" ? "open" : "xdg-open", [u.href], { detached: true, stdio: "ignore", env });
+      p.on("error", () => {});
+      p.unref();
+    } catch (e) { return nein(500, e.message); }
+    res.writeHead(200, { "Content-Type": "application/json" }); res.end('{"ok":true}');
+  });
+}
+
 function start(webDir, port, log) {
   const server = http.createServer((req, res) => {
     try { handle(req, res); } catch (e) { try { res.writeHead(500); res.end(e.message); } catch (x) { /* Antwort schon unterwegs */ } }
@@ -372,7 +423,7 @@ function start(webDir, port, log) {
     //  - eine mitgeschickte Herkunft (Origin) muss diese Oberfläche sein,
     //  - schreibende Anfragen müssen JSON sein; das erzwingt beim Browser eine Vorabfrage, die wir
     //    nicht beantworten, womit fremde Seiten gar nicht erst senden dürfen.
-    if (p === "/api/settings" || p.startsWith("/api/sync/") || p.startsWith("/api/assistant/") || p === "/api/cards/search") {
+    if (p === "/api/settings" || p.startsWith("/api/sync/") || p.startsWith("/api/assistant/") || p === "/api/cards/search" || p === "/api/open-url") {
       const host = String(req.headers.host || "").toLowerCase();
       const hostOk = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
       const origin = req.headers.origin;
@@ -451,6 +502,7 @@ function start(webDir, port, log) {
       return;
     }
     if (p === "/api/refresh") { cardsListJson = null; res.writeHead(200); res.end("ok"); return; }
+    if (p === "/api/open-url") { openUrl(req, res); return; }
     const m = p.match(/^\/art\/(\d+)$/);
     if (m) {
       try {

@@ -380,6 +380,12 @@ async function runSession(pid) {
 
 setInterval(syncFlush, 5 * 60 * 1000);
 
+/** Was auf anderen Geräten dazukam (Matches, Sammlung, Kontostand), vom Konto holen */
+const restore = require("./restore");
+restore.defaultRebuild = () => buildWeb();
+function restoreRun() { restore.run({ log }).catch((e) => log("Abholen vom Konto: " + e.message)); }
+setInterval(restoreRun, 30 * 60 * 1000);
+
 /**
  * Neuer Programmstand: Startet der Tray den Watcher (--supervised), beendet er sich mit Code 75,
  * sobald sich Dateien in src/ oder web/ geändert haben, und der Tray startet ihn frisch. Nie
@@ -424,6 +430,7 @@ async function waitForCardDb() {
   anchors = lib.resolveAnchors(cards, cfg.anchors);
   log(`Watcher gestartet: poll ${cfg.pollSec}s, check ${cfg.checkSec}s, fullScan ${cfg.fullScanSec}s, matchCheck ${cfg.matchCheckSec}s, out ${cfg.outDir}, DB ${loaded.version}` + (cfg.once ? " (once)" : ""));
   try { matchCatchUp(); buildWeb(); } catch (e) { log("Match-Import beim Start: " + e.message); }
+  restoreRun();
   if (cfg.webServer && cfg.webDashboard) serve.start(path.join(cfg.outDir, "web"), cfg.webPort, log);
 
   while (true) {

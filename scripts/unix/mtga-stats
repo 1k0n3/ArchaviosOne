@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Steuerung von MTGA Stats auf macOS/Linux/Steam Deck (auch aus Flatpak und Homebrew heraus):
-#   mtga-stats start | stop | restart | run | app | status | dashboard | log | account
-#   (run: Watcher im Vordergrund · app: dazu das Dashboard öffnen, so startet das Flatpak)
+#   mtga-stats start | stop | restart | run | app | status | dashboard | log | account | update
+#   (run: Watcher im Vordergrund · app: dazu das Dashboard öffnen, so startet das Flatpak
+#    · update: neuesten Stand laden und neu installieren, Einstellungen und Daten bleiben)
 # Einstellungen und Daten: im Tool-Ordner, wenn er beschreibbar ist (ZIP-Installation), sonst unter
 # ~/.config/mtga-stats/watch-config.json und ~/.local/share/mtga-stats (Flatpak, Homebrew) – oder MTGA_STATS_CONFIG.
 set -euo pipefail
@@ -38,17 +39,83 @@ managed() {
   if [ "$OS" = "Darwin" ]; then launchctl print "gui/$(id -u)/de.mtga-stats.watcher" >/dev/null 2>&1 || launchctl print "gui/$(id -u)/homebrew.mxcl.mtga-stats" >/dev/null 2>&1
   else systemctl --user is-active --quiet mtga-stats.service 2>/dev/null; fi
 }
+# Firefox kennt keinen App-Modus. Ein eigenes Profil blendet Tabs, Adress- und Lesezeichenleiste aus,
+# es bleibt nur die Titelleiste des Fensters. Anmeldefenster (Popups) behalten ihre Adresszeile.
+firefox_profile() {
+  local P="$1"; mkdir -p "$P/chrome"
+  cat > "$P/user.js" <<'EOF'
+// MTGA Stats: Profil für das App-Fenster (wird bei jedem Start neu geschrieben)
+user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
+user_pref("browser.tabs.inTitlebar", 0);
+user_pref("browser.toolbars.bookmarks.visibility", "never");
+user_pref("browser.shell.checkDefaultBrowser", false);
+user_pref("browser.aboutwelcome.enabled", false);
+user_pref("trailhead.firstrun.didSeeAboutWelcome", true);
+user_pref("browser.startup.homepage_override.mstone", "ignore");
+user_pref("startup.homepage_welcome_url", "");
+user_pref("startup.homepage_welcome_url.additional", "");
+user_pref("browser.startup.upgradeDialog.enabled", false);
+user_pref("datareporting.policy.dataSubmissionPolicyBypassNotification", true);
+user_pref("datareporting.healthreport.uploadEnabled", false);
+user_pref("toolkit.telemetry.reportingpolicy.firstRun", false);
+user_pref("browser.sessionstore.resume_from_crash", false);
+user_pref("browser.startup.page", 0);
+user_pref("browser.tabs.warnOnClose", false);
+user_pref("browser.warnOnQuit", false);
+user_pref("browser.link.open_newwindow", 2);
+user_pref("browser.translations.automaticallyPopup", false);
+user_pref("sidebar.revamp", false);
+user_pref("sidebar.verticalTabs", false);
+user_pref("browser.ml.chat.enabled", false);
+user_pref("extensions.pocket.enabled", false);
+EOF
+  cat > "$P/chrome/userChrome.css" <<'EOF'
+/* MTGA Stats: Dashboard als App-Fenster – nur die Titelleiste bleibt. Popups (Anmeldungen) zeigen weiter ihre Adresse. */
+:root:not([chromehidden~="toolbar"]) #navigator-toolbox { visibility: collapse !important; }
+:root:not([chromehidden~="toolbar"]) #sidebar-main, :root:not([chromehidden~="toolbar"]) #sidebar-box { display: none !important; }
+EOF
+  # Fenstergröße beim ersten Start; danach merkt sich Firefox die zuletzt benutzte
+  [ -f "$P/xulstore.json" ] || printf '{"chrome://browser/content/browser.xhtml":{"main-window":{"width":"1400","height":"900","sizemode":"normal"}}}' > "$P/xulstore.json"
+}
+# Bildschirm-Umgebung merken: der Watcher läuft oft als Hintergrunddienst ohne sie und braucht sie,
+# um Links zu fremden Seiten im normalen Browser zu öffnen (src/serve.js, /api/open-url)
+remember_session() {
+  local k; : > "$APP_DIR/session.env"
+  for k in DISPLAY WAYLAND_DISPLAY XAUTHORITY DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR XDG_CURRENT_DESKTOP XDG_SESSION_TYPE; do
+    [ -n "${!k:-}" ] && printf '%s=%s\n' "$k" "${!k}" >> "$APP_DIR/session.env"
+  done
+  chmod 600 "$APP_DIR/session.env" 2>/dev/null || true
+}
 open_url() {
   if [ "$OS" = "Darwin" ]; then
     if [ -d "/Applications/Google Chrome.app" ]; then open -na "Google Chrome" --args --app="$URL" --user-data-dir="$APP_DIR/chrome-profile"; else open "$URL"; fi
-  else
-    for b in google-chrome google-chrome-stable chromium chromium-browser; do if command -v "$b" >/dev/null 2>&1; then "$b" --app="$URL" --user-data-dir="$APP_DIR/chrome-profile" >/dev/null 2>&1 & return 0; fi; done
-    # Steam Deck: Chrome kommt als Flatpak (Steam installiert es für den Spielmodus mit)
-    if command -v flatpak >/dev/null 2>&1; then
-      for b in com.google.Chrome org.chromium.Chromium; do if flatpak info "$b" >/dev/null 2>&1; then flatpak run "$b" --app="$URL" >/dev/null 2>&1 & return 0; fi; done
-    fi
-    xdg-open "$URL" >/dev/null 2>&1 &
+    return 0
   fi
+  remember_session
+  # 1. Chrome, Chromium, Brave, Edge, Vivaldi: echter App-Modus (Fenster ohne Browserleisten)
+  local b
+  for b in google-chrome google-chrome-stable chromium chromium-browser brave-browser brave microsoft-edge microsoft-edge-stable vivaldi vivaldi-stable; do
+    if command -v "$b" >/dev/null 2>&1; then "$b" --app="$URL" --user-data-dir="$APP_DIR/chrome-profile" --window-size=1400,900 --class=mtga-stats --no-first-run --no-default-browser-check >/dev/null 2>&1 & return 0; fi
+  done
+  # dieselben als Flatpak (Steam Deck: über Discover installiert)
+  if command -v flatpak >/dev/null 2>&1; then
+    for b in com.google.Chrome org.chromium.Chromium com.brave.Browser com.microsoft.Edge io.github.ungoogled_software.ungoogled_chromium com.vivaldi.Vivaldi; do
+      if flatpak info "$b" >/dev/null 2>&1; then flatpak run "$b" --app="$URL" --window-size=1400,900 --class=mtga-stats >/dev/null 2>&1 & return 0; fi
+    done
+  fi
+  # 2. Firefox mit eigenem Profil ohne Leisten (normal installiert oder als Flatpak)
+  if command -v firefox >/dev/null 2>&1; then
+    firefox_profile "$APP_DIR/firefox-app"
+    firefox --profile "$APP_DIR/firefox-app" --class mtga-stats --name mtga-stats --new-window "$URL" >/dev/null 2>&1 & return 0
+  fi
+  if command -v flatpak >/dev/null 2>&1 && flatpak info org.mozilla.firefox >/dev/null 2>&1; then
+    # Das Flatpak darf nur in seinen eigenen Ordner unter ~/.var/app schauen
+    local P="$HOME/.var/app/org.mozilla.firefox/mtga-stats-app"
+    firefox_profile "$P"
+    flatpak run org.mozilla.firefox --profile "$P" --class mtga-stats --name mtga-stats --new-window "$URL" >/dev/null 2>&1 & return 0
+  fi
+  # 3. sonst der Standardbrowser
+  xdg-open "$URL" >/dev/null 2>&1 &
 }
 case "${1:-status}" in
   run) cd "$ROOT"; exec "$NODE" src/watch.js ;;
@@ -81,5 +148,14 @@ case "${1:-status}" in
     open_url ;;
   log) tail -n 40 -f "$LOGDIR/watch.log" ;;
   account) cd "$ROOT" && "$NODE" src/account.js --save ;;
-  *) echo "Verwendung: mtga-stats start|stop|restart|run|app|status|dashboard|log|account"; exit 1 ;;
+  update)
+    # Neuester Stand von GitHub (über die Website), in denselben Ordner; Einstellungen und Daten bleiben
+    if [ ! -w "$ROOT" ] || [ ! -f "$ROOT/install.sh" ]; then
+      echo "Dieser Ordner lässt sich nicht selbst aktualisieren ($ROOT). Flatpak: flatpak update · Homebrew: brew upgrade mtga-stats" >&2; exit 1
+    fi
+    SITE="${MTGA_STATS_SITE:-https://mtga.a16.be}"
+    command -v curl >/dev/null 2>&1 || { echo "Für das Update wird curl gebraucht." >&2; exit 1; }
+    curl -fsSL --retry 3 --retry-delay 2 "$SITE/install.sh" -o "$APP_DIR/update.sh"
+    MTGA_STATS_DIR="$ROOT" exec bash "$APP_DIR/update.sh" "${@:2}" ;;
+  *) echo "Verwendung: mtga-stats start|stop|restart|run|app|status|dashboard|log|account|update"; exit 1 ;;
 esac

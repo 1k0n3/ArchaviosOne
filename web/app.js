@@ -2,6 +2,21 @@
 // Kartenbilder: der lokale Server liefert die komprimierte Textur direkt aus den MTGA-Spieldaten
 // (/art/<ArtId>), der Browser dekodiert sie per WebGL auf der Grafikkarte. Nichts wird umgewandelt oder gespeichert.
 window.App = (function () {
+  // App-Fenster unter Linux (Firefox ohne Leisten, Chrome im App-Modus): Links zu fremden Seiten im
+  // normalen Browser öffnen, damit man dort Adresse und Zurück hat. Klappt das nicht, wie bisher.
+  if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /Linux|X11/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent)) {
+    document.addEventListener("click", (ev) => {
+      const a = ev.target && ev.target.closest ? ev.target.closest("a[href]") : null;
+      if (!a || ev.defaultPrevented || ev.button !== 0 || a.hasAttribute("download")) return;
+      let u; try { u = new URL(a.getAttribute("href"), location.href); } catch (e) { return; }
+      if (!/^https?:$/.test(u.protocol) || u.host === location.host) return;
+      ev.preventDefault();
+      fetch("/api/open-url", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: u.href }) })
+        .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); })
+        .catch(() => { window.open(u.href, "_blank", "noopener"); });
+    }, true);
+  }
+
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => [...(root || document).querySelectorAll(sel)];
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

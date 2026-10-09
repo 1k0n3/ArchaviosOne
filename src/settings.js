@@ -102,7 +102,9 @@ const loginStates = new Map();   // state -> Zeitpunkt; die Anmeldung läuft im 
 
 function syncHandle(req, res, rest, port) {
   const sync = require("./sync");
-  const st = () => { const s = sync.status(); return { connected: s.connected, url: s.url, user: s.user, queued: s.queued, lastFlushAt: s.lastFlushAt, lastError: s.lastError, sent: s.sent }; };
+  const restore = require("./restore");
+  const holen = () => restore.run({ rebuild: restore.defaultRebuild || restore.rebuildStandalone }).catch(() => null);
+  const st = () => { const s = sync.status(); return { connected: s.connected, url: s.url, user: s.user, queued: s.queued, lastFlushAt: s.lastFlushAt, lastError: s.lastError, sent: s.sent, restore: s.connected ? restore.status() : null }; };
   if (rest === "state" && req.method === "GET") { json(res, st()); return true; }
   if (rest === "connect" && req.method === "POST") {
     readBody(req).then(async (b) => {
@@ -113,6 +115,7 @@ function syncHandle(req, res, rest, port) {
         // Zugang des Assistenten gleich mitgeben, damit man online ohne zweite Anmeldung verbunden ist
         try { const a = require("./assistant").readCfg(); if (a.apiKey) sync.enqueueAssistant(a); } catch (e) { /* ohne Assistent */ }
         sync.syncAll(() => {}).catch(() => {});
+        holen();
         json(res, { ok: true, user, state: st() });
       } catch (e) { json(res, { error: e.message }, 400); }
     }).catch((e) => json(res, { error: e.message }, 400));
@@ -143,13 +146,14 @@ function syncHandle(req, res, rest, port) {
     sync.connect(code, paths.readConfig().syncUrl).then(() => {
       try { const a = require("./assistant").readCfg(); if (a.apiKey) sync.enqueueAssistant(a); } catch (e) { /* ohne Assistent */ }
       sync.syncAll(() => {}).catch(() => {});
-      page("Verbunden", "Dieses Gerät ist jetzt mit deinem Konto verbunden.");
+      holen();
+      page("Verbunden", "Dieses Gerät ist jetzt mit deinem Konto verbunden. Deine Daten vom Konto werden jetzt geholt.");
     }).catch((e) => page("Fehlgeschlagen", String(e.message || e)));
     return true;
   }
   if (rest === "disconnect" && req.method === "POST") { sync.disconnect(); json(res, { ok: true, state: st() }); return true; }
   if (rest === "now" && req.method === "POST") {
-    sync.syncAll(() => {}).then((r) => json(res, { ok: !r.error, ergebnis: r, state: st() })).catch((e) => json(res, { error: e.message }, 502));
+    sync.syncAll(() => {}).then(async (r) => { const h = await holen(); json(res, { ok: !r.error, ergebnis: r, geholt: h, state: st() }); }).catch((e) => json(res, { error: e.message }, 502));
     return true;
   }
   json(res, { error: "unbekannt" }, 404);

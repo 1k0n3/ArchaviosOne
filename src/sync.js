@@ -68,6 +68,7 @@ function enqueueDecks(decks, cards) {
   if (!device()) return 0;
   const st = state(); let n = 0;
   for (const d of decks) {
+    if (d.fromSite) continue;   // vom Konto geholt (src/restore.js): dort liegt schon der aktuelle Stand
     const h = hash([d.name, d.format, d.tile, d.zones, cards ? 1 : 0, d.archived ? 1 : 0]);
     if (st.deckHashes[d.id] === h) continue;
     const ids = [d.tile, ...Object.values(d.zones || {}).flatMap((z) => z.map(([g]) => g))].filter(Boolean);

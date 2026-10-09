@@ -52,6 +52,15 @@ function readDecks(cards, outDir = defaultOutDir()) {
     try { fs.mkdirSync(outDir, { recursive: true }); fs.writeFileSync(file, JSON.stringify({ seen })); } catch (e) { /* nicht schreibbar */ }
   }
   const archived = Object.values(seen).filter((d) => d.archivedAt && !curIds.has(d.id)).map((d) => ({ id: d.id, name: d.name, format: d.format, lastUpdated: d.lastUpdated, tile: d.tile, zones: d.zones, archived: true, archivedAt: d.archivedAt }));
+  // Noch keine Decks aus dem Arena-Log (neues Gerät, Arena hier noch nicht gestartet): die vom Konto
+  // geholten zeigen (src/restore.js). Sie sind markiert und gehen nicht zurück zur Website.
+  if (!current.length) {
+    let site = [];
+    try { site = JSON.parse(fs.readFileSync(path.join(outDir, "site-decks.json"), "utf8")).decks || []; } catch (e) { /* nichts geholt */ }
+    const schon = new Set(archived.map((d) => d.id));
+    const vomKonto = site.filter((d) => d && d.id && d.zones && !schon.has(d.id)).map((d) => Object.assign({}, d, { fromSite: true }));
+    if (vomKonto.length) return vomKonto.filter((d) => !d.archived).concat(archived, vomKonto.filter((d) => d.archived));
+  }
   return current.concat(archived);
 }
 
@@ -171,6 +180,8 @@ function build(outDir, cards) {
   for (const g of usedCards) { const c = cards.get(g); if (c) cardDict[g] = cardEntry(c); }
 
   let account = null; try { account = JSON.parse(fs.readFileSync(path.join(outDir, "account.json"), "utf8")); } catch (e) { /* noch keine Kontodaten */ }
+  // Ohne eigenen Kontostand (Arena hier noch nicht gelaufen) den vom Konto geholten zeigen
+  if (!account) { try { account = Object.assign(JSON.parse(fs.readFileSync(path.join(outDir, "site-account.json"), "utf8")), { fromSite: true }); } catch (e) { /* nichts geholt */ } }
   // Rang-Embleme: lokal liefert sie der Dashboard-Server aus den Spieldaten (ui/rank/…), die Website bekommt sie als Data-URL
   if (account) {
     if (account.rank) {
