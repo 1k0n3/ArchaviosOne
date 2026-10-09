@@ -423,7 +423,7 @@ function start(webDir, port, log) {
     //  - eine mitgeschickte Herkunft (Origin) muss diese Oberfläche sein,
     //  - schreibende Anfragen müssen JSON sein; das erzwingt beim Browser eine Vorabfrage, die wir
     //    nicht beantworten, womit fremde Seiten gar nicht erst senden dürfen.
-    if (p === "/api/settings" || p.startsWith("/api/sync/") || p.startsWith("/api/assistant/") || p === "/api/cards/search" || p === "/api/open-url") {
+    if (p === "/api/settings" || p.startsWith("/api/sync/") || p.startsWith("/api/assistant/") || p === "/api/cards/search" || p === "/api/open-url" || p.startsWith("/api/update/")) {
       const host = String(req.headers.host || "").toLowerCase();
       const hostOk = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
       const origin = req.headers.origin;
@@ -436,7 +436,7 @@ function start(webDir, port, log) {
         return;
       }
     }
-    if (p === "/api/settings" || p.startsWith("/api/sync/")) {
+    if (p === "/api/settings" || p.startsWith("/api/sync/") || p.startsWith("/api/update/")) {
       try { if (frisch("./settings").handle(req, res, url, port)) return; }
       catch (e) { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: e.message })); return; }
     }

@@ -86,35 +86,56 @@ remember_session() {
   done
   chmod 600 "$APP_DIR/session.env" 2>/dev/null || true
 }
+# Standardbrowser des Systems als Name seiner .desktop-Datei (firefox, org.mozilla.firefox, com.google.Chrome …)
+default_browser() {
+  local d=""
+  command -v xdg-settings >/dev/null 2>&1 && d="$(xdg-settings get default-web-browser 2>/dev/null || true)"
+  if [ -z "$d" ] && command -v xdg-mime >/dev/null 2>&1; then d="$(xdg-mime query default x-scheme-handler/https 2>/dev/null || true)"; fi
+  d="${d%%$'\n'*}"; printf '%s' "${d%.desktop}"
+}
+has() { command -v "$1" >/dev/null 2>&1; }
+hasflat() { command -v flatpak >/dev/null 2>&1 && flatpak info "$1" >/dev/null 2>&1; }
+# Profilordner je Browser. Snap-Pakete (Ubuntu) dürfen nicht in versteckte Ordner wie ~/.mtga-stats schreiben.
+profile_for() {
+  local p; p="$(command -v "$1")"
+  case "$p" in /snap/*) printf '%s' "$HOME/snap/$(basename "$p")/common/mtga-stats-app" ;; *) printf '%s' "$APP_DIR/app-$1" ;; esac
+}
+# Chromium-Familie: echter App-Modus (Fenster ohne Browserleisten)
+cmd_app() { local c; for c in "$@"; do if has "$c"; then "$c" --app="$URL" --user-data-dir="$(profile_for "$c")" --window-size=1400,900 --class=mtga-stats --no-first-run --no-default-browser-check >/dev/null 2>&1 & return 0; fi; done; return 1; }
+flat_app() { hasflat "$1" || return 1; flatpak run "$1" --app="$URL" --window-size=1400,900 --class=mtga-stats >/dev/null 2>&1 & return 0; }
+# Firefox-Familie: eigenes Profil ohne Leisten (siehe firefox_profile)
+cmd_ff() { local c P; for c in "$@"; do if has "$c"; then P="$(profile_for "$c")"; firefox_profile "$P"; "$c" --profile "$P" --class mtga-stats --name mtga-stats --new-window "$URL" >/dev/null 2>&1 & return 0; fi; done; return 1; }
+# Ein Flatpak darf nur in seinen eigenen Ordner unter ~/.var/app schauen
+flat_ff() { hasflat "$1" || return 1; local P="$HOME/.var/app/$1/mtga-stats-app"; firefox_profile "$P"; flatpak run "$1" --profile "$P" --class mtga-stats --name mtga-stats --new-window "$URL" >/dev/null 2>&1 & return 0; }
+# Einen Browser über den Namen seiner .desktop-Datei starten; 1 = nicht installiert oder unbekannt
+launch() {
+  case "$1" in
+    google-chrome|google-chrome-stable|google-chrome-beta) cmd_app google-chrome google-chrome-stable google-chrome-beta ;;
+    chromium|chromium-browser|chromium_chromium) cmd_app chromium chromium-browser ;;
+    brave-browser|brave|brave_brave) cmd_app brave-browser brave ;;
+    microsoft-edge|microsoft-edge-stable|microsoft-edge-beta|microsoft-edge-dev) cmd_app microsoft-edge microsoft-edge-stable microsoft-edge-beta microsoft-edge-dev ;;
+    vivaldi|vivaldi-stable) cmd_app vivaldi vivaldi-stable ;;
+    com.google.Chrome|org.chromium.Chromium|com.brave.Browser|com.microsoft.Edge|com.vivaldi.Vivaldi|io.github.ungoogled_software.ungoogled_chromium) flat_app "$1" ;;
+    firefox|firefox-esr|firefox_firefox) cmd_ff firefox firefox-esr ;;
+    librewolf) cmd_ff librewolf ;;
+    org.mozilla.firefox|io.gitlab.librewolf-community) flat_ff "$1" ;;
+    *) return 1 ;;
+  esac
+}
 open_url() {
   if [ "$OS" = "Darwin" ]; then
     if [ -d "/Applications/Google Chrome.app" ]; then open -na "Google Chrome" --args --app="$URL" --user-data-dir="$APP_DIR/chrome-profile"; else open "$URL"; fi
     return 0
   fi
   remember_session
-  # 1. Chrome, Chromium, Brave, Edge, Vivaldi: echter App-Modus (Fenster ohne Browserleisten)
-  local b
-  for b in google-chrome google-chrome-stable chromium chromium-browser brave-browser brave microsoft-edge microsoft-edge-stable vivaldi vivaldi-stable; do
-    if command -v "$b" >/dev/null 2>&1; then "$b" --app="$URL" --user-data-dir="$APP_DIR/chrome-profile" --window-size=1400,900 --class=mtga-stats --no-first-run --no-default-browser-check >/dev/null 2>&1 & return 0; fi
+  # 1. der Standardbrowser, den der Spieler ohnehin benutzt – als App-Fenster
+  local b; b="$(default_browser)"
+  if [ -n "$b" ] && launch "$b"; then return 0; fi
+  # 2. Standardbrowser unbekannt oder nicht installiert: was sonst da ist, App-Modus zuerst
+  for b in google-chrome chromium brave-browser microsoft-edge vivaldi com.google.Chrome org.chromium.Chromium com.brave.Browser com.microsoft.Edge com.vivaldi.Vivaldi io.github.ungoogled_software.ungoogled_chromium firefox librewolf org.mozilla.firefox io.gitlab.librewolf-community; do
+    if launch "$b"; then return 0; fi
   done
-  # dieselben als Flatpak (Steam Deck: über Discover installiert)
-  if command -v flatpak >/dev/null 2>&1; then
-    for b in com.google.Chrome org.chromium.Chromium com.brave.Browser com.microsoft.Edge io.github.ungoogled_software.ungoogled_chromium com.vivaldi.Vivaldi; do
-      if flatpak info "$b" >/dev/null 2>&1; then flatpak run "$b" --app="$URL" --window-size=1400,900 --class=mtga-stats >/dev/null 2>&1 & return 0; fi
-    done
-  fi
-  # 2. Firefox mit eigenem Profil ohne Leisten (normal installiert oder als Flatpak)
-  if command -v firefox >/dev/null 2>&1; then
-    firefox_profile "$APP_DIR/firefox-app"
-    firefox --profile "$APP_DIR/firefox-app" --class mtga-stats --name mtga-stats --new-window "$URL" >/dev/null 2>&1 & return 0
-  fi
-  if command -v flatpak >/dev/null 2>&1 && flatpak info org.mozilla.firefox >/dev/null 2>&1; then
-    # Das Flatpak darf nur in seinen eigenen Ordner unter ~/.var/app schauen
-    local P="$HOME/.var/app/org.mozilla.firefox/mtga-stats-app"
-    firefox_profile "$P"
-    flatpak run org.mozilla.firefox --profile "$P" --class mtga-stats --name mtga-stats --new-window "$URL" >/dev/null 2>&1 & return 0
-  fi
-  # 3. sonst der Standardbrowser
+  # 3. sonst einfach im Standardbrowser
   xdg-open "$URL" >/dev/null 2>&1 &
 }
 case "${1:-status}" in

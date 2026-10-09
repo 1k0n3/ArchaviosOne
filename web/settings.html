@@ -133,7 +133,7 @@ App.load().then(async (D) => {
   renderSync();
 
   // ---- Begleitprogramm: watch-config.json über den lokalen Server ------------------------------
-  const GROUPS = { dashboard: T("Dashboard und Server"), scan: T("Sammlung erfassen"), export: T("Export"), sync: T("Website-Sync") };
+  const GROUPS = { dashboard: T("Dashboard und Server"), scan: T("Sammlung erfassen"), export: T("Export"), sync: T("Website-Sync"), update: T("Updates") };
   const row = (f, v) => `<div class="set-row" data-key="${f.key}">
       <div><div class="lbl">${esc(T(f.label))}</div>${f.hint ? `<div class="hint">${esc(T(f.hint))}</div>` : ""}</div>
       ${f.type === "bool"
@@ -156,6 +156,43 @@ App.load().then(async (D) => {
     $("#watch-fields").innerHTML = Object.entries(byGroup).map(([g, list]) =>
       `<div class="set-group"><div class="set-group-t">${esc(GROUPS[g] || g)}</div>${list.map((f) => row(f, info.config[f.key])).join("")}</div>`).join("");
     A.enhanceSelects($("#watch-fields"));
+    // Updates: Stand und Knöpfe unter dem Schalter
+    const upRow = $("#watch-fields .set-row[data-key=autoUpdate]");
+    if (upRow) {
+      upRow.insertAdjacentHTML("afterend", `<div class="set-row" id="up-state"><div><div class="lbl">${T("Programmstand")}</div><div class="hint" id="up-text">${T("Wird geladen …")}</div></div>
+        <div class="sync-btns"><button type="button" class="ghost small" id="up-check">${T("Nach Updates suchen")}</button><button type="button" class="primary small" id="up-now" hidden>${T("Jetzt aktualisieren")}</button></div></div>`);
+      const kurz = (s) => (s ? s.slice(0, 7) : "?");
+      const zeige = (u) => {
+        const t = [];
+        if (u.error) t.push(T("Prüfung fehlgeschlagen: {e}", { e: u.error }));
+        else if (u.latest && u.available) t.push(T("Neue Version verfügbar ({a} → {b})", { a: u.current ? kurz(u.current) : T("unbekannt"), b: kurz(u.latest) }));
+        else if (u.latest) t.push(T("Aktuell ({a})", { a: kurz(u.latest) }));
+        if (u.checkedAt) t.push(T("geprüft {t}", { t: A.fmtDate(u.checkedAt) + " " + A.fmtTime(u.checkedAt) }));
+        if (u.waiting) t.push(T(u.waiting));
+        if (u.blocked) t.push(T(u.blocked));
+        $("#up-text").textContent = t.join(" · ") || T("Noch nicht geprüft.");
+        $("#up-now").hidden = !(u.available && !u.blocked);
+      };
+      const hol = async (method, pfad) => { try { const r = await fetch(pfad, { method, headers: { "Content-Type": "application/json" }, body: method === "POST" ? "{}" : undefined }); const u = await r.json(); zeige(u); return u; } catch (e) { $("#up-text").textContent = String(e.message || e); return null; } };
+      hol("GET", "api/update/state");
+      $("#up-check").addEventListener("click", async (ev) => { ev.target.disabled = true; $("#up-text").textContent = T("Suche …"); await hol("POST", "api/update/check"); ev.target.disabled = false; });
+      $("#up-now").addEventListener("click", async (ev) => {
+        if (!confirm(T("Jetzt aktualisieren? Das Dashboard ist danach kurz nicht erreichbar; Einstellungen und Daten bleiben."))) return;
+        ev.target.disabled = true; $("#up-text").textContent = T("Update läuft …");
+        const u = await hol("POST", "api/update/now");
+        // Der Watcher startet mit dem neuen Stand neu: warten, bis das Dashboard wieder antwortet, dann neu laden
+        if (!u || u.error || u.waiting || u.blocked || !u.appliedAt || Date.now() - Date.parse(u.appliedAt) > 60000) { ev.target.disabled = false; return; }
+        $("#up-text").textContent = T("Update läuft – die Seite lädt gleich neu.");
+        const start = Date.now();
+        // Unter Windows startet der Watcher beim nächsten Rundgang neu (bis zu 30 s), sonst sofort
+        await new Promise((ok) => setTimeout(ok, /Windows/.test(navigator.userAgent) ? 35000 : 8000));
+        while (Date.now() - start < 120000) {
+          try { const r = await fetch("api/update/state", { cache: "no-store" }); if (r.ok && !(await r.json()).available) break; } catch (e) { /* noch nicht wieder da */ }
+          await new Promise((ok) => setTimeout(ok, 3000));
+        }
+        location.reload();
+      });
+    }
     $("#watch-note").innerHTML = T("Änderungen gelten, sobald der Watcher neu startet (Tray-Menü: stoppen, dann starten).") + ` <span class="muted">${esc(info.file)}</span>`;
 
     const save = A.debounce(async (key, value, el) => {

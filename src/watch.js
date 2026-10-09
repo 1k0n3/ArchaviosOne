@@ -386,6 +386,11 @@ restore.defaultRebuild = () => buildWeb();
 function restoreRun() { restore.run({ log }).catch((e) => log("Abholen vom Konto: " + e.message)); }
 setInterval(restoreRun, 30 * 60 * 1000);
 
+/** Neuer Programmstand auf GitHub? Einspielen, sobald Arena nicht läuft (abschaltbar: "autoUpdate": false) */
+function updateRun() { try { require("./update").run({ log }).catch((e) => log("Update: " + e.message)); } catch (e) { log("Update: " + e.message); } }
+setTimeout(updateRun, 3 * 60 * 1000).unref();
+setInterval(updateRun, 6 * 3600 * 1000).unref();
+
 /**
  * Neuer Programmstand: Startet der Tray den Watcher (--supervised), beendet er sich mit Code 75,
  * sobald sich Dateien in src/ oder web/ geändert haben, und der Tray startet ihn frisch. Nie

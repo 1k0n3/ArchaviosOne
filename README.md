@@ -131,9 +131,9 @@ It downloads the companion into `~/mtga-stats`, fetches a portable Node.js into 
 4. Go back to Game Mode and play as usual. The watcher keeps running in the background and records your matches; open the dashboard in Desktop Mode from **MTGA Stats** in the app menu or on the desktop.
 5. In the dashboard, sign in with your website account under *Settings → Account*. The companion then fetches matches, replays, decks, collection and account status from your other devices (for example your Windows PC) onto the Deck.
 
-**Updating:** run `~/mtga-stats/scripts/unix/mtga-stats update` in a terminal (or the install command above again). Settings and data are kept.
+**Updating:** happens on its own. Every six hours the companion checks for a new version and installs it while Arena is not running (turn it off under *Settings → Companion → Updates*, which also has “Update now”). By hand: `~/mtga-stats/scripts/unix/mtga-stats update`. Settings and data are kept.
 
-**App window:** the dashboard opens without browser bars, using Chrome, Chromium, Brave, Edge or Vivaldi (Flatpak too) in app mode. If only Firefox is available, MTGA Stats uses a separate Firefox profile with the tab and address bars hidden; links to other sites open in your normal browser.
+**App window:** the dashboard opens without browser bars in your default browser, or in another installed one if that is not found. Chrome, Chromium, Brave, Edge and Vivaldi (Flatpak too) have an app mode for this. With Firefox (or LibreWolf) MTGA Stats uses a separate Firefox profile with the tab and address bars hidden; links to other sites open in your normal browser.
 
 **From the ZIP instead:** unpack it, open a terminal in the unpacked folder and run `bash install.sh`. That folder then stays the program folder.
 

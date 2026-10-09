@@ -118,9 +118,9 @@ Er lädt den Companion nach `~/mtga-stats`, holt bei Bedarf ein portables Node.j
 4. Zurück in den Spielmodus und wie gewohnt spielen. Der Watcher läuft im Hintergrund mit und zeichnet deine Matches auf; das Dashboard öffnest du im Desktop-Modus über **MTGA Stats** im Anwendungsmenü oder auf dem Desktop.
 5. Im Dashboard unter *Einstellungen → Konto* mit deinem Website-Konto anmelden. Dann holt der Companion Matches, Replays, Decks, Sammlung und Kontostand von deinen anderen Geräten (z. B. dem Windows-PC) auf das Deck.
 
-**Aktualisieren:** `~/mtga-stats/scripts/unix/mtga-stats update` in der Konsole (oder den Installationsbefehl oben noch einmal). Einstellungen und Daten bleiben erhalten.
+**Aktualisieren:** passiert von selbst. Der Companion schaut alle sechs Stunden nach einer neuen Version und spielt sie ein, sobald Arena nicht läuft (abschaltbar unter *Einstellungen → Begleitprogramm → Updates*, dort auch „Jetzt aktualisieren“). Von Hand: `~/mtga-stats/scripts/unix/mtga-stats update`. Einstellungen und Daten bleiben erhalten.
 
-**App-Fenster:** Das Dashboard öffnet sich ohne Browserleisten, mit Chrome, Chromium, Brave, Edge oder Vivaldi (auch als Flatpak) im App-Modus. Ist nur Firefox da, nutzt MTGA Stats dafür ein eigenes Firefox-Profil, in dem Tabs und Adressleiste ausgeblendet sind; Links zu anderen Seiten öffnen im normalen Browser.
+**App-Fenster:** Das Dashboard öffnet sich ohne Browserleisten in deinem Standardbrowser; ist der nicht zu finden, in einem anderen installierten. Chrome, Chromium, Brave, Edge und Vivaldi (auch als Flatpak) haben dafür einen App-Modus. Bei Firefox (oder LibreWolf) nutzt MTGA Stats dafür ein eigenes Firefox-Profil, in dem Tabs und Adressleiste ausgeblendet sind; Links zu anderen Seiten öffnen im normalen Browser.
 
 **Alternativ aus dem ZIP:** entpacken, im entpackten Ordner ein Terminal öffnen und `bash install.sh` ausführen. Der Ordner bleibt dann der Programmordner.
 

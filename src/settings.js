@@ -27,7 +27,8 @@ const FIELDS = [
   { key: "minCards", type: "num", min: 1, max: 100000, group: "scan", label: "Mindestzahl Karten", hint: "Darunter gilt die Sammlung als noch nicht geladen." },
   { key: "maxQty", type: "num", min: 1, max: 10000, group: "scan", label: "Höchstzahl je Karte", hint: "Plausibilitätsgrenze für den Speicher-Scan." },
   { key: "writeEndCsvIfUnchanged", type: "bool", group: "export", label: "Nachher-CSV immer schreiben", hint: "Auch wenn sich in der Sitzung nichts geändert hat." },
-  { key: "syncAccount", type: "bool", group: "sync", label: "Kontodaten mit synchronisieren", hint: "Gold, Edelsteine, Wildcards, Rang, Mastery und Quests zur Website senden." }
+  { key: "syncAccount", type: "bool", group: "sync", label: "Kontodaten mit synchronisieren", hint: "Gold, Edelsteine, Wildcards, Rang, Mastery und Quests zur Website senden." },
+  { key: "autoUpdate", type: "bool", group: "update", label: "Automatisch aktualisieren", hint: "Neue Versionen werden geladen und eingespielt, sobald Arena nicht läuft. Einstellungen und Daten bleiben." }
 ];
 const BY_KEY = new Map(FIELDS.map((f) => [f.key, f]));
 
@@ -66,7 +67,7 @@ function apply(patch) {
 /** Aktueller Stand: nur die angebotenen Schlüssel, fehlende mit dem Standard des Watchers */
 function current() {
   const raw = readRaw(), out = {};
-  const DEF = { pollSec: 300, checkSec: 60, fullScanSec: 600, retrySec: 60, startDelaySec: 0, syncAccount: true, minCards: 200, maxQty: 400, writeEndCsvIfUnchanged: true, matchCheckSec: 10, webDashboard: true, webServer: true, webPort: 8765, prefetchCardImages: false };
+  const DEF = { pollSec: 300, checkSec: 60, fullScanSec: 600, retrySec: 60, startDelaySec: 0, syncAccount: true, autoUpdate: true, minCards: 200, maxQty: 400, writeEndCsvIfUnchanged: true, matchCheckSec: 10, webDashboard: true, webServer: true, webPort: 8765, prefetchCardImages: false };
   for (const f of FIELDS) out[f.key] = raw[f.key] !== undefined ? raw[f.key] : DEF[f.key];
   return out;
 }
@@ -161,9 +162,24 @@ function syncHandle(req, res, rest, port) {
 }
 
 /** GET liefert Stand und Felder, POST übernimmt Änderungen. true = Anfrage erledigt. */
+/** Updates: Stand abfragen, jetzt prüfen, jetzt aktualisieren */
+function updateHandle(req, res, rest) {
+  const up = require("./update");
+  if (rest === "state" && req.method === "GET") { json(res, up.status()); return true; }
+  if (rest === "check" && req.method === "POST") { up.check().then((s) => json(res, up.status())).catch((e) => json(res, { error: e.message }, 502)); return true; }
+  if (rest === "now" && req.method === "POST") {
+    up.run({ force: true, log: (m) => { try { require("fs").appendFileSync(require("path").join(paths.outDir(), "watch.log"), "[" + new Date().toISOString() + "] " + m + "\n"); } catch (e) { /* egal */ } } })
+      .then(() => json(res, up.status())).catch((e) => json(res, { error: e.message }, 502));
+    return true;
+  }
+  json(res, { error: "unbekannt" }, 404);
+  return true;
+}
+
 function handle(req, res, url, port) {
   const p = url ? url.pathname : "/api/settings";
   if (p.startsWith("/api/sync/")) return syncHandle(req, res, p.slice("/api/sync/".length), port);
+  if (p.startsWith("/api/update/")) return updateHandle(req, res, p.slice("/api/update/".length));
   if (req.method === "GET") { json(res, info()); return true; }
   if (req.method === "POST") {
     readBody(req).then((b) => { const r = apply(b); json(res, { ok: true, config: current(), changed: Object.keys(r.changed) }); })

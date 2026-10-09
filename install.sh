@@ -3,6 +3,7 @@
 #   bash install.sh                 installieren, Autostart einrichten, Watcher starten, Dashboard öffnen
 #   bash install.sh --no-autostart
 #   bash install.sh --uninstall
+#   bash install.sh --auto           (automatisches Update: Autostart wie bisher, kein Dashboard-Fenster)
 # Braucht nur curl und tar. Node.js wird bei Bedarf als portable Version nach ~/.mtga-stats/node geladen (kein root).
 # Laden und installieren in einem Schritt: curl -fsSL https://mtga.a16.be/install.sh | bash
 # Danach: scripts/unix/mtga-stats start|stop|status|dashboard|log
@@ -12,8 +13,13 @@ HOME_DIR="${HOME:-$(eval echo ~)}"
 APP_DIR="$HOME_DIR/.mtga-stats"
 NODE_MIN=22
 OS="$(uname -s)"; ARCH="$(uname -m)"
-AUTOSTART=1; UNINSTALL=0
-for a in "$@"; do case "$a" in --no-autostart) AUTOSTART=0 ;; --uninstall) UNINSTALL=1 ;; -h|--help) sed -n 2,8p "$0"; exit 0 ;; esac; done
+AUTOSTART=1; UNINSTALL=0; AUTO=0
+for a in "$@"; do case "$a" in --no-autostart) AUTOSTART=0 ;; --uninstall) UNINSTALL=1 ;; --auto) AUTO=1 ;; -h|--help) sed -n 2,9p "$0"; exit 0 ;; esac; done
+# Automatisches Update: Autostart nur, wenn er schon eingerichtet war (wer ihn abgewählt hat, bekommt ihn nicht untergeschoben)
+if [ "$AUTO" = 1 ]; then
+  if [ "$OS" = "Darwin" ]; then [ -f "$HOME_DIR/Library/LaunchAgents/de.mtga-stats.watcher.plist" ] || AUTOSTART=0
+  else [ -f "$HOME_DIR/.config/systemd/user/mtga-stats.service" ] || AUTOSTART=0; fi
+fi
 
 say() { printf '\n  \033[36m%s\033[0m\n' "$1"; }
 ok() { printf '    \033[32m[OK]\033[0m %s\n' "$1"; }
@@ -101,7 +107,7 @@ if [ "$OS" = "Darwin" ]; then
 EOF
     launchctl bootout "gui/$(id -u)/de.mtga-stats.watcher" >/dev/null 2>&1 || true
     launchctl bootstrap "gui/$(id -u)" "$PL" && ok "Watcher läuft im Hintergrund und startet beim Anmelden"
-  else "$CTL" start; fi
+  elif [ "$AUTO" = 1 ]; then "$CTL" restart; else "$CTL" start; fi
   say "Programm „MTGA Stats“ anlegen"
   APP="$HOME_DIR/Applications/MTGA Stats.app"; mkdir -p "$APP/Contents/MacOS"
   printf '#!/usr/bin/env bash\nexec "%s" dashboard\n' "$CTL" > "$APP/Contents/MacOS/MTGA Stats"; chmod +x "$APP/Contents/MacOS/MTGA Stats"
@@ -138,7 +144,7 @@ EOF
     loginctl enable-linger "$(id -un)" >/dev/null 2>&1 || true
   else
     [ "$AUTOSTART" = 1 ] && warn "Kein systemd-Benutzerdienst verfügbar – der Watcher läuft bis zum Abmelden (danach: $CTL start)"
-    "$CTL" start
+    if [ "$AUTO" = 1 ]; then "$CTL" restart; else "$CTL" start; fi
   fi
   say "Verknüpfungen anlegen"
   AD="$HOME_DIR/.local/share/applications"; mkdir -p "$AD"
@@ -159,6 +165,8 @@ EOF
 fi
 
 say "Fertig"
+# Automatisches Update: kein Fenster aufmachen und keine Anleitung, der Watcher läuft schon mit dem neuen Stand
+if [ "$AUTO" = 1 ]; then ok "Aktualisiert$( [ -f "$ROOT/.install.json" ] && sed -n 's/.*"sha":"\([0-9a-f]\{7\}\).*/ auf \1/p' "$ROOT/.install.json")"; exit 0; fi
 if grep -qi '^ID=steamos' /etc/os-release 2>/dev/null; then
   # Steam Deck: was jetzt zu tun ist, in drei Sätzen
   echo "    So geht es weiter:"
