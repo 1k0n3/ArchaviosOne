@@ -151,7 +151,7 @@ async function run({ log = () => {}, force = false } = {}) {
   } finally { laeuft = false; }
 }
 const status = () => Object.assign({ blocked: blocker(), enabled: enabled(), current: (readJson(INFO, {}) || {}).sha || null }, letzte || {},
-  { blocked: blocker(), enabled: enabled(), kind: require("./program").kindOf(), platform: process.platform, version: (() => { try { return require("../package.json").version; } catch (e) { return ""; } })() });
+  { blocked: blocker(), enabled: enabled(), kind: require("./program").kindOf(), platform: process.platform, version: (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version; } catch (e) { return ""; } })() });
 
 module.exports = { check, run, status, blocker, copyOver, applyWindows };
 

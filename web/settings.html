@@ -49,15 +49,14 @@ App.load().then(async (D) => {
         <p class="muted small set-intro">${T("Verbinde dieses Gerät mit deinem Konto auf der Website. Danach landen Decks, Matches, Sammlung und der Zugang des Assistenten dort und du kannst deine Daten überall öffnen.")}</p>
         <div id="sync-body"><div class="muted small">${T("Wird geladen …")}</div></div>
       </section>
-      <section class="panel set-block" id="prog-block" data-pane="companion">
-        <h3>${T("Programm")}</h3>
-        <div id="prog-body"><div class="muted small">${T("Wird geladen …")}</div></div>
-      </section>
-      <section class="panel set-block" id="watch-block" data-pane="companion">
-        <h3>${T("Begleitprogramm")}</h3>
+      <div class="set-cols" id="watch-block" data-pane="companion">
         <p class="muted small set-intro" id="watch-note">${T("Wird geladen …")}</p>
+        <section class="panel set-block" id="prog-block">
+          <h3>${T("Programm")}</h3>
+          <div id="prog-body"><div class="muted small">${T("Wird geladen …")}</div></div>
+        </section>
         <div id="watch-fields"></div>
-      </section>
+      </div>
       <section class="panel set-block" data-pane="info">
         <h3>${T("Info")}</h3>
         <div id="set-info" class="set-info"></div>
@@ -170,6 +169,10 @@ App.load().then(async (D) => {
       <div class="set-row" id="un-row"><div><div class="lbl">${T("Deinstallieren")}</div><div class="hint" id="un-text">${T("Wird geladen …")}</div></div>
         <div class="sync-btns"><button type="button" class="ghost small danger" id="un-open">${T("Deinstallieren …")}</button></div></div>
       <div class="un-box" id="un-box" hidden></div>`;
+    const devNote = (u) => {
+      if (!u || u.kind !== "dev" || $("#prog-dev")) return;
+      pb.insertAdjacentHTML("afterbegin", `<div class="prog-note" id="prog-dev"><b>${T("Entwicklungsordner")}</b> ${T("Dieser PC startet MTGA Stats direkt aus deinem Git-Ordner. Aktualisiert wird hier über Git, und „Deinstallieren“ würde deinen Quellcode löschen – deshalb sind beide Knöpfe hier gesperrt. Auf installierten Geräten (Windows-ZIP, Linux und Steam Deck, Mac) funktionieren sie.")}</div>`);
+    };
 
     // ---- Aktualisieren ----
     const kurz = (x) => (x ? x.slice(0, 7) : "?");
@@ -178,7 +181,8 @@ App.load().then(async (D) => {
       if (!u) return;
       $("#up-ver").textContent = [u.version, u.current ? kurz(u.current) : ""].filter(Boolean).join(" · ");
       const t = [];
-      if (u.blocked) t.push(T(u.blocked));
+      if (u.kind === "dev") t.push(T("Gesperrt – siehe Hinweis oben."));
+      else if (u.blocked) t.push(T(u.blocked));
       else if (u.error) t.push(T("Prüfung fehlgeschlagen: {e}", { e: u.error }));
       else if (u.latest && u.available) t.push(T("Neue Version verfügbar ({a} → {b})", { a: u.current ? kurz(u.current) : T("unbekannt"), b: kurz(u.latest) }));
       else if (u.latest) t.push(T("Aktuell ({a})", { a: kurz(u.latest) }));
@@ -186,7 +190,9 @@ App.load().then(async (D) => {
       if (u.waiting) t.push(T(u.waiting));
       $("#up-text").textContent = t.join(" · ") || T("Noch nicht geprüft.");
       btn.disabled = !!u.blocked;
+      btn.title = u.blocked ? T(u.blocked) : "";
       btn.textContent = u.available && !u.blocked ? T("Jetzt aktualisieren") : T("Aktualisieren");
+      devNote(u);
     };
     const hol = async (method, pfad) => {
       try { const r = await fetch(pfad, { method, headers: { "Content-Type": "application/json" }, body: method === "POST" ? "{}" : undefined }); const u = await r.json(); zeige(u); return u; }
@@ -234,7 +240,9 @@ App.load().then(async (D) => {
     };
     if (!un) { $("#un-text").textContent = T("Nicht verfügbar."); open.disabled = true; return; }
     if (!un.can) {
-      $("#un-text").textContent = T(un.hint);
+      $("#un-text").textContent = un.kind === "dev" ? T("Gesperrt – siehe Hinweis oben.") : T(un.hint);
+      open.title = T(un.hint);
+      devNote(un);
       if (un.command) {
         open.hidden = true; box.hidden = false;
         box.innerHTML = `<div class="cmd-row"><code>${esc(un.command)}</code><button type="button" class="ghost small" id="un-copy">${T("Kopieren")}</button></div>`;
@@ -274,11 +282,17 @@ App.load().then(async (D) => {
   if (info) {
     const byGroup = {};
     for (const f of info.fields) if (f.group !== "update") (byGroup[f.group] = byGroup[f.group] || []).push(f);
-    $("#watch-fields").innerHTML = Object.entries(byGroup).map(([g, list]) =>
-      `<div class="set-group"><div class="set-group-t">${esc(GROUPS[g] || g)}</div>${list.map((f) => row(f, info.config[f.key])).join("")}</div>`).join("");
+    // Reihenfolge so, dass sich die Karten gut auf zwei Spalten verteilen; die lange Scan-Gruppe zuletzt
+    const ORDER = ["dashboard", "sync", "export", "scan"];
+    const gruppen = Object.keys(byGroup).sort((a, b) => (ORDER.indexOf(a) + 1 || 99) - (ORDER.indexOf(b) + 1 || 99))
+      .filter((g) => g !== "scan" || info.memoryScan);
+    $("#watch-fields").innerHTML = gruppen.map((g) =>
+      `<section class="panel set-block set-card"><h3>${esc(GROUPS[g] || g)}</h3>${byGroup[g].map((f) => row(f, info.config[f.key])).join("")}</section>`).join("");
     A.enhanceSelects($("#watch-fields"));
     programm(info);
-    $("#watch-note").innerHTML = T("Änderungen gelten, sobald der Watcher neu startet (Tray-Menü: stoppen, dann starten).") + ` <span class="muted">${esc(info.file)}</span>`;
+    $("#watch-note").innerHTML = (info.platform === "win32"
+      ? T("Änderungen gelten, sobald der Watcher neu startet (Tray-Menü: stoppen, dann starten).")
+      : T("Änderungen gelten, sobald der Companion neu startet (Konsole: mtga-stats restart).")) + ` <span class="muted">${esc(info.file)}</span>`;
 
     const save = A.debounce(async (key, value, el) => {
       try {

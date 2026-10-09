@@ -2338,11 +2338,15 @@ body.asst-open .side-nav .asst-nav.asst-btn svg { color: #2a1c06; }
 /* Eine Zeile wird nicht breiter als lesbar: sonst steht der Schalter meterweit vom Text entfernt */
 .set-block .set-row { max-width: 920px; }
 /* Viele kurze Zeilen nebeneinander statt einer endlosen Liste, sobald Platz da ist */
-@media (min-width: 1180px) {
-  #watch-fields { columns: 2; column-gap: 34px; }
-  #watch-fields .set-group { display: inline-block; width: 100%; break-inside: avoid; margin: 0 0 14px; }
-  #watch-fields .set-row { max-width: none; }
-}
+/* Begleitprogramm: jede Gruppe eine Karte; auf breiten Bildschirmen zwei ausgewogene Spalten ohne Lücken */
+.settings .set-cols { grid-column: 1 / -1; columns: 2 440px; column-gap: var(--gap); }
+.settings .set-cols.hidden { display: none; }
+.settings .set-cols > .set-intro { column-span: all; margin: 0 0 12px; }
+#watch-fields { display: contents; }
+.settings .set-cols .set-block { display: block; break-inside: avoid; margin: 0 0 var(--gap); }
+.settings .set-cols .set-row { max-width: none; }
+.prog-note { margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-2); background: rgba(242,177,52,.07); font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.prog-note b { color: var(--ink); margin-right: 4px; }
 
 /* Meldungen beim Verbinden: gut lesbar, direkt unter dem Feld */
 .asst-set .asst-status { margin-top: 10px; font-size: 13px; line-height: 1.5; color: var(--ink-2); }

@@ -74,7 +74,7 @@ function current() {
 
 function info() {
   let version = "";
-  try { version = require("../package.json").version; } catch (e) { /* ohne Version */ }
+  try { version = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8")).version; } catch (e) { /* ohne Version */ }
   return {
     config: current(), fields: FIELDS, file: paths.configFile(), outDir: paths.outDir(),
     version, platform: process.platform, node: process.version,
