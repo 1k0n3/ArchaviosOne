@@ -150,8 +150,13 @@ async function run({ log = () => {}, force = false } = {}) {
     return save(Object.assign({}, letzte || {}, { error: String(e.message || e) }));
   } finally { laeuft = false; }
 }
-const status = () => Object.assign({ blocked: blocker(), enabled: enabled(), current: (readJson(INFO, {}) || {}).sha || null }, letzte || {},
-  { blocked: blocker(), enabled: enabled(), kind: require("./program").kindOf(), platform: process.platform, version: (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version; } catch (e) { return ""; } })() });
+// Der installierte Stand kommt immer aus .install.json; eine gespeicherte Prüfung (auch eine mitkopierte) überdeckt ihn nicht
+const status = () => {
+  const cur = (readJson(INFO, {}) || {}).sha || null;
+  const s = Object.assign({}, letzte || {});
+  if (s.latest) s.available = s.latest !== cur;
+  return Object.assign(s, { current: cur, blocked: blocker(), enabled: enabled(), kind: require("./program").kindOf(), platform: process.platform, version: (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version; } catch (e) { return ""; } })() });
+};
 
 module.exports = { check, run, status, blocker, copyOver, applyWindows };
 
