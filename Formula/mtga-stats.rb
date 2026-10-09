@@ -6,8 +6,8 @@ class MtgaStats < Formula
   homepage "https://mtga.a16.be"
   # Quelle ist der Tap selbst: "brew tap" hat dieses Repository samt Tags geklont, installiert wird der
   # Stand des Release-Tags daraus. So braucht die Formel keine feste Adresse.
-  url "file://#{File.expand_path("..", File.dirname(__FILE__))}", using: :git, tag: "v1.5.0"
-  version "1.5.0"
+  url "file://#{File.expand_path("..", File.dirname(__FILE__))}", using: :git, tag: "v1.6.0"
+  version "1.6.0"
   license "MIT"
 
   depends_on "node"
