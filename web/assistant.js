@@ -11,7 +11,9 @@
   const KEY = "mtga-builder", CUR = "mtga-builder-cur", HIST = "mtga-assistant-chat";
   /** Die Einstellungen öffnen immer beim Reiter des Assistenten, nicht beim zuletzt benutzten */
   const aufWebsite = () => !!((A.DATA && A.DATA.site) || (document.body && document.body.classList.contains("site")));
-  const settingsUrl = (reiter) => (aufWebsite() ? "/settings" : "settings.html") + "#" + (reiter || "ki");
+  const settingsUrl = (reiter) => (aufWebsite() ? "/?site=settings" : "settings.html") + "#" + (reiter || "ki");
+  /** Seitenname: auf der Website aus /?site=<name>, sonst die Datei (index.html, decks.html …) */
+  const seitenName = () => { const s = new URLSearchParams(location.search).get("site"); return s && s !== "1" ? s : (location.pathname.split("/").pop() || "index.html"); };
   /** Tastenkürzel zum Öffnen; auf dem Mac heißt die Taste anders */
   const SHORTCUT = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "Cmd+Y" : "Strg+Y";
 
@@ -518,7 +520,7 @@
     const st = A.stats(D.matches || []);
     const b = curDeck();
     const f = b ? FORMATS[b.format] || FORMATS.standard : null;
-    const page = (location.pathname.split("/").pop() || "index.html");
+    const page = seitenName();
     const site = D.site ? "Website" : "lokales Dashboard";
 
     // Farbidentität des offenen Decks, soweit die Kartendaten schon geladen sind
@@ -801,10 +803,10 @@
     if (pendingNav) {
       const nav = pendingNav; pendingNav = null;
       try { sessionStorage.setItem("mtga-asst-nav", JSON.stringify({ sel: nav.sel, at: Date.now() })); } catch (e) { /* ohne Speicher */ }
-      const hier = location.pathname.split("/").pop() || "index.html";
+      const hier = seitenName();
       const ziel = nav.url.split("#")[0], hash = nav.url.includes("#") ? "#" + nav.url.split("#")[1] : "";
       setTimeout(() => {
-        if (ziel === hier || ziel === "/settings" && location.pathname === "/settings") { if (hash) location.hash = hash; markPlace(nav.sel); }
+        if (ziel === hier || /^\/(\?site=)?settings$/.test(ziel) && hier === "settings") { if (hash) location.hash = hash; markPlace(nav.sel); }
         else location.href = nav.url;
       }, 700);
     }
@@ -1380,7 +1382,7 @@
    * Assistent von vorn an: sonst antwortet er anhand von Werkzeugergebnissen zu einem Deck, das
    * längst nicht mehr offen ist.
    */
-  const ctxKey = () => (location.pathname.split("/").pop() || "index.html") + "|" + ((curDeck() || {}).id || "");
+  const ctxKey = () => seitenName() + "|" + ((curDeck() || {}).id || "");
   const saveHist = () => { try { sessionStorage.setItem(HIST, JSON.stringify({ ctx: ctxKey(), msgs: kappe(msgs, 40) })); } catch (e) { /* egal */ } };
   const loadHist = () => {
     try {
@@ -1515,7 +1517,7 @@
     return [T("Wie ist meine Winrate?"), T("Welche Decks kann ich aus meiner Sammlung bauen?"), T("Erkläre mir den Stapel")];
   }
   function greet(neu) {
-    const b = curDeck(), page = location.pathname.split("/").pop() || "index.html";
+    const b = curDeck(), page = seitenName();
     const kopf = neu
       ? (b ? T("Neues Gespräch zu „{n}“.", { n: b.name }) : T("Neues Gespräch."))
       : T("Ich kenne deine Sammlung, deine Decks und deine Matches. Frag einfach.");

@@ -1008,13 +1008,13 @@ window.App = (function () {
     if (isMobile()) pages = pages.filter((p) => p[0] !== "matches.html");   // Match-Tabelle ist nichts fürs Handy
     const globe = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>';
     const siteLinks = site && site.shared ? `<a class="nav" href="/p/${esc(site.handle)}">${ICONS.lib}<span>${tr("Profil von {h}", { h: esc(site.handle) })}</span></a>`
-      : site ? `<a class="nav" href="/explore">${globe}<span>Explore</span></a>` : "";
+      : site ? `<a class="nav" href="/?site=explore">${globe}<span>Explore</span></a>` : "";
     const player = (DATA && DATA.player) || tr("Spieler");
     const cur = pages.find((p) => p[0] === active); if (cur) document.title = "MTGA Stats · " + cur[1];
     const langSel = window.I18N ? `<label class="lang" title="${tr("Sprache")}"><select>${Object.entries(I18N.LANGS).map(([k, v]) => `<option value="${k}" ${k === I18N.lang ? "selected" : ""}>${v}</option>`).join("")}</select></label>` : "";
     const st = stats(DATA ? DATA.matches : []);
     // Immer an derselben Stelle: über dem Profil. Lokal die eigene Seite, angemeldet auf der Website /settings.
-    const settingsHref = site ? (site.own ? "/settings" : "") : "settings.html";
+    const settingsHref = site ? (site.own ? "/?site=settings" : "") : "settings.html";
     const settingsLink = settingsHref
       ? `<a class="nav nav-settings ${active === settingsHref || active === "settings.html" ? "active" : ""}" href="${settingsHref}">${ICONS.gear}<span data-short="${tr("Setup")}">${tr("Einstellungen")}</span></a>`
       : "";
@@ -1025,7 +1025,7 @@ window.App = (function () {
       <div class="spacer"></div>
       ${settingsLink}
       ${site && site.own
-        ? `<div class="player link"><a class="who" href="/settings" title="${tr("Konto & Geräte")}"><div class="av">${esc(player.slice(0, 1).toUpperCase())}</div><div><div class="n">${esc(player)}</div><div class="s">${tr("{n} Matches", { n: st.n })} · ${Math.round(st.rate * 100)} % ${tr("Winrate")}</div></div></a>${site.csrf ? `<form method="post" action="/logout" class="inline"><input type="hidden" name="csrf" value="${esc(site.csrf)}"><button class="out" type="submit" title="${tr("Abmelden")}">${ICONS.out}</button></form>` : ""}</div>`
+        ? `<div class="player link"><a class="who" href="/?site=settings" title="${tr("Konto & Geräte")}"><div class="av">${esc(player.slice(0, 1).toUpperCase())}</div><div><div class="n">${esc(player)}</div><div class="s">${tr("{n} Matches", { n: st.n })} · ${Math.round(st.rate * 100)} % ${tr("Winrate")}</div></div></a>${site.csrf ? `<form method="post" action="/logout" class="inline"><input type="hidden" name="csrf" value="${esc(site.csrf)}"><button class="out" type="submit" title="${tr("Abmelden")}">${ICONS.out}</button></form>` : ""}</div>`
         : (true
           // Lokal führt das Profil auf dieselbe Einstellungsseite, kein Browserfenster
           ? `<div class="player link"><a class="who" href="settings.html#konto" title="${tr("Konto & Einstellungen")}"><div class="av">${esc(player.slice(0, 1).toUpperCase())}</div><div><div class="n">${esc(player)}</div><div class="s">${tr("{n} Matches", { n: st.n })} · ${Math.round(st.rate * 100)} % ${tr("Winrate")}</div></div></a></div>`
