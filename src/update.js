@@ -31,17 +31,27 @@ const CODELOAD = () => process.env.MTGA_STATS_CODELOAD || "https://codeload.gith
 function blocker(root = ROOT) { return require("./program").updateBlocker(root); }
 const enabled = () => require("./paths").readConfig().autoUpdate !== false;
 
-async function fetchText(url, headers = {}, timeoutMs = 20000) {
-  const ac = new AbortController(), to = setTimeout(() => ac.abort(), timeoutMs);
-  try {
-    const r = await fetch(url, { headers: Object.assign({ "User-Agent": "MTGA-Stats-Companion" }, headers), signal: ac.signal });
-    if (!r.ok) throw new Error("HTTP " + r.status + " von " + new URL(url).host);
-    return await r.text();
-  } catch (e) {
-    if (e.name === "AbortError") throw new Error("Zeitüberschreitung bei " + new URL(url).host);
-    if (e.cause) throw new Error("Keine Verbindung zu " + new URL(url).host + " (" + (e.cause.code || e.cause.message || "") + ")");
-    throw e;
-  } finally { clearTimeout(to); }
+/** Netzaussetzer (langsamer Verbindungsaufbau zu GitHub, WLAN) zweimal mit kurzer Pause wiederholen */
+async function nochmal(fn, mal = 3) {
+  for (let i = 1; ; i++) {
+    try { return await fn(); }
+    catch (e) { if (!e.netz || i >= mal) throw e; await new Promise((ok) => setTimeout(ok, 2000 * i)); }
+  }
+}
+function fetchText(url, headers = {}, timeoutMs = 30000) {
+  return nochmal(async () => {
+    const ac = new AbortController(), to = setTimeout(() => ac.abort(), timeoutMs);
+    const netz = (m) => { const x = new Error(m); x.netz = true; return x; };
+    try {
+      const r = await fetch(url, { headers: Object.assign({ "User-Agent": "MTGA-Stats-Companion" }, headers), signal: ac.signal });
+      if (!r.ok) throw new Error("HTTP " + r.status + " von " + new URL(url).host);
+      return await r.text();
+    } catch (e) {
+      if (e.name === "AbortError") throw netz("Zeitüberschreitung bei " + new URL(url).host);
+      if (e.cause) throw netz("Keine Verbindung zu " + new URL(url).host + " (" + (e.cause.code || e.cause.message || "") + ")");
+      throw e;
+    } finally { clearTimeout(to); }
+  });
 }
 /** GitHub-Projekt: aus der Installation, sonst von der Website (dieselbe Quelle wie der Download) */
 async function repoOf() {
@@ -85,13 +95,17 @@ async function applyWindows(s, log, root = ROOT) {
   const { spawnSync } = require("child_process");
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "mtga-update-"));
   try {
-    const ac = new AbortController(), to = setTimeout(() => ac.abort(), 300000);
-    let buf;
-    try {
-      const r = await fetch(CODELOAD() + "/" + s.repo + "/tar.gz/" + s.latest, { headers: { "User-Agent": "MTGA-Stats-Companion" }, signal: ac.signal });
-      if (!r.ok) throw new Error("Download: HTTP " + r.status);
-      buf = Buffer.from(await r.arrayBuffer());
-    } finally { clearTimeout(to); }
+    const buf = await nochmal(async () => {
+      const ac = new AbortController(), to = setTimeout(() => ac.abort(), 300000);
+      try {
+        const r = await fetch(CODELOAD() + "/" + s.repo + "/tar.gz/" + s.latest, { headers: { "User-Agent": "MTGA-Stats-Companion" }, signal: ac.signal });
+        if (!r.ok) throw new Error("Download: HTTP " + r.status);
+        return Buffer.from(await r.arrayBuffer());
+      } catch (e) {
+        if (e.cause) { const x = new Error("Keine Verbindung zu codeload.github.com (" + (e.cause.code || e.cause.message || "") + ")"); x.netz = true; throw x; }
+        throw e;
+      } finally { clearTimeout(to); }
+    });
     const tgz = path.join(tmp, "neu.tar.gz"), dir = path.join(tmp, "neu");
     fs.writeFileSync(tgz, buf); fs.mkdirSync(dir);
     const sysTar = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe");
