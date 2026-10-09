@@ -1077,6 +1077,7 @@
       const el = $(".asst-modelhint", box);
       if (!el) return;
       if (!list || !list.length) { el.textContent = ""; return; }
+      if ((chosen() || {}).id === "standard") { el.textContent = T("Nimmt bei jeder Frage das beste freie Modell, das gerade Kontingent hat."); return; }
       const cur = list.find((m) => m.id === pick);
       const family = String((cur && cur.id) || "").split("/")[0];
       const fastAll = list.filter(speed).sort((a, b) => rank(b) - rank(a));
@@ -1105,7 +1106,7 @@
         // ganze Liste zu lesen, und nach einem verbrauchten Kontingent findet man schnell Ersatz.
         const sortiert = list.slice().sort((a, b) => rank(b) - rank(a));
         const frei = !!(chosen() && chosen().free);
-        const top = new Set(frei ? sortiert.slice(0, 3).map((m) => m.id) : []);
+        const top = new Set(frei && sortiert.length > 1 ? sortiert.slice(0, 3).map((m) => m.id) : []);
         el.innerHTML = sortiert.map((m) => `<option value="${esc(m.id)}" ${m.id === pick ? "selected" : ""}${top.has(m.id) ? ' data-cls="dd-top"' : ""}>${top.has(m.id) ? "★ " : ""}${esc(m.label || m.id)}${m.ctx ? " · " + Math.round(m.ctx / 1000) + "K" : ""}${speed(m) ? " · " + T("schnell") : ""}</option>`).join("");
       }
       else el.innerHTML = pick ? `<option value="${esc(pick)}">${esc(pick)}</option>` : `<option value="">${T("Erst verbinden")}</option>`;
@@ -1128,7 +1129,7 @@
       const drin = (state.hasKey && p.id === state.provider) || p.noKey;
       const konto = p.accountUrl ? `<a class="btn ghost small" href="${esc(p.accountUrl)}" target="_blank" rel="noopener">${T("Konto bei {p} öffnen", { p: p.label })}</a>` : "";
       if (drin) {
-        k.innerHTML = `<div class="asst-conn"><span class="i">${FI.check}</span>${esc(p.noKey ? T("{p} braucht keinen Schlüssel.", { p: p.label }) : T("Verbunden mit {p}.", { p: p.label }))}</div>
+        k.innerHTML = `<div class="asst-conn"><span class="i">${FI.check}</span>${esc(p.id === "standard" ? T("Kostenlos über MTGA Stats – nichts weiter einzurichten.") : p.noKey ? T("{p} braucht keinen Schlüssel.", { p: p.label }) : T("Verbunden mit {p}.", { p: p.label }))}</div>
           ${p.noKey ? "" : `<div class="asst-acct">${konto}<button type="button" class="ghost small asst-recheck">${esc(T("Verbindung prüfen"))}</button><button type="button" class="ghost small asst-relogin">${esc(p.oauth ? T("Anderes Konto verknüpfen") : T("Schlüssel ersetzen"))}</button></div>`}
           ${p.noKey ? "" : (aufWebsite()
             ? `<div class="asst-hint asst-sync">${esc(T("Gilt auch in der App und im Tray auf allen Geräten, die mit diesem Konto verbunden sind."))}</div>`
@@ -1219,7 +1220,7 @@
       const gut = !!(state.hasKey && state.model);
       kopf.classList.toggle("ok", gut);
       el.innerHTML = gut
-        ? `${esc(T("Bereit"))} · ${esc((p && p.label) || state.provider)} · <b>${esc(state.model)}</b>`
+        ? `${esc(T("Bereit"))} · ${esc((p && p.label) || state.provider)} · <b>${esc(modellName(state.model))}</b>`
         : esc(state.hasKey ? T("Verbunden, aber noch kein Modell gewählt.") : T("Noch nicht verbunden."));
     }
 
@@ -1237,7 +1238,9 @@
             <div class="bar"><span style="width:${Math.round(anteil * 100)}%"></span></div>
             <div class="txt">${esc(T("Heute {u} von {l} Gratisanfragen", { u: q.tagBenutzt, l: q.tagGrenze }))}${typeof q.tagRest === "number" ? " · " + esc(T("{r} übrig", { r: q.tagRest })) : ""}</div>
           </div>`);
-        if (leer) teile.push(`<div class="asst-warn">${esc(T("Für heute aufgebraucht. Ein anderer Anbieter oder einmalig 10 $ Guthaben hilft weiter."))}</div>`);
+        if (q.standard) teile.push(leer ? `<div class="asst-warn">${esc(T("Für heute aufgebraucht. Morgen geht es weiter – oder wähle oben einen eigenen Zugang, z. B. kostenlos bei OpenRouter."))}</div>`
+          : `<div>${esc(T("Mehr Anfragen am Tag gibt es mit einem eigenen Zugang (oben wählen)."))}</div>`);
+        else if (leer) teile.push(`<div class="asst-warn">${esc(T("Für heute aufgebraucht. Ein anderer Anbieter oder einmalig 10 $ Guthaben hilft weiter."))}</div>`);
         else if (q.frei) teile.push(`<div>${esc(T("Mit einmalig 10 $ Guthaben steigt das Tageslimit auf 1000 Anfragen."))}</div>`);
       }
       teile.push(`<div>${esc(T("Eine Frage kostet mehrere Anfragen: der Assistent denkt nach jedem Werkzeug erneut nach."))}</div>`);
@@ -1272,7 +1275,7 @@
         const want = hat(state.model) ? state.model : hat(p && p.model) ? p.model : bevorzugt || (best && best.id) || "";
         drawModel(list, want);
         modelHint(list, want);
-        mstatus(list.length ? T("{n} Modelle verfügbar", { n: list.length }) : T("keine Modelle gefunden"));
+        mstatus(p && p.id === "standard" ? "" : list.length ? T("{n} Modelle verfügbar", { n: list.length }) : T("keine Modelle gefunden"));
         if (want && want !== state.model) await saveCfg({ model: want });
         return true;
       } catch (e) {
@@ -1361,11 +1364,13 @@
     if (state.hasKey) { loadModels(); loadQuota(); }
   }
 
+  /** "auto" heißt: der kostenlose Standard sucht das Modell selbst aus */
+  function modellName(m) { return m === "auto" ? T("automatisch") : m; }
   function refreshBar() {
     if (!dock) return;
     const el = $(".asst-model-badge", dock);
     if (!el || !state) return;
-    el.textContent = state.hasKey && state.model ? state.model : T("nicht verbunden");
+    el.textContent = state.hasKey && state.model ? modellName(state.model) : T("nicht verbunden");
     dock.classList.toggle("unset", !(state.hasKey && state.model));
   }
 

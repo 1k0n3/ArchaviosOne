@@ -13,6 +13,10 @@
  *   GET  oauth/callback   -> holt den Schlüssel ab und zeigt eine Abschlussseite
  *   POST chat             -> SSE: {t:"text"|"tool"|"done"|"err"|"usage"}
  *   GET  scryfall         -> Kartensuche/Regeln außerhalb von Arena
+ *
+ * Kostenloser Standard: Ist das Gerät mit der Website verbunden und hat der Betreiber dort einen
+ * Gratiszugang eingerichtet, gehen die Fragen über die Website (/api/v1/assistant/chat, mit dem
+ * Gerätetoken). Deren Schlüssel kommt nie hierher; es gilt das Tageslimit des Kontos.
  */
 const fs = require("fs");
 const path = require("path");
@@ -43,8 +47,66 @@ function normCfg(raw) {
 
 /** Flache Sicht auf den gerade gewählten Anbieter, wie der übrige Code sie erwartet */
 function readCfg() {
-  const n = normCfg(rawCfg());
-  return { provider: n.provider, apiKey: n.keys[n.provider] || "", model: n.models[n.provider] || "", baseUrl: n.baseUrl };
+  const raw = rawCfg(), n = normCfg(raw);
+  const provider = !raw.provider && !Object.keys(n.keys).length && stdInfo.available ? "standard" : n.provider;
+  return { provider, apiKey: n.keys[provider] || "", model: n.models[provider] || "", baseUrl: n.baseUrl };
+}
+
+// ---- Kostenloser Standard über die Website ------------------------------------------------------
+let stdInfo = { at: 0, available: false };
+let siteFn = null;   // nur für Tests: () => ({ url, token })
+/** Adresse und Gerätetoken der verbundenen Website, sonst null */
+function siteDevice() {
+  if (siteFn) return siteFn();
+  try {
+    const s = require("./sync");
+    const d = s.device && s.device(), u = s.baseUrl && s.baseUrl();
+    return d && d.token && u ? { url: String(u).replace(/\/$/, ""), token: d.token } : null;
+  } catch (e) { return null; }
+}
+/** Bietet die Website den Standard an? Kurz zwischengespeichert, mit Kontingent des Kontos. */
+async function stdCheck(force) {
+  const d = siteDevice();
+  if (!d) { stdInfo = { at: Date.now(), available: false }; return stdInfo; }
+  if (!force && stdInfo.at && Date.now() - stdInfo.at < 300000) return stdInfo;
+  const ac = new AbortController(), to = setTimeout(() => ac.abort(), 8000);
+  try {
+    const r = await fetch(d.url + "/api/v1/assistant/standard", { headers: { Authorization: "Bearer " + d.token }, signal: ac.signal });
+    // Ältere Website ohne Standard: 404 – dann gibt es ihn eben nicht
+    const j = r.ok ? await r.json().catch(() => null) : null;
+    stdInfo = { at: Date.now(), available: !!(j && j.available), perUser: j && j.perUser, used: j && j.used, left: j && j.left };
+  } catch (e) { stdInfo = Object.assign({}, stdInfo, { at: Date.now() }); }   // offline: letzten Stand behalten
+  finally { clearTimeout(to); }
+  return stdInfo;
+}
+/** Frage über die Website stellen; deren Antwort hat schon das Format dieses Datenstroms */
+async function chatStandard(body, res) {
+  const d = siteDevice();
+  if (!d) { sse(res, { t: "err", m: "Der kostenlose Standard braucht ein mit der Website verbundenes Konto (Tray-Menü → Mit Website verbinden…). Oder wähle einen eigenen Zugang." }); return; }
+  const halt = new AbortController(), to = setTimeout(() => halt.abort(), 200000);
+  res.on("close", () => halt.abort());
+  try {
+    const r = await fetch(d.url + "/api/v1/assistant/chat", {
+      method: "POST", signal: halt.signal,
+      headers: { Authorization: "Bearer " + d.token, "Content-Type": "application/json" },
+      body: JSON.stringify({ system: body.system || "", messages: body.messages || [], tools: body.tools || [] })
+    });
+    const txt = await r.text();
+    if (!r.ok) {
+      let m = ""; try { m = JSON.parse(txt).error || ""; } catch (e) { m = kurz(txt, 200); }
+      sse(res, { t: "err", m: (r.status === 401 ? "Die Verbindung zur Website ist abgelaufen – im Tray-Menü neu verbinden." : "Website: HTTP " + r.status + (m ? " – " + m : "")), status: r.status });
+      return;
+    }
+    for (const block of txt.split("\n\n")) {
+      const z = block.trim();
+      if (!z.startsWith("data: ")) continue;
+      try { sse(res, JSON.parse(z.slice(6))); } catch (e) { /* unvollständig */ }
+    }
+    stdInfo.at = 0;   // Kontingent beim nächsten Blick neu holen
+  } catch (e) {
+    if (halt.signal.aborted && res.writableEnded) return;
+    sse(res, { t: "err", m: "Keine Verbindung zur Website (" + ((e.cause && e.cause.code) || e.message || "") + ")" });
+  } finally { clearTimeout(to); }
 }
 
 /** Welche Anbieter schon einen Zugang haben – für den Hinweis beim Wechsel */
@@ -128,6 +190,7 @@ async function pullFromSite(force, opt = {}) {
 
 /** Anbieter: wire = Protokoll (openai-kompatibel oder Anthropic), oauth = Anmeldung im Browser möglich */
 const PROVIDERS = {
+  standard: { label: "MTGA Stats (Standard)", wire: "site", base: "", noKey: true, free: true, model: "auto", hint: "Kostenlos über MTGA Stats, ohne eigene Anmeldung – mit Tageslimit. Läuft über dein verbundenes Website-Konto." },
   openrouter: { label: "OpenRouter", wire: "openai", base: "https://openrouter.ai/api/v1", oauth: true, free: true, model: "nvidia/nemotron-3-ultra-550b-a55b:free", keyUrl: "https://openrouter.ai/keys", accountUrl: "https://openrouter.ai/settings/credits", hint: "Kostenlose Modelle, Anmeldung direkt im Browser." },
   google: { label: "Google Gemini", wire: "openai", base: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-3.6-flash", prefer: ["^gemini-[0-9.]+-flash$", "^gemini-[0-9.]+-flash"], free: true, keyUrl: "https://aistudio.google.com/apikey", accountUrl: "https://aistudio.google.com/", hint: "Großzügiges Gratiskontingent, Schlüssel aus dem AI Studio." },
   anthropic: { label: "Anthropic Claude", wire: "anthropic", base: "https://api.anthropic.com", model: "claude-sonnet-5", prefer: ["sonnet", "haiku"], keyUrl: "https://console.anthropic.com/settings/keys", accountUrl: "https://console.anthropic.com/settings/billing", hint: "Stärkste Werkzeugnutzung, kostenpflichtig." },
@@ -184,6 +247,11 @@ async function apiFetchNochmal(c, url, init = {}, timeoutMs) {
  * Zahlen zu erfinden.
  */
 async function keyInfo(c) {
+  if (c.provider === "standard") {
+    const s = await stdCheck(true);
+    if (!s.available || typeof s.perUser !== "number") return { ok: true, known: false };
+    return { ok: true, known: true, frei: true, standard: true, tagBenutzt: s.used, tagGrenze: s.perUser, tagRest: s.left };
+  }
   if (c.provider !== "openrouter" || !c.apiKey) return { ok: true, known: false };
   const r = await apiFetch(c, baseUrl(c) + "/key", {}, 15000);
   if (!r.ok) return { ok: true, known: false };
@@ -225,6 +293,11 @@ function fehlerText(roh) {
 
 async function verifyKey(c) {
   const p = prov(c), base = baseUrl(c);
+  if (c.provider === "standard") {
+    if (!siteDevice()) return { ok: false, error: "Erst mit der Website verbinden (Tray-Menü → Mit Website verbinden…)." };
+    const s = await stdCheck(true);
+    return s.available ? { ok: true } : { ok: false, error: "Die Website bietet gerade keinen kostenlosen Standard an." };
+  }
   if (p.noKey) return { ok: true };
   if (!base) return { ok: false, error: "Kein Anbieter eingerichtet." };
   if (!String(c.apiKey || "").trim()) return { ok: false, auth: true, error: "Kein Schlüssel hinterlegt." };
@@ -257,6 +330,7 @@ function nurChatModelle(provider, list) {
 
 /** Modellliste des Anbieters; bei OpenRouter nur kostenlose Modelle, die Werkzeuge beherrschen */
 async function listModels(c) {
+  if (c.provider === "standard") return [{ id: "auto", label: "Automatisch (bestes freies Modell)", ctx: 0, free: true, tools: true }];
   const p = prov(c), base = baseUrl(c);
   if (!base) return [];
   const url = p.wire === "anthropic" ? base + "/v1/models" : base + "/models";
@@ -362,6 +436,7 @@ function ersatzModell(c, status, text, jetzt) {
 }
 
 async function chat(c, body, res) {
+  if (c.provider === "standard") return chatStandard(body, res);
   const p = prov(c), base = baseUrl(c), model = modelOf(c);
   if (!base) { sse(res, { t: "err", m: "Kein Anbieter eingerichtet." }); return; }
   if (!model) { sse(res, { t: "err", m: "Kein Modell gewählt." }); return; }
@@ -621,7 +696,7 @@ function readBody(req, max = 2 * 1024 * 1024) {
 const json = (res, o, code = 200) => { const b = Buffer.from(JSON.stringify(o)); res.writeHead(code, { "Content-Type": "application/json", "Cache-Control": "no-cache", "Content-Length": b.length }); res.end(b); };
 
 /** Anbieterliste für die Einstellungen – ohne Schlüssel, nur was die Oberfläche braucht */
-const providerList = () => Object.entries(PROVIDERS).map(([k, p]) => ({ id: k, label: p.label, hint: p.hint, oauth: !!p.oauth, free: !!p.free, noKey: !!p.noKey, keyUrl: p.keyUrl || "", accountUrl: p.accountUrl || "", base: p.base || "", model: p.model || "", prefer: p.prefer || [] }));
+const providerList = (aktuell) => Object.entries(PROVIDERS).filter(([k]) => k !== "standard" || stdInfo.available || aktuell === "standard").map(([k, p]) => ({ id: k, label: p.label, hint: p.hint, oauth: !!p.oauth, free: !!p.free, noKey: !!p.noKey, keyUrl: p.keyUrl || "", accountUrl: p.accountUrl || "", base: p.base || "", model: p.model || "", prefer: p.prefer || [] }));
 
 /**
  * Behandelt /api/assistant/* und /api/cards/search. Gibt true zurück, wenn die Anfrage erledigt ist.
@@ -643,9 +718,9 @@ function handle(req, res, url, cardRows, port) {
     return true;
   }
   if (rest === "state" && req.method === "GET") {
-    const antworten = () => { const c = readCfg(); json(res, { ok: true, provider: c.provider || "", model: modelOf(c), baseUrl: baseUrl(c), hasKey: !!c.apiKey || !!prov(c).noKey, connected: connectedProviders(), providers: providerList(), abgleich: (() => { try { const s = require("./sync"); return !!(s.device && s.device()); } catch (e) { return false; } })() }); };
+    const antworten = () => { const c = readCfg(); json(res, { ok: true, provider: c.provider || "", model: modelOf(c), baseUrl: baseUrl(c), hasKey: !!c.apiKey || !!prov(c).noKey, connected: connectedProviders(), providers: providerList(c.provider), abgleich: (() => { try { const s = require("./sync"); return !!(s.device && s.device()); } catch (e) { return false; } })() }); };
     // Kurz auf die Website warten, damit ein dort verbundener Zugang gleich hier erscheint
-    Promise.race([pullFromSite().catch(() => null), new Promise((ok) => setTimeout(ok, 4000))]).then(antworten, antworten);
+    Promise.race([Promise.all([pullFromSite().catch(() => null), stdCheck().catch(() => null)]), new Promise((ok) => setTimeout(ok, 4000))]).then(antworten, antworten);
     return true;
   }
   if (rest === "config" && req.method === "POST") {
@@ -702,4 +777,4 @@ function handle(req, res, url, cardRows, port) {
   return true;
 }
 
-module.exports = { handle, searchCards, collectionSummary, messagesFor, toolsFor, readCfg, writeCfg, connectedProviders, pullFromSite, PROVIDERS, listModels, _test: { readCfg, writeCfg, connectedProviders, normCfg, ohneSignatur, nurChatModelle, ersatzModell, kurz, chat } };
+module.exports = { handle, searchCards, collectionSummary, messagesFor, toolsFor, readCfg, writeCfg, connectedProviders, pullFromSite, PROVIDERS, listModels, _test: { readCfg, writeCfg, connectedProviders, normCfg, ohneSignatur, nurChatModelle, ersatzModell, kurz, chat, stdCheck, keyInfo, verifyKey, setSite: (fn) => { siteFn = fn; stdInfo = { at: 0, available: false }; } } };
