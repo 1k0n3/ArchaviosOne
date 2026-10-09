@@ -114,7 +114,7 @@ Er lädt den Companion nach `~/mtga-stats`, holt bei Bedarf ein portables Node.j
 
 1. In den Desktop-Modus wechseln: Steam-Taste → Ein/Aus → *Zum Desktop wechseln*.
 2. **Konsole** öffnen (Anwendungsstarter unten links → System → Konsole).
-3. Den Befehl oben einfügen (Rechtsklick → Einfügen oder Strg+Umschalt+V) und Enter drücken.
+3. Den Befehl oben einfügen (Rechtsklick → Einfügen oder Strg+Umschalt+V) und Enter drücken. Kein Passwort nötig, dauert etwa zwei Minuten. Der Installer prüft dabei auch, ob in Arena die *detaillierten Protokolle* an sind, und sagt Bescheid, wenn nicht.
 4. Zurück in den Spielmodus und wie gewohnt spielen. Der Watcher läuft im Hintergrund mit und zeichnet deine Matches auf; das Dashboard öffnest du im Desktop-Modus über **MTGA Stats** im Anwendungsmenü oder auf dem Desktop.
 
 **Alternativ aus dem ZIP:** entpacken, im entpackten Ordner ein Terminal öffnen und `bash install.sh` ausführen. Der Ordner bleibt dann der Programmordner.

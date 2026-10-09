@@ -67,8 +67,20 @@ chmod +x "$ROOT/scripts/unix/mtga-stats" 2>/dev/null || true
 # ---- Arena finden -------------------------------------------------------------------------------------
 say "Arena suchen"
 if MTGA_ROOT="$ROOT" "$NODE" -e "const p=require(process.env.MTGA_ROOT+'/src/paths.js'); const d=p.findDataDir(); if(!d){process.exit(3)} console.log('    Spieldaten: '+d); console.log('    Player.log: '+p.findLogFile())"; then ok "gefunden"
-else warn "Arena-Spieldaten nicht gefunden. Läuft Arena über Steam/Proton oder Wine? Ordner per MTGA_DIR bzw. MTGA_LOG_DIR setzen (siehe README)."; fi
-echo "    In Arena einmal einschalten: Einstellungen → Konto → Detailed Logs (Plugin Support)."
+else warn "Arena-Spieldaten nicht gefunden. Ist Arena installiert und einmal gestartet? Sonst Ordner per MTGA_DIR bzw. MTGA_LOG_DIR setzen (siehe README)."; fi
+# Ohne „Detaillierte Protokolle“ schreibt Arena keine Matchdaten – der häufigste Stolperstein. Arena vermerkt die
+# Einstellung beim Start im Player.log ("DETAILED LOGS: ENABLED/DISABLED"); der letzte Eintrag zählt.
+DETAIL=""
+LOGF="$(MTGA_ROOT="$ROOT" "$NODE" -e "console.log(require(process.env.MTGA_ROOT+'/src/paths.js').findLogFile())" 2>/dev/null || true)"
+for f in "$LOGF" "${LOGF%Player.log}Player-prev.log"; do
+  if [ -z "$DETAIL" ] && [ -n "$f" ] && [ -f "$f" ]; then DETAIL="$(grep -o 'DETAILED LOGS: [A-Z]*' "$f" 2>/dev/null | tail -n 1 || true)"; fi
+done
+case "$DETAIL" in
+  *ENABLED) ok "Detaillierte Protokolle sind in Arena eingeschaltet" ;;
+  *DISABLED) warn "In Arena sind die detaillierten Protokolle AUS – dann kommen keine Matches an."
+    echo "        Einschalten: in Arena Einstellungen (Zahnrad) → Konto → „Detaillierte Protokolle (Plugin-Unterstützung)“, dann Arena neu starten." ;;
+  *) echo "    Einmal in Arena einschalten: Einstellungen (Zahnrad) → Konto → „Detaillierte Protokolle (Plugin-Unterstützung)“, dann Arena neu starten." ;;
+esac
 
 # ---- Autostart und Verknüpfungen ------------------------------------------------------------------------
 CTL="$ROOT/scripts/unix/mtga-stats"
@@ -146,7 +158,16 @@ EOF
 fi
 
 say "Fertig"
-echo "    Dashboard: http://localhost:8765/   ·   Steuerung: $CTL start|stop|status|dashboard|log"
+if grep -qi '^ID=steamos' /etc/os-release 2>/dev/null; then
+  # Steam Deck: was jetzt zu tun ist, in drei Sätzen
+  echo "    So geht es weiter:"
+  echo "      1. Zurück in den Spielmodus (Desktop-Symbol „Return to Gaming Mode“) und Arena wie gewohnt spielen –"
+  echo "         MTGA Stats läuft im Hintergrund mit und zeichnet jedes Match auf, auch nach einem Neustart."
+  echo "      2. Statistiken ansehen: im Desktop-Modus „MTGA Stats“ auf dem Desktop oder im Anwendungsmenü öffnen."
+  echo "      3. Später aktualisieren: denselben Befehl noch einmal in die Konsole einfügen."
+else
+  echo "    Dashboard: http://localhost:8765/   ·   Steuerung: $CTL start|stop|status|dashboard|log"
+fi
 echo "    Der Ordner $ROOT ist jetzt der Programmordner – nicht löschen oder verschieben (sonst install.sh dort erneut ausführen)."
 echo "    Hinweis: Die Kartensammlung (Besitzstand) liest MTGA Stats bisher nur unter Windows; Matches, Replays, Decks und Konto laufen überall."
 "$CTL" dashboard >/dev/null 2>&1 || true

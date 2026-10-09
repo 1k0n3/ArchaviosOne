@@ -127,7 +127,7 @@ It downloads the companion into `~/mtga-stats`, fetches a portable Node.js into 
 
 1. Switch to Desktop Mode: Steam button → Power → *Switch to Desktop*.
 2. Open **Konsole** (application launcher in the bottom left → System → Konsole).
-3. Paste the command above (right-click → Paste, or Ctrl+Shift+V) and press Enter.
+3. Paste the command above (right-click → Paste, or Ctrl+Shift+V) and press Enter. No password needed; it takes about two minutes. The installer also checks whether Arena's *Detailed Logs* option is on and tells you if it is not.
 4. Go back to Game Mode and play as usual. The watcher keeps running in the background and records your matches; open the dashboard in Desktop Mode from **MTGA Stats** in the app menu or on the desktop.
 
 **From the ZIP instead:** unpack it, open a terminal in the unpacked folder and run `bash install.sh`. That folder then stays the program folder.
