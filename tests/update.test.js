@@ -62,7 +62,7 @@ test("Neuer Stand wird erkannt – im Entwicklungsordner aber nie eingespielt", 
 test("Einspielen ersetzt Programmdateien, Einstellungen und Daten bleiben", async () => {
   const up = require("../src/update");
   const ziel = path.join(tmp, "programm");
-  for (const [f, inhalt] of [["src/watch.js", "// alt"], ["src/eigen.js", "// bleibt"], ["watch-config.json", '{"meins":1}'], ["out/match.json", "{}"], ["deploy-config.json", "{}"], ["scripts/unix/mtga-stats", "#!/bin/sh"]]) {
+  for (const [f, inhalt] of [["src/watch.js", "// alt"], ["src/eigen.js", "// bleibt"], ["watch-config.json", '{"meins":1}'], ["out/match.json", "{}"], ["deploy-config.json", "{}"], ["scripts/unix/mtga-stats", "#!/bin/sh"], ["scripts/uninstall.ps1", "#"], ["install.sh", "#"]]) {
     fs.mkdirSync(path.dirname(path.join(ziel, f)), { recursive: true });
     fs.writeFileSync(path.join(ziel, f), inhalt);
   }

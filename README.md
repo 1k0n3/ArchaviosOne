@@ -137,7 +137,7 @@ It downloads the companion into `~/mtga-stats`, fetches a portable Node.js into 
 
 **From the ZIP instead:** unpack it, open a terminal in the unpacked folder and run `bash install.sh`. That folder then stays the program folder.
 
-Control it with `~/mtga-stats/scripts/unix/mtga-stats start|stop|status|dashboard|log|update`; remove it with `bash ~/mtga-stats/install.sh --uninstall`.
+Control it with `~/mtga-stats/scripts/unix/mtga-stats start|stop|status|dashboard|log|update`; remove it from the dashboard (*Settings → Companion → Uninstall*) or with `bash ~/mtga-stats/install.sh --uninstall`.
 
 Arena is found automatically: the Mac app bundle, every Steam library with its Proton prefix (`steamapps/compatdata/2141910`, including the Steam Deck's SD card), Flatpak Steam, Wine, Lutris and Bottles prefixes. If your setup differs, point the tool at it with `MTGA_DIR` (folder containing `MTGA_Data`) and `MTGA_LOG_DIR` (folder containing `Player.log`).
 
@@ -175,7 +175,7 @@ Arena is found automatically: the Mac app bundle, every Steam library with its P
 - **Tray icon**: open the dashboard (also with a left click), see the status, start or stop the watcher, export the collection now, change intervals and the output folder, open the log.
 - **App window**: `MTGA Stats Dashboard` in the Start Menu, or `npm run app`. Runs Chrome/Edge in app mode with its own profile, so it behaves like a program with its own taskbar entry.
 - **Install as app**: open `http://localhost:8765/` in Chrome or Edge and choose "Install app" from the address bar for a native-looking entry in the Start Menu.
-- **Updates**: replace the files (new ZIP or `git pull`). When the tray started the watcher, it restarts itself with the new code as soon as Arena is not running; reload open pages afterwards.
+- **Updates and uninstalling**: in the dashboard under *Settings → Companion → Program*. Updates arrive automatically (can be turned off), “Update” fetches them right away, and “Uninstall” removes the program, optionally including your data. Both adapt to how it was installed (Windows, Linux/Steam Deck, macOS; Flatpak and Homebrew show the matching command). Manual updates still work: replace the files (new ZIP or `git pull`); a watcher started by the tray restarts with the new code once Arena is not running.
 
 ## Configuration
 

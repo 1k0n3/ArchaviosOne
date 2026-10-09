@@ -28,12 +28,7 @@ const GH_API = () => process.env.MTGA_STATS_GITHUB_API || "https://api.github.co
 const CODELOAD = () => process.env.MTGA_STATS_CODELOAD || "https://codeload.github.com";
 
 /** Darf dieser Ordner sich selbst ersetzen? Grund, wenn nicht. */
-function blocker(root = ROOT) {
-  if (fs.existsSync(path.join(root, ".git"))) return "Entwicklungsordner (Git) – hier wird nichts automatisch ersetzt.";
-  try { fs.accessSync(root, fs.constants.W_OK); } catch (e) { return "Programmordner ist schreibgeschützt (Flatpak/Homebrew aktualisieren sich selbst)."; }
-  if (process.platform !== "win32" && !fs.existsSync(path.join(root, "scripts", "unix", "mtga-stats"))) return "Steuerskript fehlt.";
-  return null;
-}
+function blocker(root = ROOT) { return require("./program").updateBlocker(root); }
 const enabled = () => require("./paths").readConfig().autoUpdate !== false;
 
 async function fetchText(url, headers = {}, timeoutMs = 20000) {
@@ -79,20 +74,10 @@ async function check() {
 
 /** Linux/macOS: Installer außerhalb des eigenen Dienstes starten, damit dessen Neustart ihn nicht beendet */
 function applyUnix(sha, log) {
-  const { spawn, spawnSync } = require("child_process");
   const ctl = path.join(ROOT, "scripts", "unix", "mtga-stats");
-  fs.mkdirSync(appDir(), { recursive: true });
   const logFile = path.join(appDir(), "update.log");
-  const inner = '"$0" update --auto >> "$1" 2>&1';
-  const systemd = process.platform === "linux" && spawnSync("systemd-run", ["--version"], { stdio: "ignore" }).status === 0
-    && spawnSync("systemctl", ["--user", "show-environment"], { stdio: "ignore" }).status === 0;
-  const [cmd, args] = systemd
-    ? ["systemd-run", ["--user", "--collect", "--quiet", "--unit=mtga-stats-update-" + Date.now(), "--setenv=MTGA_STATS_SHA=" + sha, "--", "bash", "-c", inner, ctl, logFile]]
-    : ["bash", ["-c", inner, ctl, logFile]];
-  const p = spawn(cmd, args, { detached: true, stdio: "ignore", cwd: ROOT, env: Object.assign({}, process.env, { MTGA_STATS_SHA: sha }) });
-  p.on("error", (e) => log("Update: " + e.message));
-  p.unref();
-  log("Update gestartet (" + (systemd ? "systemd-run" : "eigener Prozess") + "), Protokoll: " + logFile);
+  const how = require("./program").runOutside("bash", [ctl, "update", "--auto"], { env: { MTGA_STATS_SHA: sha }, logFile, name: "mtga-stats-update" });
+  log("Update gestartet (" + how + "), Protokoll: " + logFile);
 }
 
 /** Windows: Archiv laden, entpacken, Programmdateien ersetzen (Einstellungen und Daten bleiben) */
@@ -165,7 +150,8 @@ async function run({ log = () => {}, force = false } = {}) {
     return save(Object.assign({}, letzte || {}, { error: String(e.message || e) }));
   } finally { laeuft = false; }
 }
-const status = () => Object.assign({ blocked: blocker(), enabled: enabled(), current: (readJson(INFO, {}) || {}).sha || null }, letzte || {}, { blocked: blocker(), enabled: enabled() });
+const status = () => Object.assign({ blocked: blocker(), enabled: enabled(), current: (readJson(INFO, {}) || {}).sha || null }, letzte || {},
+  { blocked: blocker(), enabled: enabled(), kind: require("./program").kindOf(), platform: process.platform, version: (() => { try { return require("../package.json").version; } catch (e) { return ""; } })() });
 
 module.exports = { check, run, status, blocker, copyOver, applyWindows };
 

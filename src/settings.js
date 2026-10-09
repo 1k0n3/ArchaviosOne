@@ -176,8 +176,31 @@ function updateHandle(req, res, rest) {
   return true;
 }
 
+/**
+ * Deinstallation: was hier geht (info) und ausführen (run). Ausführen nur per POST mit JSON aus dieser
+ * Oberfläche (Prüfung in serve.js) und mit ausdrücklicher Bestätigung im Körper.
+ */
+function uninstallHandle(req, res, rest) {
+  const program = require("./program");
+  if (rest === "info" && req.method === "GET") { json(res, program.uninstallInfo()); return true; }
+  if (rest === "run" && req.method === "POST") {
+    readBody(req).then((b) => {
+      if (b.confirm !== "entfernen") { json(res, { error: "Bestätigung fehlt." }, 400); return; }
+      try {
+        const r = program.uninstall({ data: b.data === true });
+        try { fs.appendFileSync(path.join(paths.outDir(), "watch.log"), "[" + new Date().toISOString() + "] Deinstallation aus dem Dashboard gestartet" + (r.dataDeleted ? " (mit Daten)" : "") + "\n"); } catch (e) { /* egal */ }
+        json(res, { ok: true, dataDeleted: r.dataDeleted, logFile: r.logFile, info: program.uninstallInfo() });
+      } catch (e) { json(res, { error: e.message }, 409); }
+    }).catch((e) => json(res, { error: e.message }, 400));
+    return true;
+  }
+  json(res, { error: "unbekannt" }, 404);
+  return true;
+}
+
 function handle(req, res, url, port) {
   const p = url ? url.pathname : "/api/settings";
+  if (p.startsWith("/api/uninstall/")) return uninstallHandle(req, res, p.slice("/api/uninstall/".length));
   if (p.startsWith("/api/sync/")) return syncHandle(req, res, p.slice("/api/sync/".length), port);
   if (p.startsWith("/api/update/")) return updateHandle(req, res, p.slice("/api/update/".length));
   if (req.method === "GET") { json(res, info()); return true; }

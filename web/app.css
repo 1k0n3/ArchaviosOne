@@ -1994,6 +1994,18 @@ a.asst-gear { color: var(--ink-2); } a.asst-gear:hover { color: var(--gold-2); }
 .asst-modelhint { margin-top: 6px; }
 
 .sync-btns { display: flex; gap: 6px; flex: none; }
+.un-box { margin: 2px 0 14px; padding: 12px 14px; border: 1px solid var(--loss-line); border-radius: 10px; background: var(--loss-soft); font-size: 13px; }
+.un-box p { margin: 0 0 8px; }
+.un-box .hint { color: var(--ink-3); font-size: 11.5px; margin: 4px 0 10px; }
+.un-box .hint.bad { color: var(--loss-ink); }
+.un-box .sync-btns { justify-content: flex-end; }
+.un-box .cmd-row { display: flex; align-items: center; gap: 8px; }
+.un-box code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; background: rgba(0,0,0,.3); border-radius: 6px; padding: 6px 9px; font-size: 12.5px; }
+.un-check { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+button.un-go { background: var(--loss); color: #fff; border-color: transparent; }
+button.un-go:hover { filter: brightness(1.1); }
+button.un-go:disabled { opacity: .6; }
+#prog-block button:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.6); }
 .set-row .hint.bad { color: var(--loss-ink); }
 .set-block .hint { margin-top: 6px; }
 button.ghost.danger:hover { border-color: var(--loss); color: var(--loss-ink); }

@@ -98,7 +98,7 @@ Seiten ohne zweite Anmeldung verbunden bist. Ohne eingerichteten Anbieter bleibt
 - **Tray-Symbol**: Dashboard öffnen (auch per Linksklick), Status, Watcher starten/stoppen, Sammlung jetzt exportieren, Intervalle und Speicherort ändern, Protokoll öffnen.
 - **App-Fenster**: Startmenü-Eintrag „MTGA Stats Dashboard“ oder `npm run app`.
 - **Als App installieren**: `http://localhost:8765/` in Chrome oder Edge öffnen und „App installieren“ wählen.
-- **Updates**: Dateien ersetzen (neues ZIP oder `git pull`). Hat der Tray den Watcher gestartet, startet dieser mit dem neuen Stand neu, sobald Arena nicht läuft; offene Seiten danach neu laden.
+- **Updates und Deinstallation**: Im Dashboard unter *Einstellungen → Begleitprogramm → Programm*. Updates kommen automatisch (abschaltbar), „Aktualisieren“ holt sie sofort, „Deinstallieren“ entfernt das Programm auf Wunsch samt Daten. Beides passt sich der Installation an (Windows, Linux/Steam Deck, macOS; bei Flatpak und Homebrew steht dort der passende Befehl). Von Hand geht es weiter: Dateien ersetzen (neues ZIP oder `git pull`); der vom Tray gestartete Watcher startet mit dem neuen Stand neu, sobald Arena nicht läuft.
 
 ## macOS, Linux und Steam Deck
 
@@ -124,7 +124,7 @@ Er lädt den Companion nach `~/mtga-stats`, holt bei Bedarf ein portables Node.j
 
 **Alternativ aus dem ZIP:** entpacken, im entpackten Ordner ein Terminal öffnen und `bash install.sh` ausführen. Der Ordner bleibt dann der Programmordner.
 
-Steuerung: `~/mtga-stats/scripts/unix/mtga-stats start|stop|status|dashboard|log|update`, entfernen mit `bash ~/mtga-stats/install.sh --uninstall`.
+Steuerung: `~/mtga-stats/scripts/unix/mtga-stats start|stop|status|dashboard|log|update`, entfernen im Dashboard (*Einstellungen → Begleitprogramm → Deinstallieren*) oder mit `bash ~/mtga-stats/install.sh --uninstall`.
 
 Arena wird automatisch gefunden (Mac-App, jede Steam-Bibliothek mit ihrem Proton-Präfix `steamapps/compatdata/2141910`, auch auf der SD-Karte des Steam Deck, Flatpak-Steam, Wine, Lutris, Bottles). Abweichende Orte gibst du mit `MTGA_DIR` (Ordner mit `MTGA_Data`) und `MTGA_LOG_DIR` (Ordner mit `Player.log`) an.
 

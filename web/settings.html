@@ -49,6 +49,10 @@ App.load().then(async (D) => {
         <p class="muted small set-intro">${T("Verbinde dieses Gerät mit deinem Konto auf der Website. Danach landen Decks, Matches, Sammlung und der Zugang des Assistenten dort und du kannst deine Daten überall öffnen.")}</p>
         <div id="sync-body"><div class="muted small">${T("Wird geladen …")}</div></div>
       </section>
+      <section class="panel set-block" id="prog-block" data-pane="companion">
+        <h3>${T("Programm")}</h3>
+        <div id="prog-body"><div class="muted small">${T("Wird geladen …")}</div></div>
+      </section>
       <section class="panel set-block" id="watch-block" data-pane="companion">
         <h3>${T("Begleitprogramm")}</h3>
         <p class="muted small set-intro" id="watch-note">${T("Wird geladen …")}</p>
@@ -150,49 +154,130 @@ App.load().then(async (D) => {
     for (const b of A.$$(".set-tab")) if (b.dataset.tab === "info" || b.dataset.tab === "companion") b.remove();
     showTab(location.hash.slice(1) || "ki");
   }
+  /**
+   * Programm: aktualisieren und deinstallieren – passend zur Installationsart. Windows (ZIP),
+   * Linux/Steam Deck und macOS (install.sh) machen alles selbst; Flatpak und Homebrew bekommen den
+   * passenden Befehl; im Entwicklungsordner (Git) bleibt beides gesperrt.
+   */
+  async function programm(info) {
+    const pb = $("#prog-body");
+    if (!pb) return;
+    pb.innerHTML = `
+      <div class="set-row" id="up-row"><div><div class="lbl">${T("Version")} <span class="muted" id="up-ver"></span></div><div class="hint" id="up-text">${T("Wird geladen …")}</div></div>
+        <div class="sync-btns"><button type="button" class="primary small" id="up-now">${T("Aktualisieren")}</button></div></div>
+      <div class="set-row" id="up-auto-row"><div><div class="lbl">${T("Automatisch aktualisieren")}</div><div class="hint">${T("Neue Versionen werden geladen und eingespielt, sobald Arena nicht läuft. Einstellungen und Daten bleiben.")}</div></div>
+        <label class="switch"><input type="checkbox" id="up-auto" ${info.config.autoUpdate !== false ? "checked" : ""}><span></span></label></div>
+      <div class="set-row" id="un-row"><div><div class="lbl">${T("Deinstallieren")}</div><div class="hint" id="un-text">${T("Wird geladen …")}</div></div>
+        <div class="sync-btns"><button type="button" class="ghost small danger" id="un-open">${T("Deinstallieren …")}</button></div></div>
+      <div class="un-box" id="un-box" hidden></div>`;
+
+    // ---- Aktualisieren ----
+    const kurz = (x) => (x ? x.slice(0, 7) : "?");
+    const btn = $("#up-now");
+    const zeige = (u) => {
+      if (!u) return;
+      $("#up-ver").textContent = [u.version, u.current ? kurz(u.current) : ""].filter(Boolean).join(" · ");
+      const t = [];
+      if (u.blocked) t.push(T(u.blocked));
+      else if (u.error) t.push(T("Prüfung fehlgeschlagen: {e}", { e: u.error }));
+      else if (u.latest && u.available) t.push(T("Neue Version verfügbar ({a} → {b})", { a: u.current ? kurz(u.current) : T("unbekannt"), b: kurz(u.latest) }));
+      else if (u.latest) t.push(T("Aktuell ({a})", { a: kurz(u.latest) }));
+      if (u.checkedAt && !u.blocked) t.push(T("geprüft {t}", { t: A.fmtDate(u.checkedAt) + " " + A.fmtTime(u.checkedAt) }));
+      if (u.waiting) t.push(T(u.waiting));
+      $("#up-text").textContent = t.join(" · ") || T("Noch nicht geprüft.");
+      btn.disabled = !!u.blocked;
+      btn.textContent = u.available && !u.blocked ? T("Jetzt aktualisieren") : T("Aktualisieren");
+    };
+    const hol = async (method, pfad) => {
+      try { const r = await fetch(pfad, { method, headers: { "Content-Type": "application/json" }, body: method === "POST" ? "{}" : undefined }); const u = await r.json(); zeige(u); return u; }
+      catch (e) { $("#up-text").textContent = String(e.message || e); return null; }
+    };
+    hol("GET", "api/update/state");
+    btn.addEventListener("click", async () => {
+      btn.disabled = true; $("#up-text").textContent = T("Suche …");
+      let u = await hol("POST", "api/update/check");
+      if (!u || u.error || u.blocked) { btn.disabled = !!(u && u.blocked); return; }
+      if (!u.available) { $("#up-text").textContent = T("Du hast bereits die neueste Version ({a}).", { a: kurz(u.latest) }); btn.disabled = false; return; }
+      if (!confirm(T("Jetzt aktualisieren? Das Dashboard ist danach kurz nicht erreichbar; Einstellungen und Daten bleiben."))) { btn.disabled = false; return; }
+      $("#up-text").textContent = T("Update läuft …");
+      u = await hol("POST", "api/update/now");
+      // Der Watcher startet mit dem neuen Stand neu: warten, bis das Dashboard wieder antwortet, dann neu laden
+      if (!u || u.error || u.waiting || u.blocked || !u.appliedAt || Date.now() - Date.parse(u.appliedAt) > 60000) { btn.disabled = false; return; }
+      btn.disabled = true;
+      $("#up-text").textContent = T("Update läuft – die Seite lädt gleich neu.");
+      const start = Date.now();
+      // Unter Windows startet der Watcher beim nächsten Rundgang neu (bis zu 30 s), sonst sofort
+      await new Promise((ok) => setTimeout(ok, info.platform === "win32" ? 35000 : 8000));
+      while (Date.now() - start < 120000) {
+        try { const r = await fetch("api/update/state", { cache: "no-store" }); if (r.ok && !(await r.json()).available) break; } catch (e) { /* noch nicht wieder da */ }
+        await new Promise((ok) => setTimeout(ok, 3000));
+      }
+      location.reload();
+    });
+    $("#up-auto").addEventListener("change", async (ev) => {
+      const r = $("#up-auto-row");
+      try {
+        const j = await (await fetch("api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ autoUpdate: ev.target.checked }) })).json();
+        if (j.error) throw new Error(j.error);
+        r.classList.add("saved"); setTimeout(() => r.classList.remove("saved"), 1200);
+      } catch (e) { r.classList.add("bad"); setTimeout(() => r.classList.remove("bad"), 2000); }
+    });
+
+    // ---- Deinstallieren ----
+    let un = null;
+    try { un = await A.getJson("api/uninstall/info", 15000); } catch (e) { un = null; }
+    const box = $("#un-box"), open = $("#un-open");
+    const WAS = {
+      windows: T("Beendet Tray und Companion und entfernt Autostart, die Verknüpfungen im Startmenü und auf dem Desktop, das Profil des App-Fensters und die Programmdateien."),
+      linux: T("Beendet den Companion und entfernt den Hintergrunddienst, die Einträge im Anwendungsmenü und auf dem Desktop, die Profile des App-Fensters und die Programmdateien."),
+      mac: T("Beendet den Companion und entfernt den Launch-Agent, „MTGA Stats.app“ und die Programmdateien.")
+    };
+    if (!un) { $("#un-text").textContent = T("Nicht verfügbar."); open.disabled = true; return; }
+    if (!un.can) {
+      $("#un-text").textContent = T(un.hint);
+      if (un.command) {
+        open.hidden = true; box.hidden = false;
+        box.innerHTML = `<div class="cmd-row"><code>${esc(un.command)}</code><button type="button" class="ghost small" id="un-copy">${T("Kopieren")}</button></div>`;
+        $("#un-copy").addEventListener("click", async (ev) => { try { await navigator.clipboard.writeText(un.command); ev.target.textContent = T("Kopiert"); } catch (e) { /* ohne Zwischenablage */ } });
+      } else open.disabled = true;
+      return;
+    }
+    $("#un-text").textContent = WAS[un.kind] || "";
+    open.addEventListener("click", () => {
+      if (!box.hidden) { box.hidden = true; return; }
+      box.hidden = false;
+      box.innerHTML = `
+        <p>${T("Was mit deinem Website-Konto verbunden ist (Matches, Decks, Sammlung), bleibt dort erhalten.")}</p>
+        <label class="un-check"><input type="checkbox" id="un-data"> ${T("Auch meine Daten auf diesem Gerät löschen")}</label>
+        <div class="hint">${T("Sonst bleiben Matches, Replays und Einstellungen in {d}.", { d: esc(un.dataDir) })}</div>
+        <div class="sync-btns"><button type="button" class="ghost small" id="un-cancel">${T("Abbrechen")}</button><button type="button" class="small un-go" id="un-go">${T("Endgültig deinstallieren")}</button></div>`;
+      $("#un-cancel").addEventListener("click", () => { box.hidden = true; });
+      $("#un-go").addEventListener("click", async (ev) => {
+        const mitDaten = $("#un-data").checked;
+        if (!confirm(mitDaten ? T("MTGA Stats samt deinen Daten jetzt von diesem Gerät entfernen?") : T("MTGA Stats jetzt von diesem Gerät entfernen?"))) return;
+        ev.target.disabled = true;
+        try {
+          const r = await fetch("api/uninstall/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: "entfernen", data: mitDaten }) });
+          const j = await r.json();
+          if (!r.ok || j.error) throw new Error(j.error || "HTTP " + r.status);
+          // Gleich ist der Companion weg; die Seite sagt noch, was passiert ist
+          document.querySelector(".settings").innerHTML = `<section class="panel set-block un-done"><h3>${T("MTGA Stats wird entfernt")}</h3>
+            <p>${T("In wenigen Sekunden ist alles weg. Du kannst dieses Fenster jetzt schließen.")}</p>
+            ${j.dataDeleted ? "" : `<p class="muted small">${T("Deine Daten liegen weiter in {d}.", { d: esc(un.dataDir) })}</p>`}
+            <p class="muted small">${T("Wieder installieren: von der Website unter „Companion“.")}</p></section>`;
+          for (const t of A.$$(".set-tab")) t.disabled = true;
+        } catch (e) { ev.target.disabled = false; box.insertAdjacentHTML("beforeend", `<div class="hint bad">${esc(String(e.message || e))}</div>`); }
+      });
+    });
+  }
+
   if (info) {
     const byGroup = {};
-    for (const f of info.fields) (byGroup[f.group] = byGroup[f.group] || []).push(f);
+    for (const f of info.fields) if (f.group !== "update") (byGroup[f.group] = byGroup[f.group] || []).push(f);
     $("#watch-fields").innerHTML = Object.entries(byGroup).map(([g, list]) =>
       `<div class="set-group"><div class="set-group-t">${esc(GROUPS[g] || g)}</div>${list.map((f) => row(f, info.config[f.key])).join("")}</div>`).join("");
     A.enhanceSelects($("#watch-fields"));
-    // Updates: Stand und Knöpfe unter dem Schalter
-    const upRow = $("#watch-fields .set-row[data-key=autoUpdate]");
-    if (upRow) {
-      upRow.insertAdjacentHTML("afterend", `<div class="set-row" id="up-state"><div><div class="lbl">${T("Programmstand")}</div><div class="hint" id="up-text">${T("Wird geladen …")}</div></div>
-        <div class="sync-btns"><button type="button" class="ghost small" id="up-check">${T("Nach Updates suchen")}</button><button type="button" class="primary small" id="up-now" hidden>${T("Jetzt aktualisieren")}</button></div></div>`);
-      const kurz = (s) => (s ? s.slice(0, 7) : "?");
-      const zeige = (u) => {
-        const t = [];
-        if (u.error) t.push(T("Prüfung fehlgeschlagen: {e}", { e: u.error }));
-        else if (u.latest && u.available) t.push(T("Neue Version verfügbar ({a} → {b})", { a: u.current ? kurz(u.current) : T("unbekannt"), b: kurz(u.latest) }));
-        else if (u.latest) t.push(T("Aktuell ({a})", { a: kurz(u.latest) }));
-        if (u.checkedAt) t.push(T("geprüft {t}", { t: A.fmtDate(u.checkedAt) + " " + A.fmtTime(u.checkedAt) }));
-        if (u.waiting) t.push(T(u.waiting));
-        if (u.blocked) t.push(T(u.blocked));
-        $("#up-text").textContent = t.join(" · ") || T("Noch nicht geprüft.");
-        $("#up-now").hidden = !(u.available && !u.blocked);
-      };
-      const hol = async (method, pfad) => { try { const r = await fetch(pfad, { method, headers: { "Content-Type": "application/json" }, body: method === "POST" ? "{}" : undefined }); const u = await r.json(); zeige(u); return u; } catch (e) { $("#up-text").textContent = String(e.message || e); return null; } };
-      hol("GET", "api/update/state");
-      $("#up-check").addEventListener("click", async (ev) => { ev.target.disabled = true; $("#up-text").textContent = T("Suche …"); await hol("POST", "api/update/check"); ev.target.disabled = false; });
-      $("#up-now").addEventListener("click", async (ev) => {
-        if (!confirm(T("Jetzt aktualisieren? Das Dashboard ist danach kurz nicht erreichbar; Einstellungen und Daten bleiben."))) return;
-        ev.target.disabled = true; $("#up-text").textContent = T("Update läuft …");
-        const u = await hol("POST", "api/update/now");
-        // Der Watcher startet mit dem neuen Stand neu: warten, bis das Dashboard wieder antwortet, dann neu laden
-        if (!u || u.error || u.waiting || u.blocked || !u.appliedAt || Date.now() - Date.parse(u.appliedAt) > 60000) { ev.target.disabled = false; return; }
-        $("#up-text").textContent = T("Update läuft – die Seite lädt gleich neu.");
-        const start = Date.now();
-        // Unter Windows startet der Watcher beim nächsten Rundgang neu (bis zu 30 s), sonst sofort
-        await new Promise((ok) => setTimeout(ok, /Windows/.test(navigator.userAgent) ? 35000 : 8000));
-        while (Date.now() - start < 120000) {
-          try { const r = await fetch("api/update/state", { cache: "no-store" }); if (r.ok && !(await r.json()).available) break; } catch (e) { /* noch nicht wieder da */ }
-          await new Promise((ok) => setTimeout(ok, 3000));
-        }
-        location.reload();
-      });
-    }
+    programm(info);
     $("#watch-note").innerHTML = T("Änderungen gelten, sobald der Watcher neu startet (Tray-Menü: stoppen, dann starten).") + ` <span class="muted">${esc(info.file)}</span>`;
 
     const save = A.debounce(async (key, value, el) => {
