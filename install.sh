@@ -39,6 +39,8 @@ if [ "$UNINSTALL" = 1 ]; then
     systemctl --user disable --now mtga-stats.service >/dev/null 2>&1 || true
     rm -f "$HOME_DIR/.config/systemd/user/mtga-stats.service" "$HOME_DIR/.local/share/applications/mtga-stats.desktop" "$HOME_DIR/Desktop/MTGA Stats.desktop"
     systemctl --user daemon-reload >/dev/null 2>&1 || true; ok "Dienst und Verknüpfungen entfernt"
+    # Browserprofile des App-Fensters (Flatpak- und Snap-Browser dürfen nur in ihre eigenen Ordner)
+    rm -rf "$HOME_DIR"/.var/app/*/mtga-stats-app "$HOME_DIR"/snap/*/common/mtga-stats-app; ok "Profile des App-Fensters entfernt"
   fi
   echo "    Deine Daten in $ROOT/out und das portable Node in $APP_DIR bleiben erhalten (bei Bedarf löschen)."
   exit 0
